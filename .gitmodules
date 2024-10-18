@@ -1,0 +1,3 @@
+[submodule "Neural_PDE"]
+	path = Neural_PDE
+	url = git@github.com:gitvicky/Neural_PDE.git

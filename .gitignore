@@ -1,0 +1,36 @@
+#previous files
+tests
+
+#simvue files
+simvue.ini
+simvue.toml
+
+#Saved Models
+Models/
+*.pth
+
+#Venv
+venv/
+
+#Saved Plot
+Plots/
+*.png
+*.pdf
+*.svg
+
+#SLURM files
+*.file
+*.out
+
+#Log files
+*.log
+
+#Submission Script
+*.sh
+
+#Data
+Data/
+*.npy
+*.npz
+*.h5
+
