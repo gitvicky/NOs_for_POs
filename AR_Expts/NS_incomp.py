@@ -5,38 +5,11 @@ Incompressible Navier-Stokes - PDEBench
 PDEBench Data subsampled in Data/data_extraction.py --> NS_incomp_velocity_Nt_Nx_Ny_N_vars
 """
 
-# %%
-# #FNO
-# configuration = {"Case": 'Incomp. Navier-Stokes',
-#                  "Field": 'u, v',
-#                  "Model": 'FNO',
-#                  "Epochs": 500,
-#                  "Batch Size": 5,
-#                  "Optimizer": 'Adam',
-#                  "Learning Rate": 0.005,
-#                  "Scheduler Step": 100,
-#                  "Scheduler Gamma": 0.5,
-#                  "Activation": 'GeLU',
-#                  "Physics Normalisation": 'No',
-#                  "Normalisation Strategy": 'Min-Max',
-#                  "Nx": 128,
-#                  "Ny": 128,
-#                  "Nt": 100, 
-#                  "T_in": 1,    
-#                  "T_out": 50,
-#                  "Step": 1,
-#                  "Width_time": 16, 
-#                  "Modes": 8,
-#                  "Variables": 2, 
-#                  "Loss Function": 'LP',
-#                  "POs": False,
-#                  "Rollout": 'Autoregressive'
-#                  }
-
-#ViT
+#%%
+#FNO
 configuration = {"Case": 'Incomp. Navier-Stokes',
                  "Field": 'u, v',
-                 "Model": 'ViT',
+                 "Model": 'FNO',
                  "Epochs": 500,
                  "Batch Size": 5,
                  "Optimizer": 'Adam',
@@ -52,15 +25,42 @@ configuration = {"Case": 'Incomp. Navier-Stokes',
                  "T_in": 1,    
                  "T_out": 50,
                  "Step": 1,
-                 "Patch Size": 16,
-                 "Embedded Dim": 128,
-                 "Depth": 4,
-                 "Heads": 4,
+                 "Width_time": 16, 
+                 "Modes": 8,
                  "Variables": 2, 
                  "Loss Function": 'LP',
                  "POs": False,
                  "Rollout": 'Autoregressive'
                  }
+
+# #ViT
+# configuration = {"Case": 'Incomp. Navier-Stokes',
+#                  "Field": 'u, v',
+#                  "Model": 'ViT',
+#                  "Epochs": 1,
+#                  "Batch Size": 5,
+#                  "Optimizer": 'Adam',
+#                  "Learning Rate": 0.005,
+#                  "Scheduler Step": 100,
+#                  "Scheduler Gamma": 0.5,
+#                  "Activation": 'GeLU',
+#                  "Physics Normalisation": 'No',
+#                  "Normalisation Strategy": 'Min-Max',
+#                  "Nx": 128,
+#                  "Ny": 128,
+#                  "Nt": 100, 
+#                  "T_in": 1,    
+#                  "T_out": 50,
+#                  "Step": 1,
+#                  "Patch Size": 16,
+#                  "Embedded Dim": 128,
+#                  "Depth": 4,
+#                  "Heads": 4,
+#                  "Variables": 2, 
+#                  "Loss Function": 'LP',
+#                  "POs": False,
+#                  "Rollout": 'Autoregressive'
+#                  }
 
 # %%
 #Setting up simvue 
@@ -177,6 +177,40 @@ test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in
 t2 = default_timer()
 print('preprocessing finished, time used:', t2-t1)
 
+# %%
+#Using the normalisations from the previous setup 
+
+norm_strategy = configuration['Normalisation Strategy']
+
+if norm_strategy == 'Min-Max':
+    normalizer = MinMax_Normalizer
+elif norm_strategy == 'Range':
+    normalizer = RangeNormalizer
+elif norm_strategy == 'Gaussian':
+    normalizer = GaussianNormalizer
+
+#Setting up train and test
+ntrain = 80
+ntest = 20 
+train_a = uv[:ntrain,...,:configuration['T_in']]
+train_u = uv[:ntrain,...,configuration['T_in']:configuration['T_out']+configuration['T_in']]
+
+test_a = uv[-ntest:,...,:configuration['T_in']]
+test_u = uv[-ntest:,...,configuration['T_in']:configuration['T_out']+configuration['T_in']]
+
+a_normalizer = normalizer(train_a)
+u_normalizer = normalizer(train_u)
+
+train_in = a_normalizer.encode(train_a)
+test_in = a_normalizer.encode(test_a)
+
+train_out = u_normalizer.encode(train_u)
+test_out = u_normalizer.encode(test_u)
+
+#Setting up the data loaders
+train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Batch Size'], shuffle=True)
+test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Batch Size'], shuffle=False)
+
 # %% 
 ####################################
 # Setting up the Model and Optimizers 
@@ -265,9 +299,14 @@ if configuration['Model'] == 'FNO':
     test_out = test_out.permute(0,1,4,2,3)
     pred_set = pred_set.permute(0,1,4,2,3)
 
+if configuration['Model'] == 'ViT':
+    test_out = test_out.permute(0,1,4,2,3)
+    pred_set = pred_set.permute(0,1,4,2,3)
+
+
 # %% 
 #Plotting the results 
-from utils import plots_2d
+from Utils.utils import plots_2d
 idx = 0 
 plots_2d(configuration, test_out, pred_set, plot_loc, run, idx)
 

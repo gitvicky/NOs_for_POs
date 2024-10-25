@@ -1,0 +1,44 @@
+
+seed: 0471
+
+physics: 
+  pde: 'Incomp. Navier-Stokes'
+  field: 'u, v'
+  Nx: 128
+  Ny: 128
+  Nt: 100
+  rollout: 'Autoregressive'
+  physical_operators: False
+
+model:
+  arch: 'FNO'
+  modes: 8
+  width: 16
+  variables: 2
+  act: 'gelu'
+  normalisation: 'Min-Max'
+
+data: 
+  name: 'NS_incomp_velocity_100_128_128.npy'
+  t_in: 1
+  t_out: 50
+  step: 1
+  batch_size: 5
+
+opt:
+  optimizer: 'adam'
+  n_epochs: 500
+  learning_rate: 0.005
+  beta1: 0.9
+  beta2: 0.9
+  weight_decay: 1e-4
+  scheduler: 'step'  # Or 'CosineAnnealingLR' OR 'ReduceLROnPlateau'
+  scheduler_gamma: 0.5
+  grad_clip: 2.0
+
+loss: 'LP'
+
+simvue:
+  mode: 'online'
+  name: None # If None, config will be used but you can override it here
+  folder: '/Neural_PDE/tests' 

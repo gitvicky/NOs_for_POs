@@ -12,8 +12,8 @@ def plots_2d(configuration, test_out, pred_set, plot_loc, run, idx=0):
         v_min_1 = torch.min(u_field[0, 0])
         v_max_1 = torch.max(u_field[0, 0])
 
-        v_min_2 = torch.min(u_field[0,  int(configuration['T_out']/ 2)])
-        v_max_2 = torch.max(u_field[0,  int(configuration['T_out']/ 2)])
+        v_min_2 = torch.min(u_field[0,  configuration['T_out'] // 2])
+        v_max_2 = torch.max(u_field[0,  configuration['T_out'] // 2])
 
         v_min_3 = torch.min(u_field[0,  -1])
         v_max_3 = torch.max(u_field[0,  -1])
@@ -23,14 +23,14 @@ def plots_2d(configuration, test_out, pred_set, plot_loc, run, idx=0):
         pcm = ax.imshow(u_field[0], cmap=matplotlib.cm.coolwarm, vmin=v_min_1, vmax=v_max_1)
         # ax.title.set_text('Initial')
         ax.title.set_text('t=' + str(configuration['T_in']))
-        ax.set_ylabel('Solution -  ' + configuration['Field'][var])
+        ax.set_ylabel('Solution -  ' + field[var])
         fig.colorbar(pcm, pad=0.05)
 
         ax = fig.add_subplot(2, 3, 2)
-        pcm = ax.imshow(u_field[int(configuration['T_out']/ 2)], cmap=matplotlib.cm.coolwarm, vmin=v_min_2,
+        pcm = ax.imshow(u_field[configuration['T_out'] // 2], cmap=matplotlib.cm.coolwarm, vmin=v_min_2,
                         vmax=v_max_2)
         # ax.title.set_text('Middle')
-        ax.title.set_text('t=' + str(int((configuration['T_out']+ configuration['T_in']) / 2)))
+        ax.title.set_text('t=' + str((configuration['T_out']+ configuration['T_in']) // 2))
         ax.axes.xaxis.set_ticks([])
         ax.axes.yaxis.set_ticks([])
         fig.colorbar(pcm, pad=0.05)
@@ -38,7 +38,7 @@ def plots_2d(configuration, test_out, pred_set, plot_loc, run, idx=0):
         ax = fig.add_subplot(2, 3, 3)
         pcm = ax.imshow(u_field[ -1], cmap=matplotlib.cm.coolwarm, vmin=v_min_3, vmax=v_max_3)
         # ax.title.set_text('Final')
-        ax.title.set_text('t=' + str(configuration['T_out']+ configuration['T_in']))
+        ax.title.set_text('t=' + str(configuration['T_out']))
         ax.axes.xaxis.set_ticks([])
         ax.axes.yaxis.set_ticks([])
         fig.colorbar(pcm, pad=0.05)
@@ -47,7 +47,7 @@ def plots_2d(configuration, test_out, pred_set, plot_loc, run, idx=0):
 
         ax = fig.add_subplot(2, 3, 4)
         pcm = ax.imshow(u_field[0], cmap=matplotlib.cm.coolwarm, vmin=v_min_1, vmax=v_max_1)
-        ax.set_ylabel('FNO' )
+        ax.set_ylabel(configuration['Model'])
 
         fig.colorbar(pcm, pad=0.05)
 
