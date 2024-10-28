@@ -241,7 +241,7 @@ epochs = configuration['Epochs']
 
 #Setting up the Training pipeline
 from Utils import explicit_time
-train_pipeline = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Rollout'])
+train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Rollout'])
 
 # %% 
 ####################################
@@ -253,7 +253,7 @@ for ep in range(epochs): #Training Loop - Epochwise
 
     model.train()
     t1 = default_timer()
-    train_loss, test_loss = train_pipeline.train_one_epoch(configuration['Step'], configuration['T_out'])
+    train_loss, test_loss = train.one_epoch(configuration['Step'], configuration['T_out'])
     t2 = default_timer()
 
     train_loss = train_loss / len(train_loader)
@@ -274,7 +274,7 @@ train_time = default_timer() - start_time
 
 #Evaluation 
 eval = explicit_time.Eval_Setup(model, test_in, test_out)
-pred_encoded, error = eval.evaluate(configuration['Step'], configuration['T_out'])
+pred_encoded, error = eval.inference(configuration['Step'], configuration['T_out'])
 
 print('(MSE) Testing Error: %.3e' % (error))
 
