@@ -25,12 +25,12 @@ configuration = {"Case": 'Incomp. Navier-Stokes',
                  "T_in": 1,    
                  "T_out": 50,
                  "Step": 1,
-                 "Width_time": 16, 
+                 "Width": 16, 
                  "Modes": 8,
                  "Variables": 2, 
                  "Loss Function": 'LP',
                  "POs": False,
-                 "Rollout": 'Autoregressive'
+                 "Rollout": 'AR'
                  }
 
 # #ViT
@@ -178,38 +178,38 @@ t2 = default_timer()
 print('preprocessing finished, time used:', t2-t1)
 
 # %%
-#Using the normalisations from the previous setup 
+# #Using the normalisations from the previous setup 
 
-norm_strategy = configuration['Normalisation Strategy']
+# norm_strategy = configuration['Normalisation Strategy']
 
-if norm_strategy == 'Min-Max':
-    normalizer = MinMax_Normalizer
-elif norm_strategy == 'Range':
-    normalizer = RangeNormalizer
-elif norm_strategy == 'Gaussian':
-    normalizer = GaussianNormalizer
+# if norm_strategy == 'Min-Max':
+#     normalizer = MinMax_Normalizer
+# elif norm_strategy == 'Range':
+#     normalizer = RangeNormalizer
+# elif norm_strategy == 'Gaussian':
+#     normalizer = GaussianNormalizer
 
-#Setting up train and test
-ntrain = 80
-ntest = 20 
-train_a = uv[:ntrain,...,:configuration['T_in']]
-train_u = uv[:ntrain,...,configuration['T_in']:configuration['T_out']+configuration['T_in']]
+# #Setting up train and test
+# ntrain = 80
+# ntest = 20 
+# train_a = uv[:ntrain,...,:configuration['T_in']]
+# train_u = uv[:ntrain,...,configuration['T_in']:configuration['T_out']+configuration['T_in']]
 
-test_a = uv[-ntest:,...,:configuration['T_in']]
-test_u = uv[-ntest:,...,configuration['T_in']:configuration['T_out']+configuration['T_in']]
+# test_a = uv[-ntest:,...,:configuration['T_in']]
+# test_u = uv[-ntest:,...,configuration['T_in']:configuration['T_out']+configuration['T_in']]
 
-a_normalizer = normalizer(train_a)
-u_normalizer = normalizer(train_u)
+# a_normalizer = normalizer(train_a)
+# u_normalizer = normalizer(train_u)
 
-train_in = a_normalizer.encode(train_a)
-test_in = a_normalizer.encode(test_a)
+# train_in = a_normalizer.encode(train_a)
+# test_in = a_normalizer.encode(test_a)
 
-train_out = u_normalizer.encode(train_u)
-test_out = u_normalizer.encode(test_u)
+# train_out = u_normalizer.encode(train_u)
+# test_out = u_normalizer.encode(test_u)
 
-#Setting up the data loaders
-train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Batch Size'], shuffle=True)
-test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Batch Size'], shuffle=False)
+# #Setting up the data loaders
+# train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Batch Size'], shuffle=True)
+# test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Batch Size'], shuffle=False)
 
 # %% 
 ####################################
@@ -223,7 +223,7 @@ if configuration['Model'] == 'FNO':
                         configuration['Modes'], 
                         configuration['Modes'], 
                         configuration['Variables'], 
-                        configuration['Width_time']
+                        configuration['Width']
                         )
     
 if configuration['Model'] == 'ViT':
@@ -248,19 +248,21 @@ scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['
 loss_func = LpLoss(size_average=False)
 epochs = configuration['Epochs']
 
+#Setting up the Training pipeline
+from Utils import explicit_time
+train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Rollout'])
+
 # %% 
 ####################################
 #Training
 ####################################
-if configuration['Rollout'] == 'Autoregressive':
-    train_step = train_one_epoch_AR
 
 start_time = default_timer()
 for ep in range(epochs): #Training Loop - Epochwise
 
     model.train()
     t1 = default_timer()
-    train_loss, test_loss = train_step(model, train_loader, test_loader, loss_func, optimizer, configuration['Step'], configuration['T_out']-1)
+    train_loss, test_loss = train.one_epoch(configuration['Step'], configuration['T_out']-1)
     t2 = default_timer()
 
     train_loss = train_loss / len(train_loader)
@@ -279,21 +281,20 @@ train_time = default_timer() - start_time
 # torch.save( model.state_dict(), saved_model)
 # run.save_file(saved_model, 'output')
 
-#Validation
-if configuration['Rollout'] == 'Autoregressive':
-    pred_encoded, mse, mae = validation_AR(model, test_in, test_out, configuration['Step'], configuration['T_out']-1)
+#Evaluation 
+eval = explicit_time.Eval_Setup(model, test_in, test_out)
+pred_encoded, error = eval.inference(configuration['Step'], configuration['T_out']-1)
 
-print('(MSE) Testing Error: %.3e' % (mse))
-print('(MAE) Testing Error: %.3e' % (mae))
+print('(MSE) Testing Error: %.3e' % (error))
 
 run.update_metadata({'Training Time': float(train_time),
-                     'MSE Test Error': float(mse),
-                     'MAE Test Error': float(mae)
+                     'MSE Test Error': float(error)
                     })
 
 #Denormalising the test and predictions
 test_out = normalizer.decode(test_out.to(device)).cpu()
 pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
+
 
 if configuration['Model'] == 'FNO':
     test_out = test_out.permute(0,1,4,2,3)
@@ -306,7 +307,7 @@ if configuration['Model'] == 'ViT':
 
 # %% 
 #Plotting the results 
-from Utils.utils import plots_2d
+from Utils.plots import plots_2d
 idx = 0 
 plots_2d(configuration, test_out, pred_set, plot_loc, run, idx)
 

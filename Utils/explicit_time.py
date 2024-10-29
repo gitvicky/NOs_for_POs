@@ -20,10 +20,11 @@ from tqdm import tqdm
 from timeit import default_timer
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+max_grad_clip_norm = 10000.0   
 # %% 
 #Options for temporal propagation. 
-def autoregressive(model, u_n, dt):
+
+def autoregressive(model, u_n, dt=0):
     u_new = model(u_n)
     return u_new
 
@@ -45,7 +46,6 @@ def rk4(model, u_n, dt):
 #Setting up the training pipeline. 
 class Train_Setup():
     def __init__(self, model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs, roll_out='AR'): #roll_out = AR, Euler, RK4
-        self.model.train()
         super(Train_Setup, self).__init__()
 
         self.model = model
@@ -65,9 +65,10 @@ class Train_Setup():
             self.forward = rk4
 
         self.grad_clip = 2.0
+        self.model.train()
 
 
-    def train_one_epoch(self, step, T_out, dt=0):
+    def one_epoch(self, step, T_out, dt=0):
         
         train_l2_step = 0
         train_l2_full = 0
@@ -81,7 +82,7 @@ class Train_Setup():
 
             for t in range(0, T_out, step):
                 y = yy[..., t:t + step]
-                im = self.forward(xx, dt)
+                im = self.forward(self.model, xx, dt)
 
                 #Recon Loss
                 loss += self.loss_func(im.reshape(batch_size, -1), y.reshape(batch_size, -1))
@@ -98,7 +99,7 @@ class Train_Setup():
             train_l2_full += l2_full.item()
 
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(parameters=self.model.parameters(), max_norm=self.max_grad_clip, norm_type=2.0)
+            torch.nn.utils.clip_grad_norm_(parameters=self.model.parameters(), max_norm=max_grad_clip_norm, norm_type=2.0)
             self.optimizer.step()
 
         train_loss = train_l2_full 
@@ -112,7 +113,7 @@ class Train_Setup():
 
                 for t in range(0, T_out, step):
                     y = yy[..., t:t + step]
-                    out = self.forward(xx, dt)
+                    out = self.forward(self.model, xx, dt)
 
                     if t == 0:
                         pred = out
@@ -144,7 +145,6 @@ class Train_Setup():
 # %%
 class Eval_Setup():
     def __init__(self, model, test_in, test_out, normalizer = 'False', roll_out='AR'): #roll_out = AR, Euler, RK4
-        self.model.train()
         super(Eval_Setup, self).__init__()
 
         self.model = model
@@ -160,8 +160,10 @@ class Eval_Setup():
             self.forward = euler
         elif roll_out == 'RK4':
             self.forward = rk4
+        
+        self.model.eval()
 
-    def evaluate(self, step, T_out, eval_metric = 'MSE', dt=0):
+    def inference(self, step, T_out, eval_metric = 'MSE', dt=0):
         pred_set = torch.zeros(self.test_out.shape)
         index = 0
         with torch.no_grad():
@@ -170,7 +172,7 @@ class Eval_Setup():
                 xx, yy = xx.to(device), yy.to(device)
                 for t in range(0, T_out, step):
                     y = yy[..., t:t + step]
-                    out = self.forward(self.model(xx), dt)
+                    out = self.forward(self.model, xx, dt)
 
                     if t == 0:
                         pred = out

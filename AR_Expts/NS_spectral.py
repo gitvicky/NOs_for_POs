@@ -127,9 +127,9 @@ t1 = default_timer()
 data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
 data =  np.load(data_loc + '/NS_Spectral_combined.npz')
 
-u = data['u'].astype(np.float32)[:4]
-v = data['v'].astype(np.float32)[:4]
-p = data['p'].astype(np.float32)[:4]
+u = data['u'].astype(np.float32)
+v = data['v'].astype(np.float32)
+p = data['p'].astype(np.float32)
 
 def stacked_fields(variables):
     stack = []
@@ -140,67 +140,68 @@ def stacked_fields(variables):
     stack = torch.stack(stack, dim=1)
     return stack
 
-uv = stacked_fields([u,v,p])
+uv = stacked_fields([u,v,p])[:400]
 
 # %%
-# #Normalising the data -- using the same normalisations for inputs and outputs
-# normalizer_func = Normalisation(configuration['Normalisation Strategy'])
-# normalizer = normalizer_func(uv)
-# uv_encoded = normalizer.encode(uv)
+#Normalising the data -- using the same normalisations for inputs and outputs
+normalizer_func = Normalisation(configuration['Normalisation Strategy'])
+normalizer = normalizer_func(uv)
+uv_encoded = normalizer.encode(uv)
+
+#Setting up train and test
+from sklearn.model_selection import train_test_split
+train_in, test_in, train_out, test_out = train_test_split(uv_encoded[...,:configuration['T_in']], uv_encoded[...,configuration['T_in']:configuration['T_out']], test_size=0.5, random_state=42)
+print("Training Input: " + str(train_in.shape))
+print("Training Output: " + str(train_out.shape))
+
+#Saving Normalisation 
+saved_normalisations = model_loc + '/' + configuration['Model'] + '_' + configuration['Case'] + '_' + run.name + '_' + 'norms.npz'
+np.savez(saved_normalisations, 
+        in_a=normalizer.a.numpy(), in_b=normalizer.b.numpy(), 
+        )
+run.save_file(saved_normalisations, 'output')
+
+#Setting up the data loaders
+train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Batch Size'], shuffle=True)
+test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Batch Size'], shuffle=False)
+
+t2 = default_timer()
+print('preprocessing finished, time used:', t2-t1)
+
+# %%
+# #Using the normalisations from the previous setup 
+
+# norm_strategy = configuration['Normalisation Strategy']
+
+# if norm_strategy == 'Min-Max':
+#     normalizer = MinMax_Normalizer
+# elif norm_strategy == 'Range':
+#     normalizer = RangeNormalizer
+# elif norm_strategy == 'Gaussian':
+#     normalizer = GaussianNormalizer
 
 # #Setting up train and test
-# from sklearn.model_selection import train_test_split
-# train_in, test_in, train_out, test_out = train_test_split(uv_encoded[...,:configuration['T_in']], uv_encoded[...,configuration['T_in']:configuration['T_out']], test_size=0.2, random_state=42)
-# print("Training Input: " + str(train_in.shape))
-# print("Training Output: " + str(train_out.shape))
+# ntrain = 200
+# ntest = 200
+# train_a = uv[:ntrain,...,:configuration['T_in']]
+# train_u = uv[:ntrain,...,configuration['T_in']:configuration['T_out']+configuration['T_in']]
 
-# #Saving Normalisation 
-# saved_normalisations = model_loc + '/' + configuration['Model'] + '_' + configuration['Case'] + '_' + run.name + '_' + 'norms.npz'
-# np.savez(saved_normalisations, 
-#         in_a=normalizer.a.numpy(), in_b=normalizer.b.numpy(), 
-#         )
-# run.save_file(saved_normalisations, 'output')
+# test_a = uv[-ntest:,...,:configuration['T_in']]
+# test_u = uv[-ntest:,...,configuration['T_in']:configuration['T_out']+configuration['T_in']]
+
+# a_normalizer = normalizer(train_a)
+# u_normalizer = normalizer(train_u)
+
+# train_in = a_normalizer.encode(train_a)
+# test_in = a_normalizer.encode(test_a)
+
+# train_out = u_normalizer.encode(train_u)
+# test_out = u_normalizer.encode(test_u)
 
 # #Setting up the data loaders
 # train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Batch Size'], shuffle=True)
 # test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Batch Size'], shuffle=False)
 
-# t2 = default_timer()
-# print('preprocessing finished, time used:', t2-t1)
-
-# %%
-#Using the normalisations from the previous setup 
-
-norm_strategy = configuration['Normalisation Strategy']
-
-if norm_strategy == 'Min-Max':
-    normalizer = MinMax_Normalizer
-elif norm_strategy == 'Range':
-    normalizer = RangeNormalizer
-elif norm_strategy == 'Gaussian':
-    normalizer = GaussianNormalizer
-
-#Setting up train and test
-ntrain = 200
-ntest = 200
-train_a = uv[:ntrain,...,:configuration['T_in']]
-train_u = uv[:ntrain,...,configuration['T_in']:configuration['T_out']+configuration['T_in']]
-
-test_a = uv[-ntest:,...,:configuration['T_in']]
-test_u = uv[-ntest:,...,configuration['T_in']:configuration['T_out']+configuration['T_in']]
-
-a_normalizer = normalizer(train_a)
-u_normalizer = normalizer(train_u)
-
-train_in = a_normalizer.encode(train_a)
-test_in = a_normalizer.encode(test_a)
-
-train_out = u_normalizer.encode(train_u)
-test_out = u_normalizer.encode(test_u)
-
-#Setting up the data loaders
-train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Batch Size'], shuffle=True)
-test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Batch Size'], shuffle=False)
 
 # %% 
 ####################################
@@ -253,7 +254,7 @@ for ep in range(epochs): #Training Loop - Epochwise
 
     model.train()
     t1 = default_timer()
-    train_loss, test_loss = train.one_epoch(configuration['Step'], configuration['T_out'])
+    train_loss, test_loss = train.one_epoch(configuration['Step'], configuration['T_out']-1)
     t2 = default_timer()
 
     train_loss = train_loss / len(train_loader)
@@ -274,7 +275,7 @@ train_time = default_timer() - start_time
 
 #Evaluation 
 eval = explicit_time.Eval_Setup(model, test_in, test_out)
-pred_encoded, error = eval.inference(configuration['Step'], configuration['T_out'])
+pred_encoded, error = eval.inference(configuration['Step'], configuration['T_out']-1)
 
 print('(MSE) Testing Error: %.3e' % (error))
 
@@ -283,8 +284,8 @@ run.update_metadata({'Training Time': float(train_time),
                     })
 
 #Denormalising the test and predictions
-test_out = u_normalizer.decode(test_out.to(device)).cpu()
-pred_set = u_normalizer.decode(pred_encoded.to(device)).cpu()
+test_out = normalizer.decode(test_out.to(device)).cpu()
+pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
 
 
 if configuration['Model'] == 'FNO':
