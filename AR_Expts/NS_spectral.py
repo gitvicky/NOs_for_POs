@@ -2,75 +2,41 @@
 # -*- coding: utf-8 -*-
 """
 Navier-Stokes Spectral solver - NeuralPDE library 
-
 """
-
-#%%
-#FNO
-configuration = {"Case": 'Navier-Stokes',
-                 "Field": 'u, v, p',
-                 "Model": 'FNO',
-                 "Epochs": 500,
-                 "Batch Size": 5,
-                 "Optimizer": 'Adam',
-                 "Learning Rate": 0.005,
-                 "Scheduler Step": 100,
-                 "Scheduler Gamma": 0.5,
-                 "Activation": 'GeLU',
-                 "Physics Normalisation": 'No',
-                 "Normalisation Strategy": 'Min-Max',
-                 "Nx": 100,
-                 "Ny": 100,
-                 "Nt": 50, 
-                 "T_in": 1,    
-                 "T_out": 20,
-                 "Step": 1,
-                 "Width": 16, 
-                 "Modes": 8,
-                 "Variables": 3, 
-                 "Loss Function": 'LP',
-                 "POs": False,
-                 "Rollout": 'AR'
-                 }
-
-# #ViT
-# configuration = {"Case": 'Incomp. Navier-Stokes',
-#                  "Field": 'u, v',
-#                  "Model": 'ViT',
-#                  "Epochs": 1,
-#                  "Batch Size": 5,
-#                  "Optimizer": 'Adam',
-#                  "Learning Rate": 0.005,
-#                  "Scheduler Step": 100,
-#                  "Scheduler Gamma": 0.5,
-#                  "Activation": 'GeLU',
-#                  "Physics Normalisation": 'No',
-#                  "Normalisation Strategy": 'Min-Max',
-#                  "Nx": 128,
-#                  "Ny": 128,
-#                  "Nt": 100, 
-#                  "T_in": 1,    
-#                  "T_out": 50,
-#                  "Step": 1,
-#                  "Patch Size": 16,
-#                  "Embedded Dim": 128,
-#                  "Depth": 4,
-#                  "Heads": 4,
-#                  "Variables": 2, 
-#                  "Loss Function": 'LP',
-#                  "POs": False,
-#                  "Rollout": 'Autoregressive'
-#                  }
-
 # %%
 #Setting up simvue 
 import os
-from simvue import Run
+import yaml 
+import argparse
+from omegaconf import DictConfig, OmegaConf
+
+import sys
+sys.path.append("..")
+from Utils.simvue_utils import flatten_dict
+
+#Config files.
+def parse_args():
+    parser = argparse.ArgumentParser(description='Training script with YAML config')
+    parser.add_argument('--config', type=str, required=True, help='Path to config YAML file')
+    return parser.parse_args()
+
+args = parse_args()
+with open(args.config, 'r') as f:
+    configuration = yaml.safe_load(f)
+
+run_config = flatten_dict(configuration)
+# %% 
+from simvue import Run, Client
 run = Run(mode='online')
-run.init(folder="/Neural_PDE/tests", tags=['NPDE', configuration['Model'], 'POs4NOs', 'NS_incomp', configuration['Rollout'], 'Tests'], metadata=configuration)
+run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Physics']['rollout'], 'Tests'], metadata=run_config)
+
+#setting up the client API 
+client = Client()
 
 #Saving the current run file and the git hash of the repo
 run.save_file(os.path.abspath(__file__), 'code')
+run.save_file(os.path.abspath(args.config), 'code')
+
 import git
 repo = git.Repo(search_parent_directories=True)
 sha = repo.head.object.hexsha
@@ -92,16 +58,16 @@ from tqdm import tqdm
 
 # %%
 #Importing the models and utilities. 
-import sys
-sys.path.append("..")
-if configuration['Model'] == 'FNO':
+
+if configuration['Model']['arch'] == 'FNO':
     from Neural_PDE.Models.FNO import *
-elif configuration['Model'] == 'ViT':
+elif configuration['Model']['arch'] == 'ViT':
     from Neural_PDE.Models.ViT import * 
+elif configuration['Model']['arch'] == 'CNO':
+    from Neural_PDE.Models.CNO import * 
 
 from Neural_PDE.Utils.processing_utils import * 
 from Neural_PDE.Utils.training_utils import * 
-from Neural_PDE.UQ.inductive_cp import * 
 
 # %% 
 #Setting up locations. 
@@ -140,67 +106,33 @@ def stacked_fields(variables):
     stack = torch.stack(stack, dim=1)
     return stack
 
-uv = stacked_fields([u,v,p])[:400]
+uv = stacked_fields([u,v,p])[:configuration['Data']['ntrain']]
 
 # %%
 #Normalising the data -- using the same normalisations for inputs and outputs
-normalizer_func = Normalisation(configuration['Normalisation Strategy'])
+normalizer_func = Normalisation(configuration['Data']['normalisation'])
 normalizer = normalizer_func(uv)
 uv_encoded = normalizer.encode(uv)
 
 #Setting up train and test
 from sklearn.model_selection import train_test_split
-train_in, test_in, train_out, test_out = train_test_split(uv_encoded[...,:configuration['T_in']], uv_encoded[...,configuration['T_in']:configuration['T_out']], test_size=0.5, random_state=42)
+train_in, test_in, train_out, test_out = train_test_split(uv_encoded[...,:configuration['Data']['t_in']], uv_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=0.2, random_state=42)
 print("Training Input: " + str(train_in.shape))
 print("Training Output: " + str(train_out.shape))
 
 #Saving Normalisation 
-saved_normalisations = model_loc + '/' + configuration['Model'] + '_' + configuration['Case'] + '_' + run.name + '_' + 'norms.npz'
+saved_normalisations = model_loc + '/' + configuration['Model']['arch'] + '_' + configuration['Physics']['pde'] + '_' + run.name + '_' + 'norms.npz'
 np.savez(saved_normalisations, 
         in_a=normalizer.a.numpy(), in_b=normalizer.b.numpy(), 
         )
 run.save_file(saved_normalisations, 'output')
 
 #Setting up the data loaders
-train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Batch Size'], shuffle=True)
-test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Batch Size'], shuffle=False)
+train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Data']['batch size'], shuffle=True)
+test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch size'], shuffle=False)
 
 t2 = default_timer()
 print('preprocessing finished, time used:', t2-t1)
-
-# %%
-# #Using the normalisations from the previous setup 
-
-# norm_strategy = configuration['Normalisation Strategy']
-
-# if norm_strategy == 'Min-Max':
-#     normalizer = MinMax_Normalizer
-# elif norm_strategy == 'Range':
-#     normalizer = RangeNormalizer
-# elif norm_strategy == 'Gaussian':
-#     normalizer = GaussianNormalizer
-
-# #Setting up train and test
-# ntrain = 200
-# ntest = 200
-# train_a = uv[:ntrain,...,:configuration['T_in']]
-# train_u = uv[:ntrain,...,configuration['T_in']:configuration['T_out']+configuration['T_in']]
-
-# test_a = uv[-ntest:,...,:configuration['T_in']]
-# test_u = uv[-ntest:,...,configuration['T_in']:configuration['T_out']+configuration['T_in']]
-
-# a_normalizer = normalizer(train_a)
-# u_normalizer = normalizer(train_u)
-
-# train_in = a_normalizer.encode(train_a)
-# test_in = a_normalizer.encode(test_a)
-
-# train_out = u_normalizer.encode(train_u)
-# test_out = u_normalizer.encode(test_u)
-
-# #Setting up the data loaders
-# train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Batch Size'], shuffle=True)
-# test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Batch Size'], shuffle=False)
 
 
 # %% 
@@ -208,41 +140,61 @@ print('preprocessing finished, time used:', t2-t1)
 # Setting up the Model and Optimizers 
 ####################################
 
+if configuration['Model']['arch'] == 'FNO':
+    if configuration['Model']['operator splitting']: 
+        #Currently only including the momentum equation 
+        class NO_PO(nn.Module):
+            def __init__(self):
+                super(NO_PO, self).__init__()
+                self.NO_convection = FNO_multi2d(configuration['Data']['t_in'], configuration['Data']['step'], configuration['Model']['modes'], configuration['Model']['modes'], 2, configuration['Model']['width']) 
+                self.NO_diffusion = FNO_multi2d(configuration['Data']['t_in'], configuration['Data']['step'], configuration['Model']['modes'], 2, configuration['Model']['width']) 
+                self.NO_p_grad =  FNO_multi2d(configuration['Data']['t_in'], configuration['Data']['step'], configuration['Model']['modes'], configuration['Model']['modes'], 1, configuration['Model']['width']) 
 
-if configuration['Model'] == 'FNO':
-    model = FNO_multi2d(configuration['T_in'], 
-                        configuration['Step'], 
-                        configuration['Modes'], 
-                        configuration['Modes'], 
-                        configuration['Variables'], 
-                        configuration['Width']
-                        )
+            def forward(self, vars):
+                uv = vars[:, 0:2]
+                p = vars[:, 2:3]
+                nu = 0.001
+                rhs = - self.NO_convection(uv) + nu*self.NO_diffusion - self.NO_p_grad(p)
+
+                return rhs
+
+    else:
+        model = FNO_multi2d(configuration['Data']['t_in'], 
+                            configuration['Data']['step'], 
+                            configuration['Model']['modes'], 
+                            configuration['Model']['modes'], 
+                            configuration['Physics']['variables'], 
+                            configuration['Model']['width']
+                            )
     
-if configuration['Model'] == 'ViT':
-    model = VisionTransformer(
-        img_size=(configuration['Nx'], configuration['Ny']),
-        patch_size=(1, configuration['Patch Size'], configuration['Patch Size']),
-        in_channels=configuration['Variables'],
-        time_channels=configuration['Step'],
-        out_channels=configuration['Variables'],
-        embed_dim=configuration['Embedded Dim'],
-        depth=configuration['Depth'],
-        n_heads=configuration['Heads']
-        )
-      
+
+#Restarting the run.   
+if configuration['Train']['restart']:
+    ckpt = client.get_artifact_as_file(configuration['Train']['restart run name'])
+
+    
+    os.path.exists(ckpt_path):
+    if is_main_process():
+        print(f'Loading checkpoint: {ckpt_path}')
+    checkpoint = torch.load(ckpt_path)
+    model.load_state_dict(checkpoint["model"])
+    optimizer.load_state_dict(checkpoint["optimizer"])
+    scheduler.load_state_dict(checkpoint["scheduler"])
+    epoch_init = checkpoint["epoch"]
+
 model.to(device)
 run.update_metadata({'Number of Params': int(model.count_params())})
 print("Number of model params : " + str(model.count_params()))
 
 #Setting up the optimizer and scheduler, loss and epochs 
-optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Learning Rate'], weight_decay=1e-4)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Scheduler Step'], gamma=configuration['Scheduler Gamma'])
+optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning rate'], weight_decay=1e-4)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler step'], gamma=configuration['Opt']['scheduler gamma'])
 loss_func = LpLoss(size_average=False)
-epochs = configuration['Epochs']
+epochs = configuration['Opt']['epochs']
 
 #Setting up the Training pipeline
 from Utils import explicit_time
-train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Rollout'])
+train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Physics']['rollout'])
 
 # %% 
 ####################################
@@ -254,7 +206,7 @@ for ep in range(epochs): #Training Loop - Epochwise
 
     model.train()
     t1 = default_timer()
-    train_loss, test_loss = train.one_epoch(configuration['Step'], configuration['T_out']-1)
+    train_loss, test_loss = train.one_epoch(configuration['Data']['step'], configuration['Data']['t_out']-1)
     t2 = default_timer()
 
     train_loss = train_loss / len(train_loader)
@@ -265,17 +217,38 @@ for ep in range(epochs): #Training Loop - Epochwise
     
     scheduler.step()
 
+    if ep % configuration['Train']['checkpoint']['epochs'] ==0:
+
+        checkpoint = {}
+        checkpoint["model"] = model.module.state_dict()
+        checkpoint["optimizer"] = optimizer.state_dict() 
+        checkpoint["scheduler"] = scheduler.state_dict()
+        checkpoint["epoch"] = ep
+        torch.save(checkpoint, model_loc + os.path.join(log_dir, "checkpoint.pt"))
+        print(f'Epoch: {epoch:<{3}} {blank:<{5}}' + 'Checkpoint saved')
+
+        #Saving the output directory
+        if run_simvue:
+            try:
+                run.save_file( os.getcwd() + '/' + log_dir +"/checkpoint.pt", 'output')
+                run.save_file( os.getcwd() + '/' + log_dir + "/logs.txt", 'output')
+            except:
+                pass
+
+
+
+
 train_time = default_timer() - start_time
 
 # %%
-#Saving the Model
-# saved_model = model_loc + '/' + configuration['Model'] + '_' + configuration['Case'] + '_' +run.name + '.pth'
-# torch.save( model.state_dict(), saved_model)
-# run.save_file(saved_model, 'output')
+# Saving the Model
+saved_model = model_loc + '/' + configuration['Model']['arch'] + '_' + configuration['Physics']['pde'] + '_' +run.name + '.pth'
+torch.save( model.state_dict(), saved_model)
+run.save_file(saved_model, 'output')
 
 #Evaluation 
 eval = explicit_time.Eval_Setup(model, test_in, test_out)
-pred_encoded, error = eval.inference(configuration['Step'], configuration['T_out']-1)
+pred_encoded, error = eval.inference(configuration['Data']['step'], configuration['Data']['t_out']-1)
 
 print('(MSE) Testing Error: %.3e' % (error))
 
@@ -287,21 +260,15 @@ run.update_metadata({'Training Time': float(train_time),
 test_out = normalizer.decode(test_out.to(device)).cpu()
 pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
 
-
-if configuration['Model'] == 'FNO':
-    test_out = test_out.permute(0,1,4,2,3)
-    pred_set = pred_set.permute(0,1,4,2,3)
-
-if configuration['Model'] == 'ViT':
-    test_out = test_out.permute(0,1,4,2,3)
-    pred_set = pred_set.permute(0,1,4,2,3)
-
+#Shaping back to [BS, vars, Nt, Nx, Ny]
+test_out = test_out.permute(0,1,4,2,3)
+pred_set = pred_set.permute(0,1,4,2,3)
 
 # %% 
 #Plotting the results 
-from Utils.plots import plots_2d
+from Utils.plots import plots_2d_yaml
 idx = 0 
-plots_2d(configuration, test_out, pred_set, plot_loc, run, idx)
+plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run, idx)
 
 # %%
 run.close()

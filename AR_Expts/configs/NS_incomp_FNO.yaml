@@ -7,7 +7,7 @@ physics:
   Nx: 128
   Ny: 128
   Nt: 100
-  rollout: 'Autoregressive'
+  rollout: 'AR'
   physical_operators: False
 
 model:

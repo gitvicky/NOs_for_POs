@@ -29,7 +29,7 @@ configuration = {"Case": 'JOREK',
                  "Variables": 3, 
                  "Loss Function": 'LP',
                  "POs": False,
-                 "Rollout": 'RK4'
+                 "Rollout": 'AR'
                  }
 
 
@@ -37,7 +37,7 @@ configuration = {"Case": 'JOREK',
 #Setting up simvue 
 import os
 from simvue import Run
-run = Run(mode='online')
+run = Run(mode='disabled')
 run.init(folder="/Neural_PDE/tests", tags=['NPDE', configuration['Model'], 'POs4NOs', 'JOREK', configuration['Rollout'], 'Tests'], metadata=configuration)
 
 #Saving the current run file and the git hash of the repo
@@ -136,13 +136,6 @@ train_in, test_in, train_out, test_out = train_test_split(vars_encoded[...,:conf
 print("Training Input: " + str(train_in.shape))
 print("Training Output: " + str(train_out.shape))
 
-#Saving Normalisation 
-saved_normalisations = model_loc + '/' + configuration['Model'] + '_' + configuration['Case'] + '_' + run.name + '_' + 'norms.npz'
-np.savez(saved_normalisations, 
-        in_a=normalizer.a.numpy(), in_b=normalizer.b.numpy(), 
-        )
-run.save_file(saved_normalisations, 'output')
-
 #Setting up the data loaders
 train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Batch Size'], shuffle=True)
 test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Batch Size'], shuffle=False)
@@ -150,12 +143,11 @@ test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in
 t2 = default_timer()
 print('preprocessing finished, time used:', t2-t1)
 
-# %%
-
 # %% 
 ####################################
 # Setting up the Model and Optimizers 
 ####################################
+
 
 if configuration['Model'] == 'FNO':
     model = FNO_multi2d(configuration['T_in'], 
@@ -182,74 +174,35 @@ model.to(device)
 run.update_metadata({'Number of Params': int(model.count_params())})
 print("Number of model params : " + str(model.count_params()))
 
-#Setting up the optimizer and scheduler, loss and epochs 
-optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Learning Rate'], weight_decay=1e-4)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Scheduler Step'], gamma=configuration['Scheduler Gamma'])
-loss_func = LpLoss(size_average=False)
-epochs = configuration['Epochs']
-
-#Setting up the Training pipeline
-from Utils import explicit_time
-train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Rollout'])
+#Loading the trained model:
+if configuration['Rollout'] == 'AR':
+    model.load_state_dict(torch.load(model_loc + '/FNO_JOREK_dull-involute.pth', map_location=device))
+if configuration['Rollout'] == 'Euler':
+    model.load_state_dict(torch.load(model_loc + '/FNO_JOREK_largo-shop.pth', map_location=device))
+if configuration['Rollout'] == 'RK4':
+    model.load_state_dict(torch.load(model_loc + '/FNO_JOREK_beige-hip.pth', map_location=device))
 
 # %% 
-####################################
-#Training
-####################################
-
-start_time = default_timer()
-for ep in range(epochs): #Training Loop - Epochwise
-
-    model.train()
-    t1 = default_timer()
-    train_loss, test_loss = train.one_epoch(configuration['Step'], configuration['T_out']-1, dt)
-    t2 = default_timer()
-
-    train_loss = train_loss / len(train_loader)
-    test_loss = test_loss / len(test_loader)
-
-    print(f"Epoch {ep}, Time Taken: {round(t2-t1,3)}, Train Loss: {round(train_loss, 3)}, Test Loss: {round(test_loss,3)}")
-    run.log_metrics({'Train Loss': train_loss, 'Test Loss': test_loss})
-    
-    scheduler.step()
- 
-train_time = default_timer() - start_time
-
-# %%
-# Saving the Model
-saved_model = model_loc + '/' + configuration['Model'] + '_' + configuration['Case'] + '_' +run.name + '.pth'
-torch.save( model.state_dict(), saved_model)
-run.save_file(saved_model, 'output')
-
+from Utils import explicit_time
 #Evaluation 
-eval = explicit_time.Eval_Setup(model, test_in, test_out)
-pred_encoded, error = eval.inference(configuration['Step'], configuration['T_out']-1, dt)
+
+eval = explicit_time.Eval_Setup(model, test_in, test_out, roll_out=configuration['Rollout'])
+pred_encoded, error = eval.inference(configuration['Step'], configuration['T_out']-1, eval_metric='MSE', dt=dt)
 
 print('(MSE) Testing Error: %.3e' % (error))
 
-run.update_metadata({'Training Time': float(train_time),
-                     'MSE Test Error': float(error)
-                    })
-
 #Denormalising the test and predictions
-test_out = normalizer.decode(test_out.to(device)).cpu()
-pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
+test_out_denorm = normalizer.decode(test_out.to(device)).cpu()
+pred_set_denorm = normalizer.decode(pred_encoded.to(device)).cpu()
 
-
-if configuration['Model'] == 'FNO':
-    test_out = test_out.permute(0,1,4,2,3)
-    pred_set = pred_set.permute(0,1,4,2,3)
-
-if configuration['Model'] == 'ViT':
-    test_out = test_out.permute(0,1,4,2,3)
-    pred_set = pred_set.permute(0,1,4,2,3)
-
+test_out_denorm = test_out_denorm.permute(0,1,4,2,3)
+pred_set_denorm = pred_set_denorm.permute(0,1,4,2,3)
 
 # %% 
 #Plotting the results 
 from Utils.plots import plots_2d
-idx = 0 
-plots_2d(configuration, test_out, pred_set, plot_loc, run, idx)
+idx = 0
+plots_2d(configuration, test_out_denorm, pred_set_denorm, plot_loc, run, idx, save=False)
 
 # %%
 run.close()
