@@ -1,44 +1,57 @@
 
-seed: 0471
+seed: 907
 
-physics: 
+Physics: 
   pde: 'Incomp. Navier-Stokes'
+  source: 'PDEBench'
   field: 'u, v'
+  variables: 2 
   Nx: 128
   Ny: 128
   Nt: 100
   rollout: 'AR'
-  physical_operators: False
+  physics normalisation: False
 
-model:
+Model:
   arch: 'FNO'
   modes: 8
   width: 16
   variables: 2
   act: 'gelu'
-  normalisation: 'Min-Max'
+  physical operators: False
+  operator splitting: False
 
-data: 
+Data: 
   name: 'NS_incomp_velocity_100_128_128.npy'
+  loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
+  ntrain: 50
+  test-train-split: 0.2
+  batch size: 5
   t_in: 1
   t_out: 50
   step: 1
-  batch_size: 5
 
-opt:
+Opt:
   optimizer: 'adam'
-  n_epochs: 500
+  n_epochs: 50
   learning_rate: 0.005
   beta1: 0.9
   beta2: 0.9
   weight_decay: 1e-4
-  scheduler: 'step'  # Or 'CosineAnnealingLR' OR 'ReduceLROnPlateau'
+  scheduler: 'step' 
   scheduler_gamma: 0.5
   grad_clip: 2.0
 
-loss: 'LP'
+Train: 
+  loss: 'LP'
+  rollout: True
+  checkpoint:
+    epochs: 5
+  restart: False
+  restart run name: '' #simvue run name 
 
-simvue:
+
+Simvue:
   mode: 'online'
-  name: None # If None, config will be used but you can override it here
+  name: None 
   folder: '/Neural_PDE/tests' 
