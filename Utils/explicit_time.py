@@ -32,12 +32,19 @@ def euler(model, u_n, dt):
     u_new = u_n + model(u_n)*dt 
     return u_new 
 
+def midpoint(model, u_n, dt):#RK2
+    h = dt 
+    k1 = model(u_n)
+    k2 = model(u_n + 0.5*h*k1)
+    u_new = u_n + h*k2
+    return u_new
+
 def rk4(model, u_n, dt):
     h = dt 
     
     k1 = model(u_n)
-    k2 = model(u_n + (h/2)*k1)
-    k3 = model(u_n + (h/2)*k2)
+    k2 = model(u_n + 0.5*h*k1)
+    k3 = model(u_n + 0.5*h*k2)
     k4 = model(u_n + h*k3)
 
     u_new = u_n + (h/6) * (k1 + 2*k2 + 2*k3 + k4)
