@@ -46,12 +46,8 @@ with Run(mode='online') as run:
     import sys
     import numpy as np
     from tqdm import tqdm 
-    import h5py
     import torch
     import torch.nn.functional as F
-    import matplotlib
-    import matplotlib.pyplot as plt
-    import time 
     from timeit import default_timer
     from tqdm import tqdm 
 
@@ -170,7 +166,7 @@ with Run(mode='online') as run:
     ####################################
 
     start_time = default_timer()
-    for ep in range(epoch_init, epochs): #Training Loop - Epochwise
+    for ep in tqdm(range(epoch_init, epochs)): #Training Loop - Epochwise
 
         model.train()
         t1 = default_timer()

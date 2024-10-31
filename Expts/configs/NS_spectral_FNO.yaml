@@ -17,7 +17,6 @@ Model:
   modes: 8
   width: 16
   act: 'gelu'
-  physical operators: False
   operator splitting: False
 
 Data: 

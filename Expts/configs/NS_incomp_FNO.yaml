@@ -9,47 +9,46 @@ Physics:
   Nx: 128
   Ny: 128
   Nt: 100
-  rollout: 'AR'
+  rollout: 'RK4'
   physics normalisation: False
 
 Model:
   arch: 'FNO'
   modes: 8
   width: 16
-  variables: 2
   act: 'gelu'
-  physical operators: False
   operator splitting: False
 
 Data: 
   name: 'NS_incomp_velocity_100_128_128.npy'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
-  ntrain: 50
+  ntrain: 100
   test-train-split: 0.2
-  batch size: 5
+  batch size: 1
   t_in: 1
   t_out: 50
   step: 1
+  normalisation: 'Min-Max'
 
 Opt:
   optimizer: 'adam'
-  n_epochs: 50
-  learning_rate: 0.005
+  epochs: 500
+  learning rate: 0.005
   beta1: 0.9
   beta2: 0.9
   weight_decay: 1e-4
-  scheduler: 'step' 
-  scheduler_gamma: 0.5
+  scheduler: 'step'  
+  scheduler step : 100
+  scheduler gamma: 0.5
   grad_clip: 2.0
 
 Train: 
   loss: 'LP'
   rollout: True
   checkpoint:
-    epochs: 5
+    epochs: 100
   restart: False
   restart run name: '' #simvue run name 
-
 
 Simvue:
   mode: 'online'
