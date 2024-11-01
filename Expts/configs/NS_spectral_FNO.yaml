@@ -32,12 +32,12 @@ Data:
 
 Opt:
   optimizer: 'adam'
-  epochs: 10
+  epochs: 500
   learning rate: 0.005
   beta1: 0.9
   beta2: 0.9
-  weight decay: 1e-4
-  scheduler: 'step'  # Or 'CosineAnnealingLR' OR 'ReduceLROnPlateau'
+  weight_decay: 1e-4
+  scheduler: 'step'  
   scheduler step : 100
   scheduler gamma: 0.5
   grad_clip: 2.0
@@ -46,11 +46,11 @@ Train:
   loss: 'LP'
   rollout: True
   checkpoint:
-    epochs: 5
+    epochs: 100
   restart: False
   restart run name: '' #simvue run name 
 
 Simvue:
   mode: 'online'
-  name: None # If None, config will be used but you can override it here
+  name: None 
   folder: '/Neural_PDE/tests' 

@@ -9,7 +9,7 @@ Physics:
   Nx: 128
   Ny: 128
   Nt: 100
-  rollout: 'RK4'
+  rollout: 'Midpoint'
   physics normalisation: False
 
 Model:
@@ -24,7 +24,7 @@ Data:
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
   ntrain: 100
   test-train-split: 0.2
-  batch size: 1
+  batch size: 5
   t_in: 1
   t_out: 50
   step: 1

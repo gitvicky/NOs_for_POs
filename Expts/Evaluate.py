@@ -7,34 +7,32 @@ Evaluating Trained Models
 #Setting up simvue 
 import os
 import yaml 
-import argparse
 
 import sys
 sys.path.append("..")
-from Utils.simvue_utils import flatten_dict
+from simvue import Client
 
-#Config files.
-config_loc = os.getcwd() + '/configs/NS_spectral_FNO.yaml'
-configuration = yaml.safe_load(open(config_loc))
-run_config = flatten_dict(configuration)
 # %% 
-from simvue import Run, Client
-run = Run(mode='disabled')
+#Loading the Run Config from simvue
+run_name = 'roaring-vial'
 
-run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Physics']['rollout'], 'Tests'], metadata=run_config)
-
-#setting up the client API 
 client = Client()
+#Setting up locations. 
+file_loc = os.getcwd()
+data_loc = os.path.dirname(os.getcwd()) + '/Data/'
+model_loc = file_loc + '/Weights/' + run_name
+plot_loc = file_loc + '/Plots'
+tmp_loc = os.getcwd() + '/tmp'
+try: 
+    os.mkdir(tmp_loc)
+except:
+    pass
 
-#Saving the current run file and the git hash of the repo
-run.save_file(os.path.abspath(__file__), 'code')
-# run.save_file(os.path.abspath(args.config), 'code')
+client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'NS_incomp_FNO.yaml', path=tmp_loc)
+config_loc = tmp_loc + '/NS_incomp_FNO.yaml'
+configuration = yaml.safe_load(open(config_loc))
 
-import git
-repo = git.Repo(search_parent_directories=True)
-sha = repo.head.object.hexsha
-run.update_metadata({'Git Hash': sha})
-
+# %% 
 #Importing the necessary packages
 import sys
 import numpy as np
@@ -47,6 +45,12 @@ import matplotlib.pyplot as plt
 import time 
 from timeit import default_timer
 from tqdm import tqdm 
+
+#Setting up the seeds and devices
+torch.manual_seed(0)
+np.random.seed(0)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+torch.set_default_dtype(torch.float32)
 
 # %%
 #Importing the models and utilities. 
@@ -62,20 +66,6 @@ from Neural_PDE.Utils.processing_utils import *
 from Neural_PDE.Utils.training_utils import * 
 
 # %% 
-#Setting up locations. 
-file_loc = os.getcwd()
-data_loc = os.path.dirname(os.getcwd()) + '/Data/'
-model_loc = file_loc + '/Weights/' + run.name
-os.mkdir(model_loc)
-plot_loc = file_loc + '/Plots'
-
-#Setting up the seeds and devices
-torch.manual_seed(0)
-np.random.seed(0)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-torch.set_default_dtype(torch.float32)
-# %% 
-####################################
 # Data Preparation.
 ####################################
 
@@ -91,11 +81,24 @@ if pde == 'MHD':
     if configuration['Physics']['pde']['source'] == 'JOREK':
         fields, x, y, dt = JOREK(configuration['Data']['ntrain'])
 
-fields = fields[:,:,:configuration['Data']['t_out']]
+fields = fields[...,:configuration['Data']['t_out']]
+
+
+#Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
+expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['variables'], configuration['Physics']['Nx'], configuration['Physics']['Ny'], configuration['Data']['t_out'])
+assert fields.shape == expected_shape, \
+    f"Expected fields shape to be {expected_shape}, but got {fields.shape}"
+
 # %%
-#Normalising the data -- using the same normalisations for inputs and outputs
+#Normalising the data -- Taking the normalisation from the trained run. 
+client.get_artifact_as_file(client.get_run_id_from_name(run_name), run_name + '_norms.npz', path=tmp_loc)
+norms = np.load(tmp_loc +'/'+ run_name + '_norms.npz')
+
+
 normalizer_func = Normalisation(configuration['Data']['normalisation'])
-normalizer = normalizer_func(fields)
+normalizer = normalizer_func(torch.tensor(0))
+normalizer.a, normalizer.b = torch.tensor(norms['in_a']), torch.tensor(norms['in_b'])
+
 fields_encoded = normalizer.encode(fields)
 
 #Setting up train and test
@@ -112,7 +115,6 @@ t2 = default_timer()
 print('preprocessing finished, time used:', t2-t1)
 
 # %% 
-####################################
 # Setting up the Model and Optimizers 
 ####################################
 
@@ -126,30 +128,17 @@ if configuration['Model']['arch'] == 'FNO':
                         )
 
 model.to(device)
-run.update_metadata({'Number of Params': int(model.count_params())})
 print("Number of model params : " + str(model.count_params()))
 
-#Setting up the optimizer and scheduler, loss and epochs 
-optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning rate'], weight_decay=1e-4)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler step'], gamma=configuration['Opt']['scheduler gamma'])
-loss_func = LpLoss(size_average=False)
-epoch_init = 0
-epochs = configuration['Opt']['epochs']
-
-#Restarting the run from a checkpoint 
-run_name = ''
-client.get_artifacts_as_files(run_id=client.get_run_id_from_name(run_name), path='/tmp', category='output')
-ckpt_path = '/tmp/checkpoint.pt'
-checkpoint = torch.load(ckpt_path)
+#Loading the checkpoint
+client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'checkpoint.pt', path=tmp_loc)
+ckpt_path = tmp_loc + '/checkpoint.pt'
+checkpoint = torch.load(ckpt_path, map_location=device)
 model.load_state_dict(checkpoint["model"])
-optimizer.load_state_dict(checkpoint["optimizer"])
-scheduler.load_state_dict(checkpoint["scheduler"])
 epoch_init = checkpoint["epoch"]
 
-#Setting up the Training pipeline
+# %%
 from Utils import explicit_time
-train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Physics']['rollout'])
-
 #Evaluation 
 eval = explicit_time.Eval_Setup(model, test_in, test_out, roll_out=configuration['Physics']['rollout'])
 pred_encoded, error = eval.inference(configuration['Data']['step'], configuration['Data']['t_out']-1, dt=dt)
@@ -168,7 +157,5 @@ pred_set = pred_set.permute(0,1,4,2,3)
 #Plotting the results 
 from Utils.plots import plots_2d_yaml
 idx = 0 
-plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run, idx)
-# %%
-run.close()
+plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run_name, idx, save=False)
 # %%

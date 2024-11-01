@@ -51,6 +51,18 @@ with Run(mode='online') as run:
     from timeit import default_timer
     from tqdm import tqdm 
 
+    #Setting up locations. 
+    file_loc = os.getcwd()
+    data_loc = os.path.dirname(os.getcwd()) + '/Data/'
+    model_loc = file_loc + '/Weights/' + run.name
+    os.mkdir(model_loc)
+    plot_loc = file_loc + '/Plots'
+
+    #Setting up the seeds and devices
+    torch.manual_seed(0)
+    np.random.seed(0)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    torch.set_default_dtype(torch.float32)
     # %%
     #Importing the models and utilities. 
 
@@ -64,19 +76,6 @@ with Run(mode='online') as run:
     from Neural_PDE.Utils.processing_utils import * 
     from Neural_PDE.Utils.training_utils import * 
 
-    # %% 
-    #Setting up locations. 
-    file_loc = os.getcwd()
-    data_loc = os.path.dirname(os.getcwd()) + '/Data/'
-    model_loc = file_loc + '/Weights/' + run.name
-    os.mkdir(model_loc)
-    plot_loc = file_loc + '/Plots'
-
-    #Setting up the seeds and devices
-    torch.manual_seed(0)
-    np.random.seed(0)
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    torch.set_default_dtype(torch.float32)
     # %% 
     ####################################
     # Data Preparation.
@@ -94,7 +93,13 @@ with Run(mode='online') as run:
         if configuration['Physics']['pde']['source'] == 'JOREK':
             fields, x, y, dt = JOREK(configuration['Data']['ntrain'])
 
-    fields = fields[:,:,:configuration['Data']['t_out']]
+    fields = fields[...,:configuration['Data']['t_out']]
+
+    #Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
+    expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['variables'], configuration['Physics']['Nx'], configuration['Physics']['Ny'], configuration['Data']['t_out'])
+    assert fields.shape == expected_shape, \
+        f"Expected fields shape to be {expected_shape}, but got {fields.shape}"
+
     # %%
     #Normalising the data -- using the same normalisations for inputs and outputs
     normalizer_func = Normalisation(configuration['Data']['normalisation'])
@@ -108,9 +113,9 @@ with Run(mode='online') as run:
     print("Training Output: " + str(train_out.shape))
 
     #Saving Normalisation 
-    saved_normalisations = model_loc + '/' + run.name + '_' + 'norms.npz'
+    saved_normalisations = model_loc + '/norms.npz'
     np.savez(saved_normalisations, 
-            in_a=normalizer.a.numpy(), in_b=normalizer.b.numpy(), 
+            a=normalizer.a.numpy(), b=normalizer.b.numpy(), 
             )
     run.save_file(saved_normalisations, 'output')
 
@@ -222,7 +227,7 @@ with Run(mode='online') as run:
     #Plotting the results 
     from Utils.plots import plots_2d_yaml
     idx = 0 
-    plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run, idx)
+    plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run, idx, save=False)
     # %%
     run.close()
     # %%
