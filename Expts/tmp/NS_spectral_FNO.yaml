@@ -2,14 +2,13 @@
 seed: 907
 
 Physics: 
-  pde: 'Incomp. Navier-Stokes'
-  source: 'PDEBench'
-  field: 'u, v'
-  variables: 2 
-  Nx: 128
-  Ny: 128
+  pde: 'Navier-Stokes'
+  source: 'Spectral' 
+  field: 'u, v, p'
+  variables: 3
+  Nx: 100
+  Ny: 100
   Nt: 100
-  dt: 0.005
   rollout: 'Midpoint'
   physics normalisation: False
 
@@ -21,11 +20,11 @@ Model:
   operator splitting: False
 
 Data: 
-  name: 'NS_incomp_velocity_100_128_128.npy'
-  loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
+  name: 'NS_Spectral_combined.npz'
+  loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
   ntrain: 100
   test-train-split: 0.2
-  batch size: 5
+  batch size: 1
   t_in: 1
   t_out: 50
   step: 1

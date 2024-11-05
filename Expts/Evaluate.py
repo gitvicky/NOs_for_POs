@@ -14,7 +14,7 @@ from simvue import Client
 
 # %% 
 #Loading the Run Config from simvue
-run_name = 'roaring-vial'
+run_name = 'tattered-strategy'
 
 client = Client()
 #Setting up locations. 
@@ -28,8 +28,8 @@ try:
 except:
     pass
 
-client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'NS_incomp_FNO.yaml', path=tmp_loc)
-config_loc = tmp_loc + '/NS_incomp_FNO.yaml'
+client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'NS_spectral_FNO.yaml', path=tmp_loc)
+config_loc = tmp_loc + '/NS_spectral_FNO.yaml'
 configuration = yaml.safe_load(open(config_loc))
 
 # %% 
@@ -37,12 +37,9 @@ configuration = yaml.safe_load(open(config_loc))
 import sys
 import numpy as np
 from tqdm import tqdm 
-import h5py
 import torch
 import torch.nn.functional as F
-import matplotlib
 import matplotlib.pyplot as plt
-import time 
 from timeit import default_timer
 from tqdm import tqdm 
 
@@ -83,7 +80,6 @@ if pde == 'MHD':
 
 fields = fields[...,:configuration['Data']['t_out']]
 
-
 #Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
 expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['variables'], configuration['Physics']['Nx'], configuration['Physics']['Ny'], configuration['Data']['t_out'])
 assert fields.shape == expected_shape, \
@@ -91,13 +87,12 @@ assert fields.shape == expected_shape, \
 
 # %%
 #Normalising the data -- Taking the normalisation from the trained run. 
-client.get_artifact_as_file(client.get_run_id_from_name(run_name), run_name + '_norms.npz', path=tmp_loc)
-norms = np.load(tmp_loc +'/'+ run_name + '_norms.npz')
-
+client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'norms.npz', path=tmp_loc)
+norms = np.load(tmp_loc +'/norms.npz')
 
 normalizer_func = Normalisation(configuration['Data']['normalisation'])
 normalizer = normalizer_func(torch.tensor(0))
-normalizer.a, normalizer.b = torch.tensor(norms['in_a']), torch.tensor(norms['in_b'])
+normalizer.a, normalizer.b = torch.tensor(norms['a']), torch.tensor(norms['b'])
 
 fields_encoded = normalizer.encode(fields)
 
@@ -135,7 +130,7 @@ client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'checkpoint.p
 ckpt_path = tmp_loc + '/checkpoint.pt'
 checkpoint = torch.load(ckpt_path, map_location=device)
 model.load_state_dict(checkpoint["model"])
-epoch_init = checkpoint["epoch"]
+epoch_last = checkpoint["epoch"]
 
 # %%
 from Utils import explicit_time
@@ -156,6 +151,6 @@ pred_set = pred_set.permute(0,1,4,2,3)
 # %% 
 #Plotting the results 
 from Utils.plots import plots_2d_yaml
-idx = 0 
+idx = 10
 plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run_name, idx, save=False)
 # %%

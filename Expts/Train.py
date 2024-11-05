@@ -132,13 +132,20 @@ with Run(mode='online') as run:
     ####################################
 
     if configuration['Model']['arch'] == 'FNO':
-        model = FNO_multi2d(configuration['Data']['t_in'], 
-                            configuration['Data']['step'], 
-                            configuration['Model']['modes'], 
-                            configuration['Model']['modes'], 
-                            configuration['Physics']['variables'], 
-                            configuration['Model']['width']
-                            )
+        if configuration['Model']['operator splitting'] == False:
+
+            model = FNO_multi2d(configuration['Data']['t_in'], 
+                                configuration['Data']['step'], 
+                                configuration['Model']['modes'], 
+                                configuration['Model']['modes'], 
+                                configuration['Physics']['variables'], 
+                                configuration['Model']['width']
+                                )
+        if configuration['Model']['operator splitting'] == True: 
+    #With Operator Splitting. 
+            from operator_splitting import NS_OS_rhs
+            model = NS_OS_rhs(configuration)
+
 
     model.to(device)
     run.update_metadata({'Number of Params': int(model.count_params())})
@@ -171,7 +178,7 @@ with Run(mode='online') as run:
     ####################################
 
     start_time = default_timer()
-    for ep in tqdm(range(epoch_init, epochs)): #Training Loop - Epochwise
+    for ep in tqdm(range(epoch_init, epochs+1)): #Training Loop - Epochwise
 
         model.train()
         t1 = default_timer()
@@ -187,7 +194,7 @@ with Run(mode='online') as run:
         scheduler.step()
 
         #Checkpointing. 
-        if ep % configuration['Train']['checkpoint']['epochs'] ==0:
+        if ep % configuration['Train']['checkpoint']['epochs'] == 0:
             checkpoint = {}
             checkpoint["model"] = model.state_dict()
             checkpoint["optimizer"] = optimizer.state_dict() 
@@ -227,7 +234,7 @@ with Run(mode='online') as run:
     #Plotting the results 
     from Utils.plots import plots_2d_yaml
     idx = 0 
-    plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run, idx, save=False)
+    plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run, idx, save=True)
     # %%
     run.close()
     # %%
