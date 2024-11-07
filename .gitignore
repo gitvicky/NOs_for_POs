@@ -1,5 +1,6 @@
 #previous files
 tests
+tmp/ 
 
 #simvue files
 simvue.ini
@@ -8,6 +9,7 @@ simvue.toml
 #Saved Models
 Models/
 *.pth
+*.pt 
 
 #Venv
 venv/
