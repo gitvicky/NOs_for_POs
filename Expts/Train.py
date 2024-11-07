@@ -72,7 +72,9 @@ with Run(mode='online') as run:
         from Neural_PDE.Models.ViT_new import * 
     elif configuration['Model']['arch'] == 'U-Net':
         from Neural_PDE.Models.UNet import * 
-
+    elif configuration['Model']['arch'] == 'CNO':
+        from Neural_PDE.Models.CNO import * 
+        
     from Neural_PDE.Utils.processing_utils import * 
     from Neural_PDE.Utils.training_utils import * 
 
@@ -163,7 +165,18 @@ with Run(mode='online') as run:
             mlp_dim = 256,
             dim_head = 32
             )
-        
+    
+    if configuration['Model']['arch'] == 'CNO':
+        model = CNO2d(in_dim = configuration['Model']['in channels'],             
+                      out_dim = configuration['Model']['out channels'],
+                      size = configuration['Data']['Nx'],
+                      N_layers = configuration['Model']['N_layers'],
+                      N_res = configuration['Model']['N_res'],
+                      N_res_neck = configuration['Model']['N_res_neck'],
+                      channel_multiplier = configuration['Model']['channel multiplier'],
+                      use_bn = False
+                    )                
+
     model.to(device)
     run.update_metadata({'Number of Params': int(model.count_params())})
     print("Number of model params : " + str(model.count_params()))
