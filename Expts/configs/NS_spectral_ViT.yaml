@@ -9,15 +9,22 @@ Physics:
   Nx: 100
   Ny: 100
   Nt: 100
-  rollout: 'Midpoint'
+  dt: 0.01
+  rollout: 'Euler'
   physics normalisation: False
 
 Model:
-  arch: 'FNO'
-  modes: 8
-  width: 16
-  act: 'gelu'
+  arch: 'ViT'
+  patch size: 10
+  embed dim: 128
+  in channels: 3
+  out channels: 3
+  time channels: 1
+  depth: 2
+  num heads: 2
   operator splitting: False
+
+
 
 Data: 
   name: 'NS_Spectral_combined.npz'
@@ -32,7 +39,7 @@ Data:
 
 Opt:
   optimizer: 'adam'
-  epochs: 500
+  epochs: 1
   learning rate: 0.005
   beta1: 0.9
   beta2: 0.9
@@ -48,7 +55,7 @@ Train:
   checkpoint:
     epochs: 100
   restart: False
-  restart run name: '' #simvue run name 
+  restart run name: '' #simvue run name to restart from. 
 
 Simvue:
   mode: 'online'

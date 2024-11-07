@@ -69,9 +69,9 @@ with Run(mode='online') as run:
     if configuration['Model']['arch'] == 'FNO':
         from Neural_PDE.Models.FNO import *
     elif configuration['Model']['arch'] == 'ViT':
-        from Neural_PDE.Models.ViT import * 
-    # elif configuration['Model']['arch'] == 'CNO':
-    #     from Neural_PDE.Models.CNO import * 
+        from Neural_PDE.Models.ViT_new import * 
+    elif configuration['Model']['arch'] == 'U-Net':
+        from Neural_PDE.Models.UNet import * 
 
     from Neural_PDE.Utils.processing_utils import * 
     from Neural_PDE.Utils.training_utils import * 
@@ -133,7 +133,6 @@ with Run(mode='online') as run:
 
     if configuration['Model']['arch'] == 'FNO':
         if configuration['Model']['operator splitting'] == False:
-
             model = FNO_multi2d(configuration['Data']['t_in'], 
                                 configuration['Data']['step'], 
                                 configuration['Model']['modes'], 
@@ -145,8 +144,26 @@ with Run(mode='online') as run:
     #With Operator Splitting. 
             from operator_splitting import NS_OS_rhs
             model = NS_OS_rhs(configuration)
-
-
+        
+    if configuration['Model']['arch'] == 'U-Net':
+        model = UNet2d(configuration['Data']['t_in'], 
+                       configuration['Data']['step'], 
+                       configuration['Model']['width'], 
+                       configuration['Physics']['variables']
+                       )
+    
+    if configuration['Model']['arch'] == 'ViT':
+        model = ViT(
+            image_size=(configuration['Physics']['Nx'], configuration['Physics']['Ny']),
+            patch_size=(1, configuration['Model']['patch size'], configuration['Model']['patch size']),
+            embed_dim=configuration['Model']['embed dim'],
+            depth=configuration['Model']['depth'],
+            n_heads=configuration['Model']['num heads'],
+            channels=configuration['Physics']['variables'],
+            mlp_dim = 256,
+            dim_head = 32
+            )
+        
     model.to(device)
     run.update_metadata({'Number of Params': int(model.count_params())})
     print("Number of model params : " + str(model.count_params()))
