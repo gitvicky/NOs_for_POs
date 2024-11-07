@@ -10,7 +10,7 @@ Physics:
   Ny: 100
   Nt: 100
   dt: 0.01
-  rollout: 'RK4'
+  rollout: 'Euler'
   physics normalisation: False
 
 Model:

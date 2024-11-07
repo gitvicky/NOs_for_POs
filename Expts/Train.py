@@ -155,7 +155,7 @@ with Run(mode='online') as run:
     if configuration['Model']['arch'] == 'ViT':
         model = ViT(
             image_size=(configuration['Physics']['Nx'], configuration['Physics']['Ny']),
-            patch_size=(1, configuration['Model']['patch size'], configuration['Model']['patch size']),
+            patch_size=(configuration['Model']['patch size'], configuration['Model']['patch size']),
             embed_dim=configuration['Model']['embed dim'],
             depth=configuration['Model']['depth'],
             n_heads=configuration['Model']['num heads'],
