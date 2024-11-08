@@ -10,14 +10,15 @@ Physics:
   Ny: 100
   Nt: 100
   dt: 0.01
-  rollout: 'Euler'
+  rollout: 'AR'
   physics normalisation: False
 
 Model:
   arch: 'CNO'
+  Nx: 100
   N_layers: 3
-  N_res: 3
-  N_res_neck: 3
+  N_res: 2
+  N_res_neck: 2
   in channels: 3
   out channels: 3
   channel multiplier: 16
@@ -37,7 +38,7 @@ Data:
 
 Opt:
   optimizer: 'adam'
-  epochs: 1
+  epochs: 500
   learning rate: 0.005
   beta1: 0.9
   beta2: 0.9

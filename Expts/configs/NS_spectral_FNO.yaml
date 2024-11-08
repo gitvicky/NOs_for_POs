@@ -18,7 +18,7 @@ Model:
   modes: 8
   width: 16
   act: 'gelu'
-  operator splitting: False
+  operator splitting: True
 
 Data: 
   name: 'NS_Spectral_combined.npz'

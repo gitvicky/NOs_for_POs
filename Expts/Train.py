@@ -169,12 +169,12 @@ with Run(mode='online') as run:
     if configuration['Model']['arch'] == 'CNO':
         model = CNO2d(in_dim = configuration['Model']['in channels'],             
                       out_dim = configuration['Model']['out channels'],
-                      size = configuration['Data']['Nx'],
+                      size = configuration['Model']['Nx'],
                       N_layers = configuration['Model']['N_layers'],
                       N_res = configuration['Model']['N_res'],
                       N_res_neck = configuration['Model']['N_res_neck'],
                       channel_multiplier = configuration['Model']['channel multiplier'],
-                      use_bn = False
+                      use_bn = True
                     )                
 
     model.to(device)
