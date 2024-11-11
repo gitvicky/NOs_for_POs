@@ -74,7 +74,9 @@ with Run(mode='online') as run:
         from Neural_PDE.Models.UNet import * 
     elif configuration['Model']['arch'] == 'CNO':
         from Neural_PDE.Models.CNO import * 
-        
+    elif configuration['Model']['arch'] == 'gMLP':
+        from Neural_PDE.Models.gMLP_Vision import * 
+
     from Neural_PDE.Utils.processing_utils import * 
     from Neural_PDE.Utils.training_utils import * 
 
@@ -139,9 +141,12 @@ with Run(mode='online') as run:
                                 configuration['Data']['step'], 
                                 configuration['Model']['modes'], 
                                 configuration['Model']['modes'], 
-                                configuration['Physics']['variables'], 
-                                configuration['Model']['width']
+                                configuration['Physics']['variables'],
+                                configuration['Physics']['variables'],
+                                configuration['Model']['width'],
+                                configuration['Model']['n_layers']
                                 )
+            
         if configuration['Model']['operator splitting'] == True: 
     #With Operator Splitting. 
             from operator_splitting import NS_OS_rhs
@@ -175,7 +180,16 @@ with Run(mode='online') as run:
                       N_res_neck = configuration['Model']['N_res_neck'],
                       channel_multiplier = configuration['Model']['channel multiplier'],
                       use_bn = True
-                    )                
+                    )      
+        
+
+    if configuration['Model']['arch'] == 'gMLP':
+        model = gMLP(n_blocks = configuration['Model']['n_blocks'],
+                     d_in = configuration['Model']['d_in'],
+                     d_ffn = configuration['Model']['d_ffn'],
+                     Nx = configuration['Model']['Nx'],
+                     Ny = configuration['Model']['Ny'])
+
 
     model.to(device)
     run.update_metadata({'Number of Params': int(model.count_params())})
@@ -206,7 +220,6 @@ with Run(mode='online') as run:
     ####################################
     #Training
     ####################################
-
     start_time = default_timer()
     for ep in tqdm(range(epoch_init, epochs+1)): #Training Loop - Epochwise
 
@@ -221,6 +234,17 @@ with Run(mode='online') as run:
         print(f"Epoch {ep}, Time Taken: {round(t2-t1,3)}, Train Loss: {round(train_loss, 3)}, Test Loss: {round(test_loss,3)}")
         run.log_metrics({'Train Loss': train_loss, 'Test Loss': test_loss})
         
+        run.create_alert(
+            name='Unstable',
+            source='metrics',
+            rule='is above',
+            metric='Train Loss',
+            frequency=1,
+            window=1,
+            threshold=1e5,
+            trigger_abort=True
+            )
+                    
         scheduler.step()
 
         #Checkpointing. 
