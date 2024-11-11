@@ -9,7 +9,8 @@ Training and Inference pipelines for Neural-PDE solvers with explicit temporal r
 Currently supports: 
     1. Autoregressive rollouts 
     2. Euler Timestep 
-    3. Runge-Kutta 4 
+    3. MidPoint
+    4. Runge-Kutta 4 
 
 """
 
@@ -20,7 +21,7 @@ from tqdm import tqdm
 from timeit import default_timer
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-max_grad_clip_norm = 10000.0   
+max_grad_clip_norm = 1.0   
 # %% 
 #Options for temporal propagation. 
 
@@ -67,6 +68,8 @@ class Train_Setup():
         if roll_out == 'AR':
             self.forward = autoregressive
         elif roll_out == 'Euler':
+            self.forward = euler
+        elif roll_out == 'Midpoint':
             self.forward = euler
         elif roll_out == 'RK4':
             self.forward = rk4
