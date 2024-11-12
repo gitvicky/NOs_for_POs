@@ -168,6 +168,8 @@ class Eval_Setup():
             self.forward = autoregressive
         elif roll_out == 'Euler':
             self.forward = euler
+        elif roll_out == 'Midpoint':
+            self.forward = midpoint
         elif roll_out == 'RK4':
             self.forward = rk4
         
