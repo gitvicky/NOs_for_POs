@@ -15,6 +15,8 @@ Physics:
 
 Model:
   arch: 'FNO'
+  in_vars: 3
+  out_vars: 3
   modes: 8
   width: 16
   n_layers: 6

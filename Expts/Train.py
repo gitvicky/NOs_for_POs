@@ -137,16 +137,13 @@ with Run(mode='online') as run:
 
     if configuration['Model']['arch'] == 'FNO':
         if configuration['Model']['operator splitting'] == False:
-            model = FNO_multi2d(configuration['Data']['t_in'], 
-                                configuration['Data']['step'], 
+            model = FNO_multi2d(configuration['Model']['in_vars'], 
+                                configuration['Model']['out_vars'], 
                                 configuration['Model']['modes'], 
-                                configuration['Model']['modes'], 
-                                configuration['Physics']['variables'],
-                                configuration['Physics']['variables'],
+                                configuration['Model']['modes'],
                                 configuration['Model']['width'],
                                 configuration['Model']['n_layers']
                                 )
-            
         if configuration['Model']['operator splitting'] == True: 
     #With Operator Splitting. 
             from operator_splitting import NS_OS_rhs
@@ -198,7 +195,10 @@ with Run(mode='online') as run:
     #Setting up the optimizer and scheduler, loss and epochs 
     optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning rate'], weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler step'], gamma=configuration['Opt']['scheduler gamma'])
-    loss_func = LpLoss(size_average=False)
+    if configuration['Model']['arch']=='fno':
+        loss_func = LpLoss(size_average=False)
+    else:
+        loss_func = torch.nn.MSELoss()
     epoch_init = 0
     epochs = configuration['Opt']['epochs']
 
@@ -234,16 +234,16 @@ with Run(mode='online') as run:
         print(f"Epoch {ep}, Time Taken: {round(t2-t1,3)}, Train Loss: {round(train_loss, 3)}, Test Loss: {round(test_loss,3)}")
         run.log_metrics({'Train Loss': train_loss, 'Test Loss': test_loss})
         
-        run.create_alert(
-            name='Unstable',
-            source='metrics',
-            rule='is above',
-            metric='Train Loss',
-            frequency=1,
-            window=1,
-            threshold=1e5,
-            trigger_abort=True
-            )
+        # run.create_alert(
+        #     name='Unstable',
+        #     source='metrics',
+        #     rule='is above',
+        #     metric='Train Loss',
+        #     frequency=1,
+        #     window=1,
+        #     threshold=1e5,
+        #     trigger_abort=True
+        #     )
                     
         scheduler.step()
 
