@@ -21,7 +21,7 @@ from tqdm import tqdm
 from timeit import default_timer
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-max_grad_clip_norm = 1.0   
+max_grad_clip_norm = 2.0   
 # %% 
 #Options for temporal propagation. 
 

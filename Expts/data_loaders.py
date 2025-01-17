@@ -24,7 +24,7 @@ def Navier_Stokes_Spectral(n_sims):
     
     dt = torch.tensor(dt, dtype=torch.float)
 
-    uv = stacked_fields([u,v,p])[:n_sims]
+    uv = stacked_fields([u,v])[:n_sims] #p removed. 
 
     return uv, x, x, dt
 

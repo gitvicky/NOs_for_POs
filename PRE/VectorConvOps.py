@@ -7,7 +7,7 @@ Vector Operations implemented using the ConvOps Class
 Data used for all operations should be in the shape: BS, Nt, Nx, Ny
 """
 
-from ConvOps_2d import *
+from PRE.ConvOps_2d import *
 
 #############################################  
 #Vector Operations 
@@ -39,11 +39,11 @@ class Divergence(ConvOperator):
         return outputs
 
 class Gradient(ConvOperator):
-    def __init__(self, domain=('x','y'), order=1, scale=1.0, taylor_order=2, requires_grad=False):
+    def __init__(self, domain=('x','y'), order=1, scale=1.0, taylor_order=2, conv='conv', device='cpu', requires_grad=False):
         super(Gradient, self).__init__()
         
-        self.grad_x = ConvOperator(domain[0], order, scale, taylor_order, requires_grad)
-        self.grad_y = ConvOperator(domain[1], order, scale, taylor_order, requires_grad)
+        self.grad_x = ConvOperator(domain[0], order, scale, taylor_order, conv, device, requires_grad)
+        self.grad_y = ConvOperator(domain[1], order, scale, taylor_order,conv, device, requires_grad)
 
     def __call__(self, input_x, input_y=None):
         
