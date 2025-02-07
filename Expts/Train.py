@@ -96,6 +96,8 @@ with Run(mode='online') as run:
     if pde == 'MHD':
         if configuration['Physics']['pde']['source'] == 'JOREK':
             fields, x, y, dt = JOREK(configuration['Data']['ntrain'])
+    
+    t = torch.arange(0, fields.shape[-1], dt)
 
     fields = fields[...,:configuration['Data']['t_out']]
 
@@ -216,6 +218,8 @@ with Run(mode='online') as run:
     from Utils import explicit_time
     train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Physics']['rollout'])
 
+    from Utils import torch_odesolve
+    train = torch_odesolve.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs, configuration['Physics']['rollout'], configuration['Physics']['adjoint'])
     # %% 
     ####################################
     #Training

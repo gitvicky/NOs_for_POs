@@ -10,7 +10,8 @@ Physics:
   Ny: 100
   Nt: 100
   dt: 0.01
-  rollout: 'Euler'
+  rollout: 'NODE-euler' #AR, Euler, Midpoint, RK4, NODE-euler, NODE-midpoint, NODE-rk4
+  adjoint: False
   physics normalisation: False
 
 Model:
@@ -19,9 +20,9 @@ Model:
   out_vars: 2
   modes: 8
   width: 16
-  n_layers: 2
+  n_layers: 6
   act: 'gelu'
-  operator splitting: True
+  operator splitting: False
 
 Data: 
   name: 'NS_Spectral_combined.npz'
