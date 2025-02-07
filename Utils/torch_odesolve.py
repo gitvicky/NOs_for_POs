@@ -4,13 +4,8 @@
 Created on 25 Oct 2024 
 @author: @vgopakum
 
-Training and Inference pipelines for Neural-PDE solvers with explicit temporal rollouts. Data shape - [Batch, variables, Nx, Ny, Nt]
+Training and Inference pipelines for Neural-PDE solvers using torchdiffeq odeint. Data shape - [Batch, variables, Nx, Ny, Nt]
 
-Currently supports: 
-    1. Autoregressive rollouts 
-    2. Euler Timestep 
-    3. MidPoint
-    4. Runge-Kutta 4 
 
 """
 
@@ -19,38 +14,10 @@ import torch
 import torch.nn as nn 
 from tqdm import tqdm 
 from timeit import default_timer
-from torchdiffeq import odeint
+from torchdiffeq import odeint, odeint_adjoint
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 max_grad_clip_norm = 2.0   
-# %% 
-#Options for temporal propagation. 
-
-def autoregressive(model, u_n, dt=0):
-    u_new = model(u_n)
-    return u_new
-
-def euler(model, u_n, dt): 
-    u_new = u_n + model(u_n)*dt 
-    return u_new 
-
-def midpoint(model, u_n, dt):#RK2
-    h = dt 
-    k1 = model(u_n)
-    k2 = model(u_n + 0.5*h*k1)
-    u_new = u_n + h*k2
-    return u_new
-
-def rk4(model, u_n, dt):
-    h = dt 
-    
-    k1 = model(u_n)
-    k2 = model(u_n + 0.5*h*k1)
-    k3 = model(u_n + 0.5*h*k2)
-    k4 = model(u_n + h*k3)
-
-    u_new = u_n + (h/6) * (k1 + 2*k2 + 2*k3 + k4)
-    return u_new
 
 # New torchdiffeq integration
 class ODEFunc(nn.Module):
@@ -61,15 +28,9 @@ class ODEFunc(nn.Module):
     def forward(self, t, x):
         return self.model(x)
 
-def neural_ode(model, u_n, dt, method):
-    ode_func = ODEFunc(model)
-    t = torch.tensor([0, dt]).to(device)
-    u_new = odeint(ode_func, u_n, t, method=method)[-1]
-    return u_new
-
 #Setting up the training pipeline. 
 class Train_Setup():
-    def __init__(self, model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs, roll_out='AR'): #roll_out = AR, Euler, RK4
+    def __init__(self, model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs, method='euler', adjoint=False): #roll_out = AR, Euler, RK4
         super(Train_Setup, self).__init__()
 
         self.model = model
@@ -79,28 +40,22 @@ class Train_Setup():
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.epochs = epochs
+        self.method = method
         self.device = device
 
-        if roll_out == 'AR':
-            self.forward = autoregressive
-        elif roll_out == 'Euler':
-            self.forward = euler
-        elif roll_out == 'Midpoint':
-            self.forward = euler
-        elif roll_out == 'RK4':
-            self.forward = rk4
-        elif roll_out == 'NODE-euler':  #For explicit train we structure the name this way
-            model = ODEFunc(model, method=roll_out[5:])
-            self.forward = neural_ode
+        if adjoint:
+            self.odesolve = odeint_adjoint
+        else:
+            self.odesolve = odeint
+
+        self.ode_func = ODEFunc(model)
+        self.ode_func.to(device)
             
         self.grad_clip = 2.0
-        
-        model.to(device)
-        self.model.train()
-
+        self.ode_func.train()
 
     def one_epoch(self, step, T_out, dt=0):
-        
+        t = torch.arange(0, T_out +1, dt)
         train_l2_step = 0
         train_l2_full = 0
 
@@ -111,19 +66,10 @@ class Train_Setup():
             yy = yy.to(self.device)
             batch_size = xx.shape[0]
 
-            for t in range(0, T_out, step):
-                y = yy[..., t:t + step]
-                im = self.forward(self.model, xx, dt)
+            pred = self.odesolve(self.func, xx, t, method=self.method)
 
-                #Recon Loss
-                loss += self.loss_func(im.reshape(batch_size, -1), y.reshape(batch_size, -1))
-
-                if t == 0:
-                    pred = im
-                else:
-                    pred = torch.cat((pred, im), -1)
-
-                xx = torch.cat((xx[..., step:], im), dim=-1)
+            #Recon Loss
+            loss += self.loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1))
 
             train_l2_step += loss.item()
             l2_full = self.loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1))
@@ -142,16 +88,8 @@ class Train_Setup():
                 xx, yy = xx.to(self.device), yy.to(self.device)
                 batch_size = xx.shape[0]
 
-                for t in range(0, T_out, step):
-                    y = yy[..., t:t + step]
-                    out = self.forward(self.model, xx, dt)
+                pred = odeint(self.func, xx, t, method=self.method)
 
-                    if t == 0:
-                        pred = out
-                    else:
-                        pred = torch.cat((pred, out), -1)
-    
-                    xx = torch.cat((xx[..., step:], out), dim=-1)
                 test_loss += self.loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1)).item()
 
 
@@ -175,48 +113,30 @@ class Train_Setup():
 
 # %%
 class Eval_Setup():
-    def __init__(self, model, test_in, test_out, normalizer = 'False', roll_out='AR'): #roll_out = AR, Euler, RK4
+    def __init__(self, model, test_in, test_out, normalizer = 'False', method='euler'): #roll_out = AR, Euler, RK4
         super(Eval_Setup, self).__init__()
 
         self.model = model
         self.test_in = test_in
         self.test_out = test_out
         self.device = device
-        
+
         self.test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(self.test_in, self.test_out), batch_size=1, shuffle=False)
 
-        if roll_out == 'AR':
-            self.forward = autoregressive
-        elif roll_out == 'Euler':
-            self.forward = euler
-        elif roll_out == 'Midpoint':
-            self.forward = midpoint
-        elif roll_out == 'RK4':
-            self.forward = rk4
-
-        model.to(device)
-        self.model.eval()
+        self.ode_func = ODEFunc(model)
+        self.ode_func.to(device)
+        self.ode_func.eval()
 
     def inference(self, step, T_out, eval_metric = 'MSE', dt=0):
+        t = torch.arange(0, T_out+1, dt)
         pred_set = torch.zeros(self.test_out.shape)
         index = 0
         with torch.no_grad():
             for xx, yy in tqdm(self.test_loader):
                 loss = 0
                 xx, yy = xx.to(device), yy.to(device)
-                for t in range(0, T_out, step):
-                    y = yy[..., t:t + step]
-                    out = self.forward(self.model, xx, dt)
 
-                    if t == 0:
-                        pred = out
-                    else:
-                        pred = torch.cat((pred, out), -1)
-
-                    xx = torch.cat((xx[..., step:], out), dim=-1)
-
-                pred_set[index] = pred
-                index += 1
+                pred_set = odeint(self.func, xx, t, method=self.method)
 
             # Performance Metrics
             if eval_metric == 'MSE':
