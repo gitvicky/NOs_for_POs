@@ -6,7 +6,6 @@ Created on 25 Oct 2024
 
 Training and Inference pipelines for Neural-PDE solvers using torchdiffeq odeint. Data shape - [Batch, variables, Nx, Ny, Nt]
 
-
 """
 
 import numpy as np 

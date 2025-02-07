@@ -10,8 +10,6 @@ Physics:
   Ny: 100
   Nt: 100
   dt: 0.01
-  rollout: 'NODE-euler' #AR, Euler, Midpoint, RK4, NODE-euler, NODE-midpoint, NODE-rk4
-  adjoint: False
   physics normalisation: False
 
 Model:
@@ -49,7 +47,10 @@ Opt:
 
 Train: 
   loss: 'LP'
-  rollout: True
+  odesolve: 
+    source: 'torchdiffeq' #'torchdiffeq', 'custom'
+    method: 'euler'
+    adjoint: False
   checkpoint:
     epochs: 100
   restart: False

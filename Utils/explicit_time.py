@@ -69,7 +69,7 @@ def neural_ode(model, u_n, dt, method):
 
 #Setting up the training pipeline. 
 class Train_Setup():
-    def __init__(self, model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs, roll_out='AR'): #roll_out = AR, Euler, RK4
+    def __init__(self, model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs, ode_solver='custom', roll_out='AR'): #roll_out = AR, Euler, RK4
         super(Train_Setup, self).__init__()
 
         self.model = model
@@ -81,17 +81,18 @@ class Train_Setup():
         self.epochs = epochs
         self.device = device
 
-        if roll_out == 'AR':
-            self.forward = autoregressive
-        elif roll_out == 'Euler':
-            self.forward = euler
-        elif roll_out == 'Midpoint':
-            self.forward = euler
-        elif roll_out == 'RK4':
-            self.forward = rk4
-        elif roll_out == 'NODE-euler':  #For explicit train we structure the name this way
-            model = ODEFunc(model, method=roll_out[5:])
+        if ode_solver == 'torchdiffeq':
+            model = ODEFunc(model, method=roll_out)
             self.forward = neural_ode
+        else: 
+            if roll_out == 'AR':
+                self.forward = autoregressive
+            elif roll_out == 'Euler':
+                self.forward = euler
+            elif roll_out == 'Midpoint':
+                self.forward = euler
+            elif roll_out == 'RK4':
+                self.forward = rk4
             
         self.grad_clip = 2.0
         
