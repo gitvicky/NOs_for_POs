@@ -28,7 +28,7 @@ run_config = flatten_dict(configuration)
 from simvue import Run, Client
 with Run(mode='online') as run:
 
-    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Physics']['rollout'], 'Tests'], metadata=run_config)
+    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Tests'], metadata=run_config)
 
     #setting up the client API 
     client = Client()
@@ -273,9 +273,9 @@ with Run(mode='online') as run:
 
     #Evaluation 
     if configuration['Train']['odesolve']['source'] == 'custom':
-        eval = explicit_time.Eval_Setup(model, test_in, test_out, roll_out= configuration['Train']['odesolve']['method'])
+        eval = explicit_time.Eval_Setup(model, test_in, test_out, roll_out= configuration['Train']['odesolve']['method'], ode_solver='custom')
     elif configuration['Train']['odesolve']['source'] == 'torchdiffeq':
-        eval = torch_odesolve.Eval_Setup(model, test_in, test_out, roll_out= configuration['Train']['odesolve']['method'])
+        eval = torch_odesolve.Eval_Setup(model, test_in, test_out, roll_out= configuration['Train']['odesolve']['method'], ode_solver='torchdiffeq')
         
     pred_encoded, error = eval.inference(configuration['Data']['step'], configuration['Data']['t_out']-1, dt=dt)
 
