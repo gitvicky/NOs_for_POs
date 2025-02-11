@@ -87,11 +87,11 @@ class Train_Setup():
         else: 
             if roll_out == 'AR':
                 self.forward = autoregressive
-            elif roll_out == 'Euler':
+            elif roll_out == 'ruler':
                 self.forward = euler
-            elif roll_out == 'Midpoint':
-                self.forward = euler
-            elif roll_out == 'RK4':
+            elif roll_out == 'midpoint':
+                self.forward = midpoint
+            elif roll_out == 'rk4':
                 self.forward = rk4
             
         self.grad_clip = 2.0
@@ -176,7 +176,7 @@ class Train_Setup():
 
 # %%
 class Eval_Setup():
-    def __init__(self, model, test_in, test_out, normalizer = 'False', roll_out='AR'): #roll_out = AR, Euler, RK4
+    def __init__(self, model, test_in, test_out, normalizer = 'False', ode_solver = 'custom', roll_out='AR'): #roll_out = AR, Euler, RK4
         super(Eval_Setup, self).__init__()
 
         self.model = model
@@ -186,14 +186,19 @@ class Eval_Setup():
         
         self.test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(self.test_in, self.test_out), batch_size=1, shuffle=False)
 
-        if roll_out == 'AR':
-            self.forward = autoregressive
-        elif roll_out == 'Euler':
-            self.forward = euler
-        elif roll_out == 'Midpoint':
-            self.forward = midpoint
-        elif roll_out == 'RK4':
-            self.forward = rk4
+        if ode_solver == 'torchdiffeq':
+            model = ODEFunc(model, method=roll_out)
+            self.forward = neural_ode
+        else: 
+            if roll_out == 'AR':
+                self.forward = autoregressive
+            elif roll_out == 'euler':
+                self.forward = euler
+            elif roll_out == 'midpoint':
+                self.forward = midpoint
+            elif roll_out == 'rk4':
+                self.forward = rk4
+            
 
         model.to(device)
         self.model.eval()
