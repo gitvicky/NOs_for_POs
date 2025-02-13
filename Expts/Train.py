@@ -92,7 +92,9 @@ with Run(mode='online') as run:
     if pde == 'Navier-Stokes':
         fields, x, y, dt = Navier_Stokes_Spectral(configuration['Data']['ntrain'])
     if pde == 'Incomp. Navier-Stokes':
-        fields, x, y, dt = Navier_Stokes_Incomp(configuration['Data']['ntrain'])
+        fields, force, x, y, dt = Navier_Stokes_Incomp(configuration['Data']['ntrain'])
+    if pde == 'Comp. Navier-Stokes':
+        fields, x, y, dt = Navier_Stokes_Comp(configuration['Data']['ntrain'], coeff=configuration['Physics']['coeff'])
     if pde == 'MHD':
         if configuration['Physics']['pde']['source'] == 'JOREK':
             fields, x, y, dt = JOREK(configuration['Data']['ntrain'])
