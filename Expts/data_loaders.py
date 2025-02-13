@@ -1,6 +1,8 @@
 import numpy as np 
 import torch 
 import h5py 
+import glob 
+from tqdm import tqdm
 
 def stacked_fields(variables):
     stack = []
@@ -119,3 +121,35 @@ def JOREK(n_sims):
     dt = torch.tensor(dt, dtype=torch.float)
 
     return fields, x_grid, y_grid, dt
+
+
+def JOREK_electromagnetic(n_sims):
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-shared-bLH38hg3nf0/JOREK_tblob_dataset/JOREK_tblob/'
+    folders = ['0001-0100', '0100-0300', '0300-0500', '0500-1000', '1000-1500', '1500-1800', 'valid']
+    folders = ['0100-0300']
+    for ii in range(len(folders)):
+        rho_array, phi_array, T_array = [], [], []
+        files = glob.glob(data_loc + folders[ii] + '/*.h5')
+        for jj in tqdm(range(len(files))):
+            with h5py.File(files[jj], 'r') as f:
+                keys = list(f.keys())
+                rho = f['rho(nR,nZ,n_times)']
+                phi = f['Phi(nR,nZ,n_times)']
+                T = f['T(nR,nZ,n_times)']
+                Rgrid = f['Rgrid(nR,nZ)']
+                Zgrid = f['Zgrid(nR,nZ)']
+
+                rho_array.append(np.asarray(rho, dtype=np.float32))
+                phi_array.append(np.asarray(phi, dtype=np.float32))
+                T_array.append(np.asarray(T, dtype=np.float32))
+                x = np.asarray(Rgrid, dtype=np.float32)
+                y = np.asarray(Zgrid, dtype=np.float32)
+
+            rho = np.asarray(rho_array)
+            phi = np.asarray(phi_array)
+            T = np.asarray(T_array)
+
+        fields = stacked_fields([rho, phi, T])
+        dt, x, y = torch.tensor(dt), torch.tensor(x), torch.tensor(y)
+
+        return fields, dt, x, y
