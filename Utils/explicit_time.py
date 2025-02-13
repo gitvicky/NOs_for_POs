@@ -87,7 +87,7 @@ class Train_Setup():
         else: 
             if roll_out == 'AR':
                 self.forward = autoregressive
-            elif roll_out == 'ruler':
+            elif roll_out == 'euler':
                 self.forward = euler
             elif roll_out == 'midpoint':
                 self.forward = midpoint

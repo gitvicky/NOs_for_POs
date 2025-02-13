@@ -54,7 +54,7 @@ class Train_Setup():
         self.ode_func.train()
 
     def one_epoch(self, step, T_out, dt=0):
-        t = torch.arange(0, T_out +1, dt)
+        t = torch.arange(0, T_out +1, dt).to(device)
         train_l2_step = 0
         train_l2_full = 0
 
@@ -65,7 +65,7 @@ class Train_Setup():
             yy = yy.to(self.device)
             batch_size = xx.shape[0]
 
-            pred = self.odesolve(self.func, xx, t, method=self.method)
+            pred = self.odesolve(self.ode_func, xx, t, method=self.method)
 
             #Recon Loss
             loss += self.loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1))
@@ -87,7 +87,7 @@ class Train_Setup():
                 xx, yy = xx.to(self.device), yy.to(self.device)
                 batch_size = xx.shape[0]
 
-                pred = odeint(self.func, xx, t, method=self.method)
+                pred = odeint(self.ode_func, xx, t, method=self.method)
 
                 test_loss += self.loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1)).item()
 
@@ -127,7 +127,7 @@ class Eval_Setup():
         self.ode_func.eval()
 
     def inference(self, step, T_out, eval_metric = 'MSE', dt=0):
-        t = torch.arange(0, T_out+1, dt)
+        t = torch.arange(0, T_out+1, dt).to(device)
         pred_set = torch.zeros(self.test_out.shape)
         index = 0
         with torch.no_grad():
@@ -135,7 +135,7 @@ class Eval_Setup():
                 loss = 0
                 xx, yy = xx.to(device), yy.to(device)
 
-                pred_set = odeint(self.func, xx, t, method=self.method)
+                pred_set = odeint(self.ode_func, xx, t, method=self.method)
 
             # Performance Metrics
             if eval_metric == 'MSE':
