@@ -96,7 +96,7 @@ def Navier_Stokes_Comp(n_sims=100, coeffs = 'M0.1_Eta0.01_Zeta0.01'):
 #     # return uv, x, y, dt
 
 
-def JOREK(n_sims):
+def JOREK_electrostatic(n_sims):
     #JOREK MultiBlob Data 
     #https://iopscience.iop.org/article/10.1088/1741-4326/ad313a/meta
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
@@ -123,7 +123,7 @@ def JOREK(n_sims):
     return fields, x_grid, y_grid, dt
 
 
-def JOREK_electromagnetic(n_sims):
+def JOREK_electrostatic_naomi(n_sims):
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-shared-bLH38hg3nf0/JOREK_tblob_dataset/JOREK_tblob/'
     folders = ['0001-0100', '0100-0300', '0300-0500', '0500-1000', '1000-1500', '1500-1800', 'valid']
     folders = ['0100-0300']
@@ -145,11 +145,58 @@ def JOREK_electromagnetic(n_sims):
                 x = np.asarray(Rgrid, dtype=np.float32)
                 y = np.asarray(Zgrid, dtype=np.float32)
 
-            rho = np.asarray(rho_array)
-            phi = np.asarray(phi_array)
-            T = np.asarray(T_array)
+        rho = np.asarray(rho_array)
+        phi = np.asarray(phi_array)
+        T = np.asarray(T_array)
 
         fields = stacked_fields([rho, phi, T])
+        dt = 1.5e-6 #1.5 microseconds
         dt, x, y = torch.tensor(dt), torch.tensor(x), torch.tensor(y)
 
         return fields, dt, x, y
+    
+def JOREK_electromagnetic(n_sims=20):
+    # all 6: Psi (poloidal magnetic flux), T (temperature), omega (vorticity), rho (particle density), u (electric potential), zj (toroidal plasma current density)
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-shared-bLH38hg3nf0/JOREK_tblob_dataset_MHD/JOREK_V2/longer_traj'
+    # file = 'jorek_run001.h5'
+    files = glob.glob(data_loc + '/*.h5')
+    rho_array, psi_array, T_array, u_array, omega_array, zj_array = [], [], [], [], [], []
+    for file in tqdm(files):
+        with h5py.File(file, 'r') as f:
+            keys = list(f.keys())
+
+            rho = f['rho']
+            psi = f['Psi']
+            T = f['T']
+            u = f['u']
+            omega = f['omega']
+            zj = f['zj']
+            
+            Rgrid = f['R_mesh(nR,nZ)']
+            Zgrid = f['Z_mesh(nR,nZ)']
+
+            rho_array.append(np.asarray(rho, dtype=np.float32))
+            psi_array.append(np.asarray(psi, dtype=np.float32))
+            T_array.append(np.asarray(T, dtype=np.float32))
+            u_array.append(np.asarray(u, dtype=np.float32))
+            omega_array.append(np.asarray(omega, dtype=np.float32))
+            zj_array.append(np.asarray(zj, dtype=np.float32))
+
+            x = np.asarray(Rgrid, dtype=np.float32)
+            y = np.asarray(Zgrid, dtype=np.float32)
+
+    rho = np.asarray(rho_array)
+    psi = np.asarray(psi_array)
+    T = np.asarray(T_array)
+    u = np.asarray(u_array)
+    omega = np.asarray(omega_array)
+    zj = np.asarray(zj_array)
+
+    fields = stacked_fields([rho, psi, T, u, omega, zj])
+    dt = 1.5e-6 #1.5 microseconds
+    dt, x, y = torch.tensor(dt), torch.tensor(x), torch.tensor(y)
+
+    return fields, dt, x, y
+
+
+# def time_sequencing(fields, index, step):

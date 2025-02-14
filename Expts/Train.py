@@ -227,12 +227,12 @@ with Run(mode='online') as run:
         epoch_init = checkpoint["epoch"]
 
     #Setting up the Training pipeline
-    if configuration['Train']['odesolve']['source'] == 'custom':
-        from Utils import explicit_time
-        train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Train']['odesolve']['method'])
-    elif configuration['Train']['odesolve']['source'] == 'torchdiffeq':
-        from Utils import torch_odesolve
-        train = torch_odesolve.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Train']['odesolve']['method'],  configuration['Train']['odesolve']['adjoint'])
+    # if configuration['Train']['odesolve']['source'] == 'custom':
+    from Utils import explicit_time
+    train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  ode_solver=configuration['Train']['odesolve']['source'], roll_out=configuration['Train']['odesolve']['method'])
+    # elif configuration['Train']['odesolve']['source'] == 'torchdiffeq':
+    #     from Utils import torch_odesolve
+    #     train = torch_odesolve.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Train']['odesolve']['method'],  configuration['Train']['odesolve']['adjoint'])
     # %% 
     ####################################
     #Training
@@ -284,10 +284,11 @@ with Run(mode='online') as run:
     run.save_file(saved_model, 'output')
 
     #Evaluation 
-    if configuration['Train']['odesolve']['source'] == 'custom':
-        eval = explicit_time.Eval_Setup(model, test_in, test_out, roll_out= configuration['Train']['odesolve']['method'], ode_solver='custom')
-    elif configuration['Train']['odesolve']['source'] == 'torchdiffeq':
-        eval = torch_odesolve.Eval_Setup(model, test_in, test_out, roll_out= configuration['Train']['odesolve']['method'], ode_solver='torchdiffeq')
+    # if configuration['Train']['odesolve']['source'] == 'custom':
+    eval = explicit_time.Eval_Setup(model, test_in, test_out, normalizer='False', ode_solver = configuration['Train']['odesolve']['source'], roll_out= configuration['Train']['odesolve']['method'])
+
+    # elif configuration['Train']['odesolve']['source'] == 'torchdiffeq':
+    #     eval = torch_odesolve.Eval_Setup(model, test_in, test_out, roll_out= configuration['Train']['odesolve']['method'], ode_solver='torchdiffeq')
         
     pred_encoded, error = eval.inference(configuration['Data']['step'], configuration['Data']['t_out']-1, dt=dt)
 

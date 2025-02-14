@@ -54,17 +54,19 @@ def rk4(model, u_n, dt):
 
 # New torchdiffeq integration
 class ODEFunc(nn.Module):
-    def __init__(self, model):
+    def __init__(self, model, method='euler'):
         super(ODEFunc, self).__init__()
         self.model = model
+        self.method= method
         
     def forward(self, t, x):
         return self.model(x)
 
-def neural_ode(model, u_n, dt, method):
-    ode_func = ODEFunc(model)
+def neural_ode(ode_func, u_n, dt):
+    # ode_func = ODEFunc(model)
+    # ode_func = model
     t = torch.tensor([0, dt]).to(device)
-    u_new = odeint(ode_func, u_n, t, method=method)[-1]
+    u_new = odeint(ode_func, u_n, t, method=ode_func.method)[-1]
     return u_new
 
 #Setting up the training pipeline. 
@@ -82,7 +84,7 @@ class Train_Setup():
         self.device = device
 
         if ode_solver == 'torchdiffeq':
-            model = ODEFunc(model, method=roll_out)
+            self.model = ODEFunc(model, method=roll_out)
             self.forward = neural_ode
         else: 
             if roll_out == 'AR':
@@ -198,8 +200,7 @@ class Eval_Setup():
                 self.forward = midpoint
             elif roll_out == 'rk4':
                 self.forward = rk4
-            
-
+                
         model.to(device)
         self.model.eval()
 

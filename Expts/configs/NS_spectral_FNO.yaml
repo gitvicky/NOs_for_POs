@@ -48,7 +48,7 @@ Opt:
 Train: 
   loss: 'LP'
   odesolve: 
-    source: 'custom' #'torchdiffeq', 'custom'
+    source: 'torchdiffeq' #'torchdiffeq', 'custom'
     method: 'euler'
     adjoint: True
   checkpoint:
