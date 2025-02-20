@@ -71,7 +71,7 @@ def neural_ode(ode_func, u_n, dt):
 
 #Setting up the training pipeline. 
 class Train_Setup():
-    def __init__(self, model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs, ode_solver='custom', roll_out='AR'): #roll_out = AR, Euler, RK4
+    def __init__(self, model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs, ode_solver='custom', roll_out='AR', noise=False): #roll_out = AR, Euler, RK4
         super(Train_Setup, self).__init__()
 
         self.model = model
@@ -96,8 +96,13 @@ class Train_Setup():
             elif roll_out == 'rk4':
                 self.forward = rk4
             
-        self.grad_clip = 2.0
+        self.grad_clip = max_grad_clip_norm
         
+        if noise:
+            self.noisy_factor = 1e-2
+        else:
+            self.noisy_factor = 0.0
+
         model.to(device)
         self.model.train()
 
@@ -116,6 +121,7 @@ class Train_Setup():
 
             for t in range(0, train_T_out, step):
                 y = yy[..., t:t + step]
+                xx = xx + self.noisy_factor*torch.randn_like(xx) #Adding noise to the input.
                 im = self.forward(self.model, xx, dt)
 
                 #Recon Loss
@@ -133,7 +139,9 @@ class Train_Setup():
             train_l2_full += l2_full.item()
 
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(parameters=self.model.parameters(), max_norm=max_grad_clip_norm, norm_type=2.0)
+            grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
+            # if grad_norm > self.grad_clip:
+            #     print(f"Warning: Gradient norm {grad_norm:.2f} exceeded clip threshold")
             self.optimizer.step()
 
         train_loss = train_l2_full 
@@ -164,7 +172,7 @@ class Train_Setup():
         for ep in self.epochs():
             self.model.train()
             t1 = default_timer()
-            train_loss, test_loss = self.train_one_epoch(step, train_T_out, test_T_out, dt)
+            train_loss, test_loss = self.one_epoch(step, train_T_out, test_T_out, dt)
             t2 = default_timer()
 
             train_loss = train_loss / len(self.train_loader)
