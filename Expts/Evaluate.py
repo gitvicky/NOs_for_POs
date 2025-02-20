@@ -5,7 +5,7 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'formal-fur'
+run_name = 'open-voltage'
 
 # %% 
 #Setting up simvue 
@@ -118,7 +118,6 @@ print('preprocessing finished, time used:', t2-t1)
 from model_setup import * 
 model = model_initialisation(configuration)
 
-
 # #Loading the checkpoint
 # client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'checkpoint.pt', path=tmp_loc)
 # ckpt_path = tmp_loc + '/checkpoint.pt'
@@ -130,7 +129,6 @@ model = model_initialisation(configuration)
 client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'model.pth', path=tmp_loc)
 model_path = tmp_loc + '/model.pth'
 model.load_state_dict(torch.load(model_path, map_location='cpu'))
-
 
 model.to(device)
 print("Number of model params : " + str(model.count_params()))

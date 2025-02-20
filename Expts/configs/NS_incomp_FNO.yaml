@@ -10,14 +10,14 @@ Physics:
   Ny: 128
   Nt: 100
   dt: 0.05
-  physics normalisation: False
+  physics normalisation: True 
 
 Model:
   arch: 'FNO'
   in_vars: 3
   out_vars: 3
-  modes: 8
-  width: 16
+  modes: 16
+  width: 32
   n_layers: 6
   act: 'gelu'
   operator splitting: False
@@ -25,13 +25,13 @@ Model:
 Data: 
   name: 'NS_incomp_velocity_100_128_128.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
-  ntrain: 100
+  ntrain: 50
   test-train-split: 0.2
-  batch size: 50
+  batch size: 10
   t_in: 1
-  t_out: 100
+  t_out: 50
   step: 1
-  normalisation: 'Min-Max_variable'
+  normalisation: 'Min-Max'
 
 Opt:
   optimizer: 'adam'

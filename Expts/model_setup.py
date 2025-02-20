@@ -80,3 +80,6 @@ def model_initialisation(configuration):
                         Ny = configuration['Model']['Ny'])
             
     return model
+
+#Function to count_params
+count_parameters = lambda model: sum(p.numel() for p in model.parameters() if p.requires_grad)

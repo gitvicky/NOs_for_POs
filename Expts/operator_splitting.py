@@ -40,7 +40,7 @@ class NS_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand-side.
             nparams += param.numel()
         return nparams 
 
-class NS_incomp_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand-side. 
+class Incomp_NS_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand-side. #Momentum equation only at the moment. 
     def __init__(self, configuration):
         super(NS_OS_rhs, self).__init__()
         self.NO_convection = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 

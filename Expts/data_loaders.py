@@ -101,7 +101,7 @@ def Navier_Stokes_Incomp(n_sims=100):
     data = np.load(data_loc + '/NS_incomp_velocity_100_128_128.npz') 
     u = data['velocity'][...,0]
     v = data['velocity'][...,1]
-    p = data['pressure'][...,0]
+    p = data['pressure'][...,0] / 3.0
     force = data['force']
 
     uvp = stacked_fields([u,v,p])[:n_sims]
