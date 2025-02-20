@@ -98,10 +98,7 @@ class Train_Setup():
             
         self.grad_clip = max_grad_clip_norm
         
-        if noise:
-            self.noisy_factor = 1e-2
-        else:
-            self.noisy_factor = 0.0
+        self.noisy_factor = torch.tensor(noise, dtype=torch.float32)
 
         model.to(device)
         self.model.train()

@@ -251,7 +251,7 @@ with Run(mode='online') as run:
     #Setting up the Training pipeline
     # if configuration['Train']['odesolve']['source'] == 'custom':
     from Utils import explicit_time
-    train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  ode_solver=configuration['Train']['odesolve']['source'], roll_out=configuration['Train']['odesolve']['method'])
+    train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  ode_solver=configuration['Train']['odesolve']['source'], roll_out=configuration['Train']['odesolve']['method'], noise=configuration['Train']['input_noise'])
     # elif configuration['Train']['odesolve']['source'] == 'torchdiffeq':
     #     from Utils import torch_odesolve
     #     train = torch_odesolve.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Train']['odesolve']['method'],  configuration['Train']['odesolve']['adjoint'])
@@ -297,7 +297,7 @@ with Run(mode='online') as run:
             checkpoint["optimizer"] = optimizer.state_dict() 
             checkpoint["scheduler"] = scheduler.state_dict()
             checkpoint["epoch"] = ep
-            torch.save(checkpoint, model_loc + "/checkpoint.pt")
+            torch.save(checkpoint, model_loc + "/checkpoint_"+str(ep)+".pt")
             run.save_file(model_loc + "/checkpoint_"+str(ep)+".pt", 'output')
             run.update_metadata({'Epochs': ep})
 
