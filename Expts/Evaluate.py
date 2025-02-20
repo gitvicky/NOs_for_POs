@@ -153,6 +153,6 @@ pred_set = pred_set.permute(0,1,4,2,3)
 # %% 
 #Plotting the results 
 from Utils.plots import plots_2d_yaml
-idx = 10
+idx = 0
 plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run_name, idx, save=False)
 # %%

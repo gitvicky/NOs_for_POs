@@ -94,6 +94,23 @@ def Navier_Stokes_Spectral(n_sims):
 
     return uvp, x, x, dt
 
+def Navier_Stokes_FV(n_sims):
+    #Finite Volume Simulation Data from Philip Mocz for Compressible Navier-Stokes 
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
+    data =  np.load(data_loc + '/NS_FV_combined.npz')
+    u = data['u'].astype(np.float32)
+    v = data['v'].astype(np.float32)
+    p = data['p'].astype(np.float32)
+    rho = data['rho'].astype(np.float32)
+    dx = data['dx']
+    x = np.linspace(0, 1, 128)
+
+    dt = data['dt']
+    dt = torch.tensor(dt, dtype=torch.float)
+
+    fields = stacked_fields([u,v,p,rho])[:n_sims]
+
+    return fields, x, x, dt
 
 def Navier_Stokes_Incomp(n_sims=100):
     #PDEBench data
