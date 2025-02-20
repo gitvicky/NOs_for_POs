@@ -50,6 +50,7 @@ with Run(mode='online') as run:
     import torch.nn.functional as F
     from timeit import default_timer
     from tqdm import tqdm 
+    from sklearn.model_selection import train_test_split
 
     #Setting up locations. 
     file_loc = os.getcwd()
@@ -95,10 +96,13 @@ with Run(mode='online') as run:
         fields, force, x, y, dt = Navier_Stokes_Incomp(configuration['Data']['ntrain'])
     if pde == 'Comp. Navier-Stokes':
         fields, x, y, dt = Navier_Stokes_Comp(configuration['Data']['ntrain'], coeff=configuration['Physics']['coeff'])
-    if pde == 'MHD':
-        if configuration['Physics']['pde']['source'] == 'JOREK': 
-            fields, x, y, dt = JOREK(configuration['Data']['ntrain'])
-    
+    if pde == 'Electrostatic MHD':
+        if configuration['Physics']['source'] == 'JOREK': 
+            fields, x, y, dt = JOREK_electrostatic(configuration['Data']['ntrain'])
+    if pde == 'Eelctromagnetic MHD':
+        if configuration['Physics']['source'] == 'JOREK': 
+            fields, x, y, dt = JOREK_electrostatic(configuration['Data']['ntrain'])
+            
     t = torch.arange(0, fields.shape[-1], dt)
 
     fields = fields[...,:configuration['Data']['t_out']]
@@ -113,13 +117,7 @@ with Run(mode='online') as run:
     normalizer_func = Normalisation(configuration['Data']['normalisation'])
     normalizer = normalizer_func(fields)
     fields_encoded = normalizer.encode(fields)
-
-    #Setting up train and test
-    from sklearn.model_selection import train_test_split
-    train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=configuration['Data']['test-train-split'], random_state=42)
-    print("Training Input: " + str(train_in.shape))
-    print("Training Output: " + str(train_out.shape))
-
+    
     #Saving Normalisation 
     saved_normalisations = model_loc + '/norms.npz'
     np.savez(saved_normalisations, 
@@ -127,8 +125,32 @@ with Run(mode='online') as run:
             )
     run.save_file(saved_normalisations, 'output')
 
+    
+    # #Setting up the train-test pipelines. Options are for a full rollout (and then backprop) or a single step rollout (and then backprop).
+    # if configuration['Train']['rollout'] == 'full':
+
+    #     #Setting up train and test
+    #     train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=configuration['Data']['test-train-split'], random_state=42)
+    #     print("Training Input: " + str(train_in.shape))
+    #     print("Training Output: " + str(train_out.shape))
+
+    #     #Setting up the data loaders
+    #     train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Data']['batch size'], shuffle=True)
+    #     test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch size'], shuffle=False)
+
+
+    train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=configuration['Data']['test-train-split'], random_state=42)
+    print("Training Input: " + str(train_in.shape))
+    print("Training Output: " + str(train_out.shape))
+
+    train_data = torch.cat((train_in, train_out), dim=-1)#Merging for creating the windowed dataset.
+
+    input_window = configuration['Train']['input_length']
+    prediction_steps = configuration['Train']['rollout_length'] - 1 
+    train_dataset = SpatioTemporalDataset(train_data, input_window, prediction_steps)
+
     #Setting up the data loaders
-    train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Data']['batch size'], shuffle=True)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=configuration['Data']['batch size'], shuffle=True)
     test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch size'], shuffle=False)
 
     t2 = default_timer()
@@ -242,7 +264,7 @@ with Run(mode='online') as run:
 
         model.train()
         t1 = default_timer()
-        train_loss, test_loss = train.one_epoch(configuration['Data']['step'], configuration['Data']['t_out']-1, dt=dt)
+        train_loss, test_loss = train.one_epoch(configuration['Data']['step'], configuration['Train']['rollout_length']-1, configuration['Data']['t_out']-1, dt=dt)
         t2 = default_timer()
 
         train_loss = train_loss / len(train_loader)

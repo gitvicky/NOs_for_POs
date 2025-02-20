@@ -102,7 +102,7 @@ class Train_Setup():
         self.model.train()
 
 
-    def one_epoch(self, step, T_out, dt=0):
+    def one_epoch(self, step, train_T_out, test_T_out, dt=0):
         
         train_l2_step = 0
         train_l2_full = 0
@@ -114,7 +114,7 @@ class Train_Setup():
             yy = yy.to(self.device)
             batch_size = xx.shape[0]
 
-            for t in range(0, T_out, step):
+            for t in range(0, train_T_out, step):
                 y = yy[..., t:t + step]
                 im = self.forward(self.model, xx, dt)
 
@@ -145,7 +145,7 @@ class Train_Setup():
                 xx, yy = xx.to(self.device), yy.to(self.device)
                 batch_size = xx.shape[0]
 
-                for t in range(0, T_out, step):
+                for t in range(0, test_T_out, step):
                     y = yy[..., t:t + step]
                     out = self.forward(self.model, xx, dt)
 
@@ -160,11 +160,11 @@ class Train_Setup():
 
         return train_loss, test_loss #remember to divide the ntrain/ntest and num_vars at the other end before logging.
 
-    def train(self, run,  step, T_out, dt=0):
+    def train(self, run,  step, train_T_out, test_T_out, dt=0):
         for ep in self.epochs():
             self.model.train()
             t1 = default_timer()
-            train_loss, test_loss = self.train_one_epoch(step, T_out, dt)
+            train_loss, test_loss = self.train_one_epoch(step, train_T_out, test_T_out, dt)
             t2 = default_timer()
 
             train_loss = train_loss / len(self.train_loader)

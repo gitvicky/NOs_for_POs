@@ -1,5 +1,7 @@
+# %%
 import numpy as np 
 import torch 
+from torch.utils.data import Dataset
 import h5py 
 import glob 
 from tqdm import tqdm
@@ -13,7 +15,68 @@ def stacked_fields(variables):
     stack = torch.stack(stack, dim=1)
     return stack
 
+class SpatioTemporalDataset(Dataset):
+    def __init__(self, data, input_window=64, prediction_steps=1):
+        """
+        Initialize the dataset for spatiotemporal sequence prediction.
+        
+        Args:
+            data (numpy.ndarray): Input data of shape (batch_size, variables, x_dim, y_dim, time_steps)
+            input_window (int): Number of time steps to use as input
+            prediction_steps (int): Number of steps to predict ahead
+        """
+        self.data = torch.FloatTensor(data)
+        self.input_window = input_window
+        self.prediction_steps = prediction_steps
+        
+        # Store data dimensions
+        self.batch_size, self.variables, self.x_dim, self.y_dim, self.time_steps = self.data.shape
+        
+        # Calculate valid start indices for sliding windows
+        self.indices = self._create_indices()
+    
+    def _create_indices(self):
+        """Create valid start indices for the sliding windows."""
+        total_required_length = self.input_window + self.prediction_steps
+        valid_start_indices = []
+        
+        # For each sample in the batch
+        for sample_idx in range(self.batch_size):
+            # Create sliding windows along temporal dimension
+            max_start_idx = self.time_steps - total_required_length + 1
+            sample_indices = [(sample_idx, i) for i in range(max_start_idx)]
+            valid_start_indices.extend(sample_indices)
+            
+        return valid_start_indices
+    
+    def __len__(self):
+        """Return the number of samples in the dataset."""
+        return len(self.indices)
+    
+    def __getitem__(self, idx):
+        """
+        Get a single sample from the dataset.
+        
+        Returns:
+            tuple: (input_sequence, target_sequence)
+                - input_sequence: Tensor of shape (variables, x_dim, y_dim, input_window)
+                - target_sequence: Tensor of shape (variables, x_dim, y_dim, prediction_steps)
+        """
+        sample_idx, start_idx = self.indices[idx]
+        
+        # Get input sequence
+        end_idx = start_idx + self.input_window
+        input_sequence = self.data[sample_idx, :, :, :, start_idx:end_idx]
+        
+        # Get target sequence
+        target_start = end_idx
+        target_end = target_start + self.prediction_steps
+        target_sequence = self.data[sample_idx, :, :, :, target_start:target_end]
+        
+        return input_sequence, target_sequence
 
+
+# %% 
 def Navier_Stokes_Spectral(n_sims):
     #Testing with NS_Spectral (for now)
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
@@ -48,6 +111,15 @@ def Navier_Stokes_Incomp(n_sims=100):
     dt = torch.tensor(dt, dtype=torch.float)
 
     return uvp, force, x, y, dt
+
+
+# def Navier_Stokes_Incom(n_sims):
+#     #PDEBench data
+#     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/PDEBench/pdebench/2D/NS_incom'
+
+#     # Need to write a h5 data loader here for all the pdebench files. ÷
+
+#     # return uv, x, y, dt
 
 
 incompressible_files = {'M0.1_Eta0.01_Zeta0.01': '2D_CFD_Rand_M0.1_Eta0.01_Zeta0.01_periodic_128_Train.hdf5',
@@ -86,14 +158,6 @@ def Navier_Stokes_Comp(n_sims=100, coeffs = 'M0.1_Eta0.01_Zeta0.01'):
 
     return fields, x, y, dt
 
-
-# def Navier_Stokes_Incom(n_sims):
-#     #PDEBench data
-#     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/PDEBench/pdebench/2D/NS_incom'
-
-#     # Need to write a h5 data loader here for all the pdebench files. ÷
-
-#     # return uv, x, y, dt
 
 
 def JOREK_electrostatic(n_sims):
@@ -198,5 +262,4 @@ def JOREK_electromagnetic(n_sims=20):
 
     return fields, dt, x, y
 
-
-# def time_sequencing(fields, index, step):
+# %%

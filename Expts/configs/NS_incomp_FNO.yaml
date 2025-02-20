@@ -3,33 +3,35 @@ seed: 907
 
 Physics: 
   pde: 'Incomp. Navier-Stokes'
-  source: 'PDEBench'
-  field: 'u, v'
-  variables: 2 
+  source: 'PDEBench' 
+  field: 'u, v, p'
+  variables: 3
   Nx: 128
   Ny: 128
   Nt: 100
-  dt: 0.005
-  rollout: 'Midpoint'
+  dt: 0.05
   physics normalisation: False
 
 Model:
   arch: 'FNO'
+  in_vars: 3
+  out_vars: 3
   modes: 8
   width: 16
+  n_layers: 6
   act: 'gelu'
   operator splitting: False
 
 Data: 
-  name: 'NS_incomp_velocity_100_128_128.npy'
+  name: 'NS_incomp_velocity_100_128_128.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
   ntrain: 100
   test-train-split: 0.2
-  batch size: 5
+  batch size: 50
   t_in: 1
-  t_out: 50
+  t_out: 100
   step: 1
-  normalisation: 'Min-Max'
+  normalisation: 'Min-Max_variable'
 
 Opt:
   optimizer: 'adam'
@@ -45,7 +47,12 @@ Opt:
 
 Train: 
   loss: 'LP'
-  rollout: True
+  input_length: 1
+  rollout_length: 20
+  odesolve: 
+    source: 'custom' #'torchdiffeq', 'custom'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+    adjoint: False #Only for torchdiffeq
   checkpoint:
     epochs: 100
   restart: False
@@ -54,4 +61,4 @@ Train:
 Simvue:
   mode: 'online'
   name: None 
-  folder: '/Neural_PDE/tests' 
+  folder: '/Neural_PDE/Incompressible_NS' 

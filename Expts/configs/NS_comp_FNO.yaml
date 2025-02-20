@@ -1,20 +1,21 @@
+
 seed: 907
 
 Physics: 
-  pde: 'Electrostatic MHD'
-  source: 'JOREK' 
-  field: 'rho, phi, T'
-  variables: 3
-  Nx: 100
-  Ny: 100
-  Nt: 100
-  dt: 1.5e-6 x 10 #downsampled by 10
-  physics normalisation: True
+  pde: 'Comp. Navier-Stokes'
+  source: 'PDEBench' 
+  field: 'u, v, p, rho'
+  variables: 4
+  Nx: 128
+  Ny: 128
+  Nt: 21
+  dt: 0.05
+  physics normalisation: False
 
 Model:
   arch: 'FNO'
-  in_vars: 3
-  out_vars: 3
+  in_vars: 4
+  out_vars: 4
   modes: 8
   width: 16
   n_layers: 6
@@ -22,15 +23,15 @@ Model:
   operator splitting: False
 
 Data: 
-  name: 'JOREK_filtered.npz'
+  name: 'NS_incomp_velocity_100_128_128.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
   ntrain: 100
   test-train-split: 0.2
-  batch size: 50
+  batch size: 20
   t_in: 1
-  t_out: 100
+  t_out: 21
   step: 1
-  normalisation: 'Min-Max'
+  normalisation: 'Min-Max_variable'
 
 Opt:
   optimizer: 'adam'
@@ -47,10 +48,10 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 20
+  rollout_length: 10
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   checkpoint:
     epochs: 100
@@ -60,4 +61,4 @@ Train:
 Simvue:
   mode: 'online'
   name: None 
-  folder: '/Neural_PDE/ES_JOREK' 
+  folder: '/Neural_PDE/Incompressible_NS' 
