@@ -4,8 +4,8 @@ seed: 907
 Physics: 
   pde: 'Navier-Stokes'
   source: 'Spectral' 
-  field: 'u, v, p'
-  variables: 3
+  field: 'u, v'
+  variables: 2
   Nx: 100
   Ny: 100
   Nt: 100
@@ -14,13 +14,13 @@ Physics:
 
 Model:
   arch: 'FNO'
-  in_vars: 3
-  out_vars: 3
+  in_vars: 2
+  out_vars: 2
   modes: 8
   width: 16
-  n_layers: 6
+  n_layers: 2
   act: 'gelu'
-  operator splitting: False
+  operator splitting: True
 
 Data: 
   name: 'NS_Spectral_combined.npz'
@@ -48,10 +48,11 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 30
+  rollout_length: 20
+  input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   checkpoint:
     epochs: 100

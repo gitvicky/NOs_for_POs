@@ -5,7 +5,7 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'open-voltage'
+run_name = 'full-tanager'
 
 # %% 
 #Setting up simvue 
@@ -65,6 +65,7 @@ from Neural_PDE.Utils.training_utils import *
 
 t1 = default_timer()
 n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test-train-split'])
+n_sims = 3
 from data_loaders import *
 pde = configuration['Physics']['pde']
 if pde == 'Navier-Stokes':
@@ -101,7 +102,7 @@ normalizer.a, normalizer.b = torch.tensor(norms['a']), torch.tensor(norms['b'])
 fields_encoded = normalizer.encode(fields)
 
 # %% 
-test_in = fields_encoded[...,:configuration['Data']['t_in']]
+test_in = fields_encoded[...,:configuration['Data']['t_in']] + torch.randn_like(fields_encoded[...,:configuration['Data']['t_in']])*0.001
 test_out = fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']]
 
 print("Test Input: " + str(test_in.shape))
