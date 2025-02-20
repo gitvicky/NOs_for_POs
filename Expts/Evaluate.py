@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Evaluating Trained Models
+Evaluating Trained Models using simvue's client API. 
 """
 # %%
+#Specifying the run instance
+run_name = 'formal-fur'
+
+# %% 
 #Setting up simvue 
 import os
 import yaml 
-
 import sys
+import shutil
+from pathlib import Path
+
 sys.path.append("..")
 from simvue import Client
-
-# %% 
-#Loading the Run Config from simvue
-run_name = 'tattered-strategy'
-
 client = Client()
+
 #Setting up locations. 
 file_loc = os.getcwd()
 data_loc = os.path.dirname(os.getcwd()) + '/Data/'
@@ -24,13 +26,15 @@ model_loc = file_loc + '/Weights/' + run_name
 plot_loc = file_loc + '/Plots'
 tmp_loc = os.getcwd() + '/tmp'
 try: 
+    shutil.rmtree(tmp_loc)
     os.mkdir(tmp_loc)
 except:
     pass
 
-client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'NS_spectral_FNO.yaml', path=tmp_loc)
-config_loc = tmp_loc + '/NS_spectral_FNO.yaml'
-configuration = yaml.safe_load(open(config_loc))
+# %%
+#Loading the yaml file to get the configuration.
+client.get_artifacts_as_files(client.get_run_id_from_name(run_name), contains='yaml', path=tmp_loc)
+configuration = yaml.safe_load(open(next(Path(tmp_loc).glob('*.yaml'))))
 
 # %% 
 #Importing the necessary packages
@@ -52,36 +56,36 @@ torch.set_default_dtype(torch.float32)
 # %%
 #Importing the models and utilities. 
 
-if configuration['Model']['arch'] == 'FNO':
-    from Neural_PDE.Models.FNO import *
-elif configuration['Model']['arch'] == 'ViT':
-    from Neural_PDE.Models.ViT import * 
-# elif configuration['Model']['arch'] == 'CNO':
-#     from Neural_PDE.Models.CNO import * 
-
 from Neural_PDE.Utils.processing_utils import * 
 from Neural_PDE.Utils.training_utils import * 
 
 # %% 
-# Data Preparation.
+# Data Preparation. - Only preparing the evaluation dataset : 20% of the data.
 ####################################
 
 t1 = default_timer()
-
+n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test-train-split'])
 from data_loaders import *
 pde = configuration['Physics']['pde']
 if pde == 'Navier-Stokes':
-    fields, x, y, dt = Navier_Stokes_Spectral(configuration['Data']['ntrain'])
+    fields, x, y, dt = Navier_Stokes_Spectral(n_sims)
 if pde == 'Incomp. Navier-Stokes':
-    fields, x, y, dt = Navier_Stokes_Incomp(configuration['Data']['ntrain'])
-if pde == 'MHD':
-    if configuration['Physics']['pde']['source'] == 'JOREK':
-        fields, x, y, dt = JOREK(configuration['Data']['ntrain'])
+    fields, force, x, y, dt = Navier_Stokes_Incomp(n_sims)
+if pde == 'Comp. Navier-Stokes':
+    fields, x, y, dt = Navier_Stokes_Comp(n_sims, coeff=configuration['Physics']['coeff'])
+if pde == 'Electrostatic MHD':
+    if configuration['Physics']['source'] == 'JOREK': 
+        fields, x, y, dt = JOREK_electrostatic(n_sims)
+if pde == 'Electromagnetic MHD':
+    if configuration['Physics']['source'] == 'JOREK': 
+        fields, x, y, dt = JOREK_electrostatic(n_sims)
+        
+t = torch.arange(0, fields.shape[-1], dt)
 
 fields = fields[...,:configuration['Data']['t_out']]
 
 #Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
-expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['variables'], configuration['Physics']['Nx'], configuration['Physics']['Ny'], configuration['Data']['t_out'])
+expected_shape = (n_sims, configuration['Physics']['variables'], configuration['Physics']['Nx'], configuration['Physics']['Ny'], configuration['Data']['t_out'])
 assert fields.shape == expected_shape, \
     f"Expected fields shape to be {expected_shape}, but got {fields.shape}"
 
@@ -96,14 +100,13 @@ normalizer.a, normalizer.b = torch.tensor(norms['a']), torch.tensor(norms['b'])
 
 fields_encoded = normalizer.encode(fields)
 
-#Setting up train and test
-from sklearn.model_selection import train_test_split
-train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=configuration['Data']['test-train-split'], random_state=42)
-print("Training Input: " + str(train_in.shape))
-print("Training Output: " + str(train_out.shape))
+# %% 
+test_in = fields_encoded[...,:configuration['Data']['t_in']]
+test_out = fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']]
 
-#Setting up the data loaders
-train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Data']['batch size'], shuffle=True)
+print("Test Input: " + str(test_in.shape))
+print("Test Output: " + str(test_out.shape))
+
 test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch size'], shuffle=False)
 
 t2 = default_timer()
@@ -112,30 +115,30 @@ print('preprocessing finished, time used:', t2-t1)
 # %% 
 # Setting up the Model and Optimizers 
 ####################################
+from model_setup import * 
+model = model_initialisation(configuration)
 
-if configuration['Model']['arch'] == 'FNO':
-    model = FNO_multi2d(configuration['Data']['t_in'], 
-                        configuration['Data']['step'], 
-                        configuration['Model']['modes'], 
-                        configuration['Model']['modes'], 
-                        configuration['Physics']['variables'], 
-                        configuration['Model']['width']
-                        )
+
+# #Loading the checkpoint
+# client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'checkpoint.pt', path=tmp_loc)
+# ckpt_path = tmp_loc + '/checkpoint.pt'
+# checkpoint = torch.load(ckpt_path, map_location=device)
+# model.load_state_dict(checkpoint["model"])
+# epoch_last = checkpoint["epoch"]
+
+#Loading the trained model
+client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'model.pth', path=tmp_loc)
+model_path = tmp_loc + '/model.pth'
+model.load_state_dict(torch.load(model_path, map_location='cpu'))
+
 
 model.to(device)
 print("Number of model params : " + str(model.count_params()))
-
-#Loading the checkpoint
-client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'checkpoint.pt', path=tmp_loc)
-ckpt_path = tmp_loc + '/checkpoint.pt'
-checkpoint = torch.load(ckpt_path, map_location=device)
-model.load_state_dict(checkpoint["model"])
-epoch_last = checkpoint["epoch"]
-
 # %%
 from Utils import explicit_time
+
 #Evaluation 
-eval = explicit_time.Eval_Setup(model, test_in, test_out, roll_out=configuration['Physics']['rollout'])
+eval = explicit_time.Eval_Setup(model, test_in, test_out, normalizer='False', ode_solver = configuration['Train']['odesolve']['source'], roll_out= configuration['Train']['odesolve']['method'])
 pred_encoded, error = eval.inference(configuration['Data']['step'], configuration['Data']['t_out']-1, dt=dt)
 
 print('(MSE) Testing Error: %.3e' % (error))

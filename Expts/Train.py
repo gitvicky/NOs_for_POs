@@ -294,7 +294,7 @@ with Run(mode='online') as run:
             checkpoint["scheduler"] = scheduler.state_dict()
             checkpoint["epoch"] = ep
             torch.save(checkpoint, model_loc + "/checkpoint.pt")
-            run.save_file(model_loc + "/checkpoint.pt", 'output')
+            run.save_file(model_loc + "/checkpoint_"+str(ep)+".pt", 'output')
             run.update_metadata({'Epochs': ep})
 
     train_time = default_timer() - start_time
@@ -302,7 +302,7 @@ with Run(mode='online') as run:
     # %%
     # Saving the Model
     saved_model = model_loc + '/model.pth'
-    torch.save( model.state_dict(), saved_model)
+    torch.save(model.state_dict(), saved_model)
     run.save_file(saved_model, 'output')
 
     #Evaluation 
