@@ -92,6 +92,8 @@ with Run(mode='online') as run:
     pde = configuration['Physics']['pde']
     if pde == 'Navier-Stokes':
         fields, x, y, dt = Navier_Stokes_Spectral(configuration['Data']['ntrain'])
+    if pde == 'Euler':
+        fields, x, y, dt = Euler_FV(configuration['Data']['ntrain'])
     if pde == 'Incomp. Navier-Stokes':
         fields, force, x, y, dt = Navier_Stokes_Incomp(configuration['Data']['ntrain'])
     if pde == 'Comp. Navier-Stokes':
@@ -164,8 +166,11 @@ with Run(mode='online') as run:
     
     #With Operator Splitting.
         if pde == 'Navier-Stokes':
-            from operator_splitting import NS_OS_rhs
-            model = NS_OS_rhs(configuration)
+            from operator_splitting import NS_spectral_OS_rhs
+            model = NS_spectral_OS_rhs(configuration)
+        if pde == 'Euler':
+            from operator_splitting import Euler_FV_OS_rhs
+            model = Euler_FV_OS_rhs(configuration)
         if pde == 'Incomp. Navier-Stokes':
             from operator_splitting import Incomp_NS_OS_rhs
             model = Incomp_NS_OS_rhs(configuration)

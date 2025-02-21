@@ -5,7 +5,7 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'full-tanager'
+run_name = 'mint-cockpit'
 
 # %% 
 #Setting up simvue 
@@ -65,11 +65,12 @@ from Neural_PDE.Utils.training_utils import *
 
 t1 = default_timer()
 n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test-train-split'])
-n_sims = 3
 from data_loaders import *
 pde = configuration['Physics']['pde']
 if pde == 'Navier-Stokes':
     fields, x, y, dt = Navier_Stokes_Spectral(n_sims)
+if pde == 'Euler':
+    fields, x, y, dt = Euler_FV(n_sims)
 if pde == 'Incomp. Navier-Stokes':
     fields, force, x, y, dt = Navier_Stokes_Incomp(n_sims)
 if pde == 'Comp. Navier-Stokes':
@@ -155,4 +156,5 @@ pred_set = pred_set.permute(0,1,4,2,3)
 from Utils.plots import plots_2d_yaml
 idx = 0
 plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run_name, idx, save=False)
+
 # %%

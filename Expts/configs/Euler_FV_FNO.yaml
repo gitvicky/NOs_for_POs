@@ -2,7 +2,7 @@
 seed: 907
 
 Physics: 
-  pde: 'Navier-Stokes'
+  pde: 'Euler'
   source: 'Finite Volume' 
   field: 'u, v, p, rho'
   variables: 4
@@ -16,14 +16,14 @@ Model:
   arch: 'FNO'
   in_vars: 4
   out_vars: 4
-  modes: 8
-  width: 16
-  n_layers: 4
+  modes: 4
+  width: 8
+  n_layers: 2
   act: 'gelu'
   operator splitting: True
 
 Data: 
-  name: 'NS_Spectral_combined.npz'
+  name: 'NS_FV_combined.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
   ntrain: 100
   test-train-split: 0.2
@@ -62,4 +62,4 @@ Train:
 Simvue:
   mode: 'online'
   name: None 
-  folder: '/Neural_PDE/CompNS_FV' 
+  folder: '/Neural_PDE/Euler' 

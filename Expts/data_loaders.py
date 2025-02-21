@@ -85,6 +85,7 @@ def Navier_Stokes_Spectral(n_sims):
     u = data['u'].astype(np.float32)
     v = data['v'].astype(np.float32)
     p = data['p'].astype(np.float32)
+    rho = np.ones_like(u) #Taking rho to be 1. 
     x = data['x']
     dt = data['dt']
     
@@ -94,9 +95,9 @@ def Navier_Stokes_Spectral(n_sims):
 
     return uvp, x, x, dt
 
-def Navier_Stokes_FV(n_sims):
+def Euler_FV(n_sims):
     #Finite Volume Simulation Data from Philip Mocz for Compressible Navier-Stokes 
-    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
     data =  np.load(data_loc + '/NS_FV_combined.npz')
     u = data['u'].astype(np.float32)
     v = data['v'].astype(np.float32)
