@@ -135,3 +135,37 @@ def plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run, idx=0, save=
             plot_name = plot_loc + '/' + field[var] + '_' + run.name + '.png'
             plt.savefig(plot_name)
             run.save_file(plot_name, 'output')
+
+
+def temporal_rollout_error(configuration, test_out, pred_set, plot_loc, run, save=True):
+    err_mean = (test_out - pred_set).pow(2).mean(dim=(0, 1, 3, 4))
+    err_std = (test_out - pred_set).pow(2).std(dim=(0, 1, 3, 4))
+
+    time_points = torch.arange(0, configuration['Data']['t_out']-1, 1)
+    mean_values = err_mean.cpu().numpy()
+    std_values = err_std.cpu().numpy()
+
+    # Create the plot
+    plt.figure(figsize=(10, 6))
+
+    # Plot the mean line
+    plt.plot(time_points, mean_values, 'b-', label='Mean')
+
+    # Add shaded region for uncertainty
+    plt.fill_between(time_points, 
+                    mean_values - std_values,  # lower bound
+                    mean_values + std_values,  # upper bound
+                    alpha=0.3,  # transparency of the shaded region
+                    color='blue',
+                    label='±1 std dev')
+
+    # Customize the plot
+    plt.xlabel('Time Instance')
+    plt.ylabel('MSE')
+    plt.title('Temporal Rollout Error : ' + str(configuration['Train']['rollout_length']))
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.legend()
+
+    plt.show()
+
+    plt.savefig(plot_loc + '/temporal_error_' + run + '.png')

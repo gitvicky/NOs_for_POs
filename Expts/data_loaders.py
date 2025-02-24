@@ -82,29 +82,47 @@ def Navier_Stokes_Spectral(n_sims):
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
     data =  np.load(data_loc + '/NS_Spectral_combined.npz')
 
-    u = data['u'].astype(np.float32)
-    v = data['v'].astype(np.float32)
-    p = data['p'].astype(np.float32)
+    u = data['u'].astype(np.float32)[:n_sims]
+    v = data['v'].astype(np.float32)[:n_sims]
+    p = data['p'].astype(np.float32)[:n_sims]
+    rho = np.ones_like(u) #Taking rho to be 1. 
     x = data['x']
     dt = data['dt']
     
     dt = torch.tensor(dt, dtype=torch.float)
 
-    uvp = stacked_fields([u,v,p])[:n_sims]
+    uvp = stacked_fields([u,v])
 
     return uvp, x, x, dt
 
+def Euler_FV(n_sims):
+    #Finite Volume Simulation Data from Philip Mocz for Compressible Navier-Stokes 
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+    data =  np.load(data_loc + '/NS_FV_combined.npz')
+    u = data['u'].astype(np.float32)[:n_sims]
+    v = data['v'].astype(np.float32)[:n_sims]
+    p = data['p'].astype(np.float32)[:n_sims]
+    rho = data['rho'].astype(np.float32)[:n_sims]
+    dx = data['dx'][:n_sims]
+    x = np.linspace(0, 1, 128)
+
+    dt = data['dt'][:n_sims]
+    dt = torch.tensor(dt, dtype=torch.float)
+
+    fields = stacked_fields([u,v,p,rho])
+
+    return fields, x, x, dt
 
 def Navier_Stokes_Incomp(n_sims=100):
     #PDEBench data
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
     data = np.load(data_loc + '/NS_incomp_velocity_100_128_128.npz') 
-    u = data['velocity'][...,0]
-    v = data['velocity'][...,1]
-    p = data['pressure'][...,0] / 3.0
+    u = data['velocity'][...,0][:n_sims]
+    v = data['velocity'][...,1][:n_sims]
+    p = data['pressure'][...,0][:n_sims] / 3.0
     force = data['force']
 
-    uvp = stacked_fields([u,v,p])[:n_sims]
+    uvp = stacked_fields([u,v,p])
     x, y = np.arange(0, 1, 128), np.arange(0, 1, 128) 
     t = np.arange(0, 5.0, 0.005) * 10 
     dt = 0.005 * 10 

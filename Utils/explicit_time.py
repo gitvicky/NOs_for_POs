@@ -183,7 +183,7 @@ class Train_Setup():
 
 # %%
 class Eval_Setup():
-    def __init__(self, model, test_in, test_out, normalizer = 'False', ode_solver = 'custom', roll_out='AR'): #roll_out = AR, Euler, RK4
+    def __init__(self, model, test_in, test_out, normalizer = 'False', ode_solver = 'custom', roll_out='AR', batch_size=3): #roll_out = AR, Euler, RK4
         super(Eval_Setup, self).__init__()
 
         self.model = model
@@ -191,7 +191,7 @@ class Eval_Setup():
         self.test_out = test_out
         self.device = device
         
-        self.test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(self.test_in, self.test_out), batch_size=1, shuffle=False)
+        self.test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(self.test_in, self.test_out), batch_size=batch_size, shuffle=False)
 
         if ode_solver == 'torchdiffeq':
             model = ODEFunc(model, method=roll_out)
@@ -210,7 +210,7 @@ class Eval_Setup():
         self.model.eval()
 
     def inference(self, step, T_out, eval_metric = 'MSE', dt=0):
-        pred_set = torch.zeros(self.test_out.shape)
+        pred_set = []
         index = 0
         with torch.no_grad():
             for xx, yy in tqdm(self.test_loader):
@@ -227,13 +227,15 @@ class Eval_Setup():
 
                     xx = torch.cat((xx[..., step:], out), dim=-1)
 
-                pred_set[index] = pred
+                pred_set.append(pred)
                 index += 1
+
+            pred_set = torch.cat(pred_set, dim=0)
 
             # Performance Metrics
             if eval_metric == 'MSE':
-                error = (pred_set - self.test_out).pow(2).mean()
+                error = (pred_set - self.test_out.to(device)).pow(2).mean()
             if eval_metric == 'MAE':
-                error = torch.abs(pred_set - self.test_out).mean()
+                error = torch.abs(pred_set - self.test_out.to(device)).mean()
 
         return pred_set, error
