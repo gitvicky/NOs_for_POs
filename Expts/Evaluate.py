@@ -5,7 +5,8 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'mint-cockpit'
+run_name = 'blocky-arpeggio' #No OS
+# run_name = 'smoked-function' #OS
 
 # %% 
 #Setting up simvue 
@@ -33,9 +34,10 @@ except:
 
 # %%
 #Loading the yaml file to get the configuration.
-client.get_artifacts_as_files(client.get_run_id_from_name(run_name), contains='yaml', path=tmp_loc)
+run_id = client.get_run_id_from_name(run_name)
+client.get_artifacts_as_files(run_id, contains='yaml', path=tmp_loc)
 configuration = yaml.safe_load(open(next(Path(tmp_loc).glob('*.yaml'))))
-
+# client.get_run(run_id)
 # %% 
 #Importing the necessary packages
 import sys
@@ -69,7 +71,7 @@ from data_loaders import *
 pde = configuration['Physics']['pde']
 if pde == 'Navier-Stokes':
     fields, x, y, dt = Navier_Stokes_Spectral(n_sims)
-if pde == 'Euler':
+if pde == 'Euler Fluid':
     fields, x, y, dt = Euler_FV(n_sims)
 if pde == 'Incomp. Navier-Stokes':
     fields, force, x, y, dt = Navier_Stokes_Incomp(n_sims)
@@ -81,9 +83,8 @@ if pde == 'Electrostatic MHD':
 if pde == 'Electromagnetic MHD':
     if configuration['Physics']['source'] == 'JOREK': 
         fields, x, y, dt = JOREK_electrostatic(n_sims)
-        
-t = torch.arange(0, fields.shape[-1], dt)
 
+t = torch.arange(0, fields.shape[-1], dt)
 fields = fields[...,:configuration['Data']['t_out']]
 
 #Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
@@ -152,9 +153,13 @@ test_out = test_out.permute(0,1,4,2,3)
 pred_set = pred_set.permute(0,1,4,2,3)
 
 # %% 
-#Plotting the results 
+#Visualising the results
 from Utils.plots import plots_2d_yaml
 idx = 0
-plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run_name, idx, save=False)
+# plots_2d_yaml(configuration, test_out, pred_set, tmp_loc, run_name, idx, save=True)
 
-# %%
+#Visualising the rollout error 
+from Utils.plots import temporal_rollout_error
+temporal_rollout_error(configuration, test_out, pred_set, tmp_loc, run_name, save=True)
+
+# %% 

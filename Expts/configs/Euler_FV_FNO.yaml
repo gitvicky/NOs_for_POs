@@ -2,7 +2,7 @@
 seed: 907
 
 Physics: 
-  pde: 'Euler'
+  pde: 'Euler Fluid'
   source: 'Finite Volume' 
   field: 'u, v, p, rho'
   variables: 4
@@ -16,8 +16,8 @@ Model:
   arch: 'FNO'
   in_vars: 4
   out_vars: 4
-  modes: 4
-  width: 8
+  modes: 8
+  width: 16
   n_layers: 2
   act: 'gelu'
   operator splitting: True
@@ -27,9 +27,9 @@ Data:
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
   ntrain: 100
   test-train-split: 0.2
-  batch size: 50 
+  batch size: 20
   t_in: 1
-  t_out: 50
+  t_out: 20
   step: 1
   normalisation: 'Min-Max'
 

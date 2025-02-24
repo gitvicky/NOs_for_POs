@@ -92,7 +92,7 @@ with Run(mode='online') as run:
     pde = configuration['Physics']['pde']
     if pde == 'Navier-Stokes':
         fields, x, y, dt = Navier_Stokes_Spectral(configuration['Data']['ntrain'])
-    if pde == 'Euler':
+    if pde == 'Euler Fluid':
         fields, x, y, dt = Euler_FV(configuration['Data']['ntrain'])
     if pde == 'Incomp. Navier-Stokes':
         fields, force, x, y, dt = Navier_Stokes_Incomp(configuration['Data']['ntrain'])
