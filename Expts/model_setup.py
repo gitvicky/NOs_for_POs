@@ -17,18 +17,21 @@ def model_initialisation(configuration):
     pde = configuration['Physics']['pde']
 
     if configuration['Model']['operator splitting'] == True: 
-
+    
     #With Operator Splitting.
         if pde == 'Navier-Stokes':
-            from operator_splitting import NS_OS_rhs
-            model = NS_OS_rhs(configuration)
+            from operator_splitting import NS_spectral_OS_rhs
+            model = NS_spectral_OS_rhs(configuration)
+        if pde == 'Euler':
+            from operator_splitting import Euler_FV_OS_rhs
+            model = Euler_FV_OS_rhs(configuration)
         if pde == 'Incomp. Navier-Stokes':
             from operator_splitting import Incomp_NS_OS_rhs
             model = Incomp_NS_OS_rhs(configuration)
         if pde == 'Comp. Navier-Stokes':
             from operator_splitting import Comp_NS_OS_rhs
             model = Comp_NS_OS_rhs(configuration)
-
+    
     else:
             
         if configuration['Model']['arch'] == 'FNO':
@@ -78,7 +81,7 @@ def model_initialisation(configuration):
                         d_ffn = configuration['Model']['d_ffn'],
                         Nx = configuration['Model']['Nx'],
                         Ny = configuration['Model']['Ny'])
-            
+
     return model
 
 #Function to count_params

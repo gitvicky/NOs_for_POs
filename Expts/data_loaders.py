@@ -77,8 +77,9 @@ class SpatioTemporalDataset(Dataset):
 
 
 # %% 
-def Navier_Stokes_Spectral(n_sims):
+def Navier_Stokes_Spectral(configuration):
     #Testing with NS_Spectral (for now)
+    n_sims = configuration['Data']['ntrain']
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
     data =  np.load(data_loc + '/NS_Spectral_combined.npz')
 
@@ -88,32 +89,45 @@ def Navier_Stokes_Spectral(n_sims):
     rho = np.ones_like(u) #Taking rho to be 1. 
     x = data['x']
     dt = data['dt']
-    
     dt = torch.tensor(dt, dtype=torch.float)
 
-    uvp = stacked_fields([u,v])
+    fields = stacked_fields([u,v,p])
 
-    return uvp, x, x, dt
+    #Slicing the data to reduce the size.
+    fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
+    x = x[::configuration['Physics']['x_slice']]
+    y = x[::configuration['Physics']['y_slice']]
+    dt = dt*configuration['Physics']['t_slice']
 
-def Euler_FV(n_sims):
+    return fields, x, y, dt
+
+def Euler_FV(configuration):
     #Finite Volume Simulation Data from Philip Mocz for Compressible Navier-Stokes 
+    n_sims = configuration['Data']['ntrain']
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
     data =  np.load(data_loc + '/NS_FV_combined.npz')
     u = data['u'].astype(np.float32)[:n_sims]
     v = data['v'].astype(np.float32)[:n_sims]
     p = data['p'].astype(np.float32)[:n_sims]
     rho = data['rho'].astype(np.float32)[:n_sims]
-    dx = data['dx'][:n_sims]
+    dx = data['dx']
     x = np.linspace(0, 1, 128)
 
-    dt = data['dt'][:n_sims]
+    dt = data['dt']
     dt = torch.tensor(dt, dtype=torch.float)
 
     fields = stacked_fields([u,v,p,rho])
 
-    return fields, x, x, dt
+    #Slicing the data to reduce the size.
+    fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
+    x = x[::configuration['Physics']['x_slice']]
+    y = x[::configuration['Physics']['y_slice']]
+    dt = dt*configuration['Physics']['t_slice']
 
-def Navier_Stokes_Incomp(n_sims=100):
+    return fields, x, y, dt
+
+def Navier_Stokes_Incomp(configuration):
+    n_sims = configuration['Data']['ntrain']
     #PDEBench data
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
     data = np.load(data_loc + '/NS_incomp_velocity_100_128_128.npz') 
@@ -122,16 +136,22 @@ def Navier_Stokes_Incomp(n_sims=100):
     p = data['pressure'][...,0][:n_sims] / 3.0
     force = data['force']
 
-    uvp = stacked_fields([u,v,p])
+    fields = stacked_fields([u,v,p])
     x, y = np.arange(0, 1, 128), np.arange(0, 1, 128) 
     t = np.arange(0, 5.0, 0.005) * 10 
     dt = 0.005 * 10 
     dt = torch.tensor(dt, dtype=torch.float)
 
-    return uvp, force, x, y, dt
+    #Slicing the data to reduce the size.
+    fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
+    x = x[::configuration['Physics']['x_slice']]
+    y = y[::configuration['Physics']['y_slice']]
+    dt = dt*configuration['Physics']['t_slice']
+
+    return fields, force, x, y, dt
 
 
-# def Navier_Stokes_Incom(n_sims):
+# def Navier_Stokes_Incom(configuration):
 #     #PDEBench data
 #     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/PDEBench/pdebench/2D/NS_incom'
 
@@ -145,8 +165,11 @@ incompressible_files = {'M0.1_Eta0.01_Zeta0.01': '2D_CFD_Rand_M0.1_Eta0.01_Zeta0
                         'M1.0_Eta0.01_Zeta0.01': '2D_CFD_Rand_M1.0_Eta0.01_Zeta0.01_periodic_128_Train.hdf5',
                         'M1.0_Eta0.1_Zeta0.1': '2D_CFD_Rand_M1.0_Eta0.1_Zeta0.1_periodic_128_Train.hdf5'}
 
-def Navier_Stokes_Comp(n_sims=100, coeffs = 'M0.1_Eta0.01_Zeta0.01'):
+def Navier_Stokes_Comp(configuration):
+    n_sims = configuration['Data']['ntrain']
+    coeffs = configuration['Physics']['coeff']
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/PDEBench/pdebench/2D/CFD/2D_Train_Rand/'
+
     with h5py.File(data_loc + incompressible_files[coeffs], 'r') as f:
         keys = list(f.keys())
         vx = f['Vx'][:n_sims]
@@ -174,11 +197,19 @@ def Navier_Stokes_Comp(n_sims=100, coeffs = 'M0.1_Eta0.01_Zeta0.01'):
         fields = stacked_fields([vx, vy, pressure, density])
         dt, x, y = torch.tensor(dt), torch.tensor(x), torch.tensor(y)
 
+
+    #Slicing the data to reduce the size.
+    fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
+    x = x[::configuration['Physics']['x_slice']]
+    y = y[::configuration['Physics']['y_slice']]
+    dt = dt*configuration['Physics']['t_slice']
+
     return fields, x, y, dt
 
 
 
-def JOREK_electrostatic(n_sims):
+def JOREK_electrostatic(configuration):
+    n_sims = configuration['Data']['ntrain']
     #JOREK MultiBlob Data 
     #https://iopscience.iop.org/article/10.1088/1741-4326/ad313a/meta
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
@@ -202,10 +233,18 @@ def JOREK_electrostatic(n_sims):
     dt = t_norm[1] - t_norm[0]
     dt = torch.tensor(dt, dtype=torch.float)
 
+
+    #Slicing the data to reduce the size.
+    fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
+    x = x[::configuration['Physics']['x_slice']]
+    y = y[::configuration['Physics']['y_slice']]
+    dt = dt*configuration['Physics']['t_slice']
+
     return fields, x_grid, y_grid, dt
 
 
-def JOREK_electrostatic_naomi(n_sims):
+def JOREK_electrostatic_naomi(configuration):
+    n_sims = configuration['Data']['ntrain']
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-shared-bLH38hg3nf0/JOREK_tblob_dataset/JOREK_tblob/'
     folders = ['0001-0100', '0100-0300', '0300-0500', '0500-1000', '1000-1500', '1500-1800', 'valid']
     folders = ['0100-0300']
@@ -235,9 +274,18 @@ def JOREK_electrostatic_naomi(n_sims):
         dt = 1.5e-6 #1.5 microseconds
         dt, x, y = torch.tensor(dt), torch.tensor(x), torch.tensor(y)
 
-        return fields, dt, x, y
+    #Slicing the data to reduce the size.
+    fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
+    x = x[::configuration['Physics']['x_slice']]
+    y = y[::configuration['Physics']['y_slice']]
+    dt = dt*configuration['Physics']['t_slice']
+
+
+    return fields, x, y, dt
     
-def JOREK_electromagnetic(n_sims=20):
+def JOREK_electromagnetic(configuration):
+    n_sims = configuration['Data']['ntrain']
+    #JOREK MultiBlob Data
     # all 6: Psi (poloidal magnetic flux), T (temperature), omega (vorticity), rho (particle density), u (electric potential), zj (toroidal plasma current density)
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-shared-bLH38hg3nf0/JOREK_tblob_dataset_MHD/JOREK_V2/longer_traj'
     # file = 'jorek_run001.h5'
@@ -278,6 +326,12 @@ def JOREK_electromagnetic(n_sims=20):
     dt = 1.5e-6 #1.5 microseconds
     dt, x, y = torch.tensor(dt), torch.tensor(x), torch.tensor(y)
 
-    return fields, dt, x, y
+    #Slicing the data to reduce the size.
+    fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
+    x = x[::configuration['Physics']['x_slice']]
+    y = y[::configuration['Physics']['y_slice']]
+    dt = dt*configuration['Physics']['t_slice']
+
+    return fields, x, y, dt
 
 # %%

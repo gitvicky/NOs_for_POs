@@ -66,18 +66,7 @@ with Run(mode='online') as run:
     torch.set_default_dtype(torch.float32)
     # %%
     #Importing the models and utilities. 
-
-    if configuration['Model']['arch'] == 'FNO':
-        from Neural_PDE.Models.FNO import *
-    elif configuration['Model']['arch'] == 'ViT':
-        from Neural_PDE.Models.ViT_new import * 
-    elif configuration['Model']['arch'] == 'U-Net':
-        from Neural_PDE.Models.UNet import * 
-    elif configuration['Model']['arch'] == 'CNO':
-        from Neural_PDE.Models.CNO import * 
-    elif configuration['Model']['arch'] == 'gMLP':
-        from Neural_PDE.Models.gMLP_Vision import * 
-
+    from model_setup import *
     from Neural_PDE.Utils.processing_utils import * 
     from Neural_PDE.Utils.training_utils import * 
 
@@ -91,26 +80,27 @@ with Run(mode='online') as run:
     from data_loaders import *
     pde = configuration['Physics']['pde']
     if pde == 'Navier-Stokes':
-        fields, x, y, dt = Navier_Stokes_Spectral(configuration['Data']['ntrain'])
+        fields, x, y, dt = Navier_Stokes_Spectral(configuration)
     if pde == 'Euler Fluid':
-        fields, x, y, dt = Euler_FV(configuration['Data']['ntrain'])
+        fields, x, y, dt = Euler_FV(configuration)
     if pde == 'Incomp. Navier-Stokes':
-        fields, force, x, y, dt = Navier_Stokes_Incomp(configuration['Data']['ntrain'])
+        fields, force, x, y, dt = Navier_Stokes_Incomp(configuration)
     if pde == 'Comp. Navier-Stokes':
-        fields, x, y, dt = Navier_Stokes_Comp(configuration['Data']['ntrain'], coeff=configuration['Physics']['coeff'])
+        fields, x, y, dt = Navier_Stokes_Comp(configuration)
     if pde == 'Electrostatic MHD':
         if configuration['Physics']['source'] == 'JOREK': 
-            fields, x, y, dt = JOREK_electrostatic(configuration['Data']['ntrain'])
+            fields, x, y, dt = JOREK_electrostatic(configuration)
     if pde == 'Eelctromagnetic MHD':
         if configuration['Physics']['source'] == 'JOREK': 
-            fields, x, y, dt = JOREK_electrostatic(configuration['Data']['ntrain'])
+            fields, x, y, dt = JOREK_electrostatic(configuration)
             
     t = torch.arange(0, fields.shape[-1], dt)
+    print(fields.shape)
 
     fields = fields[...,:configuration['Data']['t_out']]
 
     #Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
-    expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['variables'], configuration['Physics']['Nx'], configuration['Physics']['Ny'], configuration['Data']['t_out'])
+    expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['variables'], configuration['Physics']['Nx']//configuration['Physics']['x_slice'], configuration['Physics']['Ny']//configuration['Physics']['y_slice'], configuration['Data']['t_out'])
     assert fields.shape == expected_shape, \
         f"Expected fields shape to be {expected_shape}, but got {fields.shape}"
 
@@ -162,84 +152,22 @@ with Run(mode='online') as run:
     ####################################
     # Setting up the Model and Optimizers 
     ####################################
-    if configuration['Model']['operator splitting'] == True: 
-    
-    #With Operator Splitting.
-        if pde == 'Navier-Stokes':
-            from operator_splitting import NS_spectral_OS_rhs
-            model = NS_spectral_OS_rhs(configuration)
-        if pde == 'Euler':
-            from operator_splitting import Euler_FV_OS_rhs
-            model = Euler_FV_OS_rhs(configuration)
-        if pde == 'Incomp. Navier-Stokes':
-            from operator_splitting import Incomp_NS_OS_rhs
-            model = Incomp_NS_OS_rhs(configuration)
-        if pde == 'Comp. Navier-Stokes':
-            from operator_splitting import Comp_NS_OS_rhs
-            model = Comp_NS_OS_rhs(configuration)
-    
-    else:
-            
-        if configuration['Model']['arch'] == 'FNO':
-            if configuration['Model']['operator splitting'] == False:
-                model = FNO_multi2d(configuration['Model']['in_vars'], 
-                                    configuration['Model']['out_vars'], 
-                                    configuration['Model']['modes'], 
-                                    configuration['Model']['modes'],
-                                    configuration['Model']['width'],
-                                    configuration['Model']['n_layers']
-                                    )
-            
-        if configuration['Model']['arch'] == 'U-Net':
-            model = UNet2d(configuration['Data']['t_in'], 
-                        configuration['Data']['step'], 
-                        configuration['Model']['width'], 
-                        configuration['Physics']['variables']
-                        )
-        
-        if configuration['Model']['arch'] == 'ViT':
-            model = ViT(
-                image_size=(configuration['Physics']['Nx'], configuration['Physics']['Ny']),
-                patch_size=(configuration['Model']['patch size'], configuration['Model']['patch size']),
-                embed_dim=configuration['Model']['embed dim'],
-                depth=configuration['Model']['depth'],
-                n_heads=configuration['Model']['num heads'],
-                channels=configuration['Physics']['variables'],
-                mlp_dim = 256,
-                dim_head = 32
-                )
-        
-        if configuration['Model']['arch'] == 'CNO':
-            model = CNO2d(in_dim = configuration['Model']['in channels'],             
-                        out_dim = configuration['Model']['out channels'],
-                        size = configuration['Model']['Nx'],
-                        N_layers = configuration['Model']['N_layers'],
-                        N_res = configuration['Model']['N_res'],
-                        N_res_neck = configuration['Model']['N_res_neck'],
-                        channel_multiplier = configuration['Model']['channel multiplier'],
-                        use_bn = True
-                        )      
-            
 
-        if configuration['Model']['arch'] == 'gMLP':
-            model = gMLP(n_blocks = configuration['Model']['n_blocks'],
-                        d_in = configuration['Model']['d_in'],
-                        d_ffn = configuration['Model']['d_ffn'],
-                        Nx = configuration['Model']['Nx'],
-                        Ny = configuration['Model']['Ny'])
-
-
+    model = model_initialisation(configuration)
     model.to(device)
+
     run.update_metadata({'Number of Params': int(model.count_params())})
     print("Number of model params : " + str(model.count_params()))
 
     #Setting up the optimizer and scheduler, loss and epochs 
     optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning rate'], weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler step'], gamma=configuration['Opt']['scheduler gamma'])
+    
     if configuration['Model']['arch']=='fno':
         loss_func = LpLoss(size_average=False)
     else:
         loss_func = torch.nn.MSELoss()
+
     epoch_init = 0
     epochs = configuration['Opt']['epochs']
 
@@ -260,6 +188,8 @@ with Run(mode='online') as run:
     # elif configuration['Train']['odesolve']['source'] == 'torchdiffeq':
     #     from Utils import torch_odesolve
     #     train = torch_odesolve.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Train']['odesolve']['method'],  configuration['Train']['odesolve']['adjoint'])
+
+
     # %% 
     ####################################
     #Training

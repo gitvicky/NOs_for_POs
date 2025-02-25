@@ -138,8 +138,8 @@ def plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run, idx=0, save=
 
 
 def temporal_rollout_error(configuration, test_out, pred_set, plot_loc, run, save=True):
-    err_mean = (test_out - pred_set).pow(2).mean(dim=(0, 1, 3, 4))
-    err_std = (test_out - pred_set).pow(2).std(dim=(0, 1, 3, 4))
+    err_mean = (test_out - pred_set).pow(2).mean(dim=(0, 1, 2, 3))
+    err_std = (test_out - pred_set).pow(2).std(dim=(0, 1, 2, 3))
 
     time_points = torch.arange(0, configuration['Data']['t_out']-1, 1)
     mean_values = err_mean.cpu().numpy()
@@ -168,4 +168,6 @@ def temporal_rollout_error(configuration, test_out, pred_set, plot_loc, run, sav
 
     plt.show()
 
-    plt.savefig(plot_loc + '/temporal_error_' + run + '.png')
+    plot_name = plot_loc + '/temporal_error_' + run.name + '.png'
+    plt.savefig(plot_name)
+    run.save_file(plot_name, 'output')

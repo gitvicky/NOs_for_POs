@@ -148,9 +148,9 @@ print('(MSE) Testing Error: %.3e' % (error))
 test_out = normalizer.decode(test_out.to(device)).cpu()
 pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
 
-#Shaping back to [BS, vars, Nt, Nx, Ny]
-test_out = test_out.permute(0,1,4,2,3)
-pred_set = pred_set.permute(0,1,4,2,3)
+# #Shaping back to [BS, vars, Nt, Nx, Ny]
+# test_out = test_out.permute(0,1,4,2,3)
+# pred_set = pred_set.permute(0,1,4,2,3)
 
 # %% 
 #Visualising the results
