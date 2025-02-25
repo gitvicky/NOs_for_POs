@@ -10,7 +10,9 @@ Physics:
   Ny: 100
   Nt: 100
   dt: 0.01
-  rollout: 'Euler'
+  x_slice: 1
+  y_slice: 1
+  t_slice: 1
   physics normalisation: False
 
 Model:
@@ -24,7 +26,7 @@ Data:
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
   ntrain: 100
   test-train-split: 0.2
-  batch size: 1
+  batch size: 20
   t_in: 1
   t_out: 50
   step: 1
@@ -44,7 +46,13 @@ Opt:
 
 Train: 
   loss: 'LP'
-  rollout: True
+  input_length: 1
+  rollout_length: 30
+  input_noise: 0.0
+  odesolve: 
+    source: 'torchdiffeq' #'torchdiffeq', 'custom'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    adjoint: True #Only for torchdiffeq
   checkpoint:
     epochs: 100
   restart: False
