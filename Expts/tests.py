@@ -8,12 +8,12 @@ from tqdm import tqdm
 import os 
 import shutil 
 
-tmp_loc = os.getcwd() + '/tmp'
-try: 
-    shutil.rmtree(tmp_loc)
-    os.mkdir(tmp_loc)
-except:
-    pass
+tmp_loc = os.getcwd()
+# try: 
+#     shutil.rmtree(tmp_loc)
+#     os.mkdir(tmp_loc)
+# except:
+#     pass
 
 
 from data_loaders import * 

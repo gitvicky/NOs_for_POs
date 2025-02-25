@@ -194,7 +194,7 @@ class Eval_Setup():
         self.test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(self.test_in, self.test_out), batch_size=batch_size, shuffle=False)
 
         if ode_solver == 'torchdiffeq':
-            model = ODEFunc(model, method=roll_out)
+            self.model = ODEFunc(model, method=roll_out)
             self.forward = neural_ode
         else: 
             if roll_out == 'AR':
