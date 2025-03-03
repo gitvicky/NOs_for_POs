@@ -1,13 +1,3 @@
-# !/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on 25 Oct 2024 
-@author: @vgopakum
-
-Training and Inference pipelines for Neural-PDE solvers using torchdiffeq odeint. Data shape - [Batch, variables, Nx, Ny, Nt]
-
-"""
-
 import numpy as np 
 import torch 
 import torch.nn as nn 
@@ -18,7 +8,8 @@ from torchdiffeq import odeint, odeint_adjoint
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 max_grad_clip_norm = 2.0   
 
-# New torchdiffeq integration
+# %% 
+# ODEFunc to be used with torchdiffeq
 class ODEFunc(nn.Module):
     def __init__(self, model):
         super(ODEFunc, self).__init__()
@@ -27,9 +18,8 @@ class ODEFunc(nn.Module):
     def forward(self, t, x):
         return self.model(x)
 
-#Setting up the training pipeline. 
 class Train_Setup():
-    def __init__(self, model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs, method='euler', adjoint=False): #roll_out = AR, Euler, RK4
+    def __init__(self, model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs, method='dopri5', adjoint=True):
         super(Train_Setup, self).__init__()
 
         self.model = model
@@ -39,22 +29,20 @@ class Train_Setup():
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.epochs = epochs
-        self.method = method
         self.device = device
+        self.method = method
+        self.adjoint = adjoint
+        
+        # Wrap model in ODEFunc
+        self.odefunc = ODEFunc(model)
+        
+        self.grad_clip = max_grad_clip_norm
+        
+        model.to(device)
+        self.model.train()
 
-        if adjoint:
-            self.odesolve = odeint_adjoint
-        else:
-            self.odesolve = odeint
-
-        self.ode_func = ODEFunc(model)
-        self.ode_func.to(device)
-            
-        self.grad_clip = 2.0
-        self.ode_func.train()
-
-    def one_epoch(self, step, T_out, dt=0):
-        t = torch.arange(0, T_out +1, dt).to(device)
+    def one_epoch(self, step, train_T_out, test_T_out, dt=0.01):
+        
         train_l2_step = 0
         train_l2_full = 0
 
@@ -65,17 +53,24 @@ class Train_Setup():
             yy = yy.to(self.device)
             batch_size = xx.shape[0]
 
-            pred = self.odesolve(self.ode_func, xx, t, method=self.method)
+            # Create time points for entire trajectory
+            t_span = torch.linspace(0, dt * train_T_out, train_T_out + 1).to(self.device)
+            
+            # Use adjoint method for memory-efficient backprop if enabled
+            if self.adjoint:
+                pred = odeint_adjoint(self.odefunc, xx, t_span, method=self.method)
+            else:
+                pred = odeint(self.odefunc, xx, t_span, method=self.method)
+            
+            pred = pred[1:,...,0].permute(1, 2, 3, 4, 0)  # Reshape to [batch, vars, nx, ny, nt]
 
-            #Recon Loss
-            loss += self.loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1))
-
-            train_l2_step += loss.item()
+            # Compute loss on the full trajectory
             l2_full = self.loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1))
             train_l2_full += l2_full.item()
-
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(parameters=self.model.parameters(), max_norm=max_grad_clip_norm, norm_type=2.0)
+            
+            # Backward pass and optimization
+            l2_full.backward()
+            grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
             self.optimizer.step()
 
         train_loss = train_l2_full 
@@ -86,19 +81,25 @@ class Train_Setup():
             for xx, yy in self.test_loader:
                 xx, yy = xx.to(self.device), yy.to(self.device)
                 batch_size = xx.shape[0]
+                
+                # Create time points for entire trajectory
+                t_span = torch.linspace(0, dt * test_T_out, test_T_out + 1).to(self.device)
+                
+                # Forward pass with odeint (no need for adjoint during validation)
+                pred = odeint(self.odefunc, xx, t_span, method=self.method)
+                
+                pred = pred[1:,...,0].permute(1, 2, 3, 4, 0)  # Reshape to [batch, vars, nx, ny, nt]
 
-                pred = odeint(self.ode_func, xx, t, method=self.method)
-
+                # Compute validation loss
                 test_loss += self.loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1)).item()
 
+        return train_loss, test_loss
 
-        return train_loss, test_loss #remember to divide the ntrain/ntest and num_vars at the other end before logging.
-
-    def train(self, run,  step, T_out, dt=0):
+    def train(self, run, step, train_T_out, test_T_out, dt=0.01):
         for ep in self.epochs():
             self.model.train()
             t1 = default_timer()
-            train_loss, test_loss = self.train_one_epoch(step, T_out, dt)
+            train_loss, test_loss = self.one_epoch(step, train_T_out, test_T_out, dt)
             t2 = default_timer()
 
             train_loss = train_loss / len(self.train_loader)
@@ -109,38 +110,48 @@ class Train_Setup():
                 
             self.scheduler.step()
 
-
 # %%
 class Eval_Setup():
-    def __init__(self, model, test_in, test_out, normalizer = 'False', method='euler'): #roll_out = AR, Euler, RK4
+    def __init__(self, model, test_in, test_out, normalizer='False', method='dopri5', batch_size=3):
         super(Eval_Setup, self).__init__()
 
         self.model = model
         self.test_in = test_in
         self.test_out = test_out
         self.device = device
+        self.method = method
+        
+        self.test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(self.test_in, self.test_out), batch_size=batch_size, shuffle=False)
+        
+        # Wrap model in ODEFunc
+        self.odefunc = ODEFunc(model)
+                
+        model.to(device)
+        self.model.eval()
 
-        self.test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(self.test_in, self.test_out), batch_size=1, shuffle=False)
-
-        self.ode_func = ODEFunc(model)
-        self.ode_func.to(device)
-        self.ode_func.eval()
-
-    def inference(self, step, T_out, eval_metric = 'MSE', dt=0):
-        t = torch.arange(0, T_out+1, dt).to(device)
-        pred_set = torch.zeros(self.test_out.shape)
-        index = 0
+    def inference(self, step, T_out, eval_metric='MSE', dt=0.01):
+        pred_set = []
         with torch.no_grad():
             for xx, yy in tqdm(self.test_loader):
-                loss = 0
                 xx, yy = xx.to(device), yy.to(device)
+                
+                # Create time points for entire trajectory
+                t_span = torch.linspace(0, dt * T_out, T_out + 1).to(self.device)
+                
+                # Forward pass with odeint
+                pred = odeint(self.odefunc, xx, t_span, method=self.method)
+                
+                # Slice out the initial condition
+                pred = pred[1:,...,0].permute(1, 2, 3, 4, 0)  # Reshape to [batch, vars, nx, ny, nt]
+                
+                pred_set.append(pred)
 
-                pred_set = odeint(self.ode_func, xx, t, method=self.method)
+            pred_set = torch.cat(pred_set, dim=0)
 
             # Performance Metrics
             if eval_metric == 'MSE':
-                error = (pred_set - self.test_out).pow(2).mean()
+                error = (pred_set - self.test_out.to(device)).pow(2).mean()
             if eval_metric == 'MAE':
-                error = torch.abs(pred_set - self.test_out).mean()
+                error = torch.abs(pred_set - self.test_out.to(device)).mean()
 
         return pred_set, error
