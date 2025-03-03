@@ -19,7 +19,7 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         self.NO_diffusion = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
         self.NO_pressure_poisson = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
         self.gradient = Gradient(scale=1, device=device, requires_grad=True)#stacks the p_x and p_y along the first dimension. 
-        self.nu = torch.tensor(0.001, dtype=torch.float32).to(device)
+        self.nu = torch.tensor(0.001, dtype=torch.float32, requires_grad=True).to(device)
 
     def forward(self, vars):
         uv = vars[:, 0:2]
@@ -38,7 +38,6 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
             nparams += param.numel()
         return nparams 
 
-
 class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Operator-Splitting right-hand-side.
     def __init__(self, configuration):
         super(Euler_FV_OS_rhs, self).__init__()
@@ -46,7 +45,7 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         self.convection = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
         self.gradient = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
         self.divergence = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
-        self.gamma = torch.tensor(5/3, dtype=torch.float32).to(device)
+        self.gamma = torch.tensor(5/3, dtype=torch.float32, requires_grad=True).to(device)
 
     def forward(self, vars):
         uv = vars[:, 0:2]
@@ -141,7 +140,7 @@ class Comp_NS_PDEB_OS_rhs(nn.Module):#PDE Bench Compressible Navier-Stokes Opera
 # out = model(X)
 
 # %%
-#Example usage Euler equations 
+# # Example usage Euler equations 
 # import yaml 
 # config_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Expts/configs/Euler_FV_FNO.yaml'
 # with open(config_loc, 'r') as f:

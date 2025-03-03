@@ -6,7 +6,7 @@
 Wrapper for Implementing Convolutional Operator as the Differential and Integral Operator 
 - prefefined using a Finite Difference Scheme. 
 
-Data used for all operations should be in the shape: BS, Nt, Nx, Ny
+Data used for all operations should be in the shape: BS, Nx, Ny
 """
 import numpy as np 
 import torch 
@@ -62,22 +62,6 @@ def get_stencil(dims, deriv_order, taylor_order=2):
 
     raise ValueError("Invalid stencil parameters")
 
-
-#If the data is BS, Nt, Nx, Ny -- then the axis=0,1 will be for spatial derivs and axis=2 wil be for time. 
-def kernel_3d(stencil, axis):
-    kernel_size = stencil.shape[0]
-    kernel = torch.zeros(kernel_size, kernel_size, kernel_size)
-    if axis == 0:
-        kernel[1,:,:] = stencil
-    elif axis ==1:
-            kernel[:,1,:] = stencil
-    elif axis ==2:
-            kernel[:,:,1] = stencil
-    else:
-        raise ValueError("Invalid axis. Must be either 0, 1 or 2")
-    
-    return kernel
-
 def pad_kernel(grid, kernel):#Could go into the deriv conv class
     kernel_size = kernel.shape[0]
     bs, nt, nx, ny = grid.shape[0], grid.shape[1], grid.shape[2], grid.shape[3]
@@ -101,20 +85,16 @@ class ConvOperator():
             self.order = order #order of derivation
             self.stencil = get_stencil(self.dims, self.order, taylor_order)
 
-            if self.domain == 't':
-                self.axis = 2
-            elif self.domain == 'x':
+            if self.domain == 'x':
                 self.axis = 0
             elif self.domain == 'y':
                 self.axis = 1
             elif self.domain == ('x','y'):
                 self.axis = 0
-            elif self.domain == ('x', 'y', 't'):
-                self.axis = 0
             else:
-                raise ValueError("Invalid Domain. Must be either x,y or t")
+                raise ValueError("Invalid Domain. Must be either x,y or their combination")
             
-            self.kernel = kernel_3d(self.stencil, self.axis)
+            self.kernel = self.stencil
             self.kernel = scale*self.kernel
             self.kernel = self.kernel.to(device)
 
@@ -146,7 +126,7 @@ class ConvOperator():
         if kernel != None: 
             self.kernel = kernel
 
-        conv = F.conv3d(field.unsqueeze(1), self.kernel.unsqueeze(0).unsqueeze(0), padding=(self.kernel.shape[0]//2, self.kernel.shape[1]//2, self.kernel.shape[2]//2))
+        conv = F.conv2d(field.unsqueeze(1), self.kernel.unsqueeze(0).unsqueeze(0), padding=(self.kernel.shape[0]//2, self.kernel.shape[1]//2))
         return conv.squeeze(1)
     
 
@@ -167,11 +147,11 @@ class ConvOperator():
             self.kernel = kernel
 
         # Add channel dimension for conv1d
-        if field.dim() == 4:
+        if field.dim() == 3:
             field = field.unsqueeze(1)
 
         kernel = self.kernel.unsqueeze(0).unsqueeze(0)
-        convfft = fft_conv(field, kernel, padding=(self.kernel.shape[0]//2, self.kernel.shape[1]//2, self.kernel.shape[2]//2), inverse=inverse)
+        convfft = fft_conv(field, kernel, padding=(self.kernel.shape[0]//2, self.kernel.shape[1]//2), inverse=inverse)
 
         return convfft.squeeze(1)
 
@@ -193,11 +173,11 @@ class ConvOperator():
             self.kernel = kernel
 
         # Add channel dimension for conv1d
-        if field.dim() == 4:
+        if field.dim() == 3:
             field = field.unsqueeze(1)
 
         pad_size = self.kernel.size(-1) // 2
-        padded_field = F.pad(field, (pad_size,pad_size,pad_size,pad_size,pad_size,pad_size), mode='constant')
+        padded_field = F.pad(field, (pad_size,pad_size,pad_size,pad_size), mode='constant')
 
         field_fft = torch.fft.rfftn(padded_field.float(), dim=tuple(range(2, field.ndim)))
         kernel = self.kernel.unsqueeze(0).unsqueeze(0)
@@ -247,11 +227,11 @@ class ConvOperator():
                 self.kernel = kernel
 
         # Add channel dimension for conv1d
-        if field.dim() == 4:
+        if field.dim() == 3:
             field = field.unsqueeze(1)
 
         pad_size = self.kernel.size(-1) // 2
-        padded_field = F.pad(field, (pad_size,pad_size,pad_size,pad_size,pad_size,pad_size), mode='constant')
+        padded_field = F.pad(field, (pad_size,pad_size,pad_size,pad_size), mode='constant')
 
         field_fft = torch.fft.rfftn(padded_field, dim=tuple(range(2, field.ndim)))
         kernel = self.kernel.unsqueeze(0).unsqueeze(0)
@@ -313,7 +293,7 @@ class ConvOperator():
         return outputs
 
 # %% 
-#Example Usage
+# #Example Usage
 
 # import torch
 # from matplotlib import pyplot as plt
@@ -328,9 +308,9 @@ class ConvOperator():
 # theta = torch.tensor(0.0, dtype=torch.float32)
 
 # gaussian_2d = lambda x, y: amplitude * torch.exp(-0.5 * (((x - x_mean) * torch.cos(theta) - (y - y_mean) * torch.sin(theta))**2 / x_sigma**2 + ((x - x_mean) * torch.sin(theta) + (y - y_mean) * torch.cos(theta))**2 / y_sigma**2))
-# signal = gaussian_2d(x, y).unsqueeze(0).unsqueeze(0)
-# signal = torch.cat((signal, signal, signal), dim=1)
+# signal = gaussian_2d(x, y).unsqueeze(0)
 
+# # %% 
 
 # D = ConvOperator(domain=('x','y'), order=2)
 # direct_conv= D(signal)
@@ -342,7 +322,7 @@ class ConvOperator():
 # diff = D.differentiate(signal, correlation=True, slice_pad=True)
 # integ = D.integrate(diff, correlation=False, slice_pad=True)
 
-# plt.imshow(integ[0, 1] - signal[0, 1])
+# plt.imshow(integ[0] - signal[0])
 # plt.colorbar()
 
-# %%
+# # %%

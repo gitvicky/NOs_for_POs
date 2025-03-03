@@ -2,7 +2,7 @@
 seed: 907
 
 Physics: 
-  pde: 'Euler Fluid'
+  pde: 'Euler-Fluid'
   source: 'Finite Volume' 
   field: 'u, v, p, rho'
   variables: 4
@@ -19,9 +19,9 @@ Model:
   arch: 'FNO'
   in_vars: 4
   out_vars: 4
-  modes: 8
-  width: 16
-  n_layers: 2
+  modes: 16
+  width: 32
+  n_layers: 3
   act: 'gelu'
   operator splitting: True
 
@@ -32,9 +32,9 @@ Data:
   test-train-split: 0.2
   batch size: 20
   t_in: 1
-  t_out: 20
+  t_out: 50
   step: 1
-  normalisation: 'Min-Max'
+  normalisation: 'Min-Max_variable'
 
 Opt:
   optimizer: 'adam'
@@ -51,7 +51,7 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 20
+  rollout_length: 10
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'

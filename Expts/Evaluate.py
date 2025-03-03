@@ -5,8 +5,7 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'blocky-arpeggio' #No OS
-# run_name = 'smoked-function' #OS
+run_name = 'primordial-class'
 
 # %% 
 #Setting up simvue 

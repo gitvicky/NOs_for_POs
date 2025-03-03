@@ -22,7 +22,7 @@ def model_initialisation(configuration):
         if pde == 'Navier-Stokes':
             from operator_splitting import NS_spectral_OS_rhs
             model = NS_spectral_OS_rhs(configuration)
-        if pde == 'Euler':
+        if pde == 'Euler-Fluid':
             from operator_splitting import Euler_FV_OS_rhs
             model = Euler_FV_OS_rhs(configuration)
         if pde == 'Incomp. Navier-Stokes':
