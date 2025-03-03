@@ -81,7 +81,7 @@ with Run(mode='online') as run:
     pde = configuration['Physics']['pde']
     if pde == 'Navier-Stokes':
         fields, x, y, dt = Navier_Stokes_Spectral(configuration)
-    if pde == 'Euler Fluid':
+    if pde == 'Euler-Fluid':
         fields, x, y, dt = Euler_FV(configuration)
     if pde == 'Incomp. Navier-Stokes':
         fields, force, x, y, dt = Navier_Stokes_Incomp(configuration)
@@ -95,7 +95,6 @@ with Run(mode='online') as run:
             fields, x, y, dt = JOREK_electrostatic(configuration)
             
     t = torch.arange(0, fields.shape[-1], dt)
-    print(fields.shape)
 
     fields = fields[...,:configuration['Data']['t_out']]
 
@@ -186,10 +185,9 @@ with Run(mode='online') as run:
         from Utils import explicit_time
         train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  ode_solver=configuration['Train']['odesolve']['source'], roll_out=configuration['Train']['odesolve']['method'], noise=configuration['Train']['input_noise'])
     elif configuration['Train']['odesolve']['source'] == 'torchdiffeq':
-        from Utils import torch_odesolve 
-        from Utils import torchdiffeq_odesolve  
+        from Utils import torch_odesolve  
         # train = torch_odesolve.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Train']['odesolve']['method'],  configuration['Train']['odesolve']['adjoint'])
-        train = torchdiffeq_odesolve.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Train']['odesolve']['method'],  configuration['Train']['odesolve']['adjoint'])
+        train = torch_odesolve.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Train']['odesolve']['method'],  configuration['Train']['odesolve']['adjoint'])
 
 
     # %% 
@@ -251,8 +249,7 @@ with Run(mode='online') as run:
         eval = explicit_time.Eval_Setup(model, test_in, test_out, normalizer='False', ode_solver = configuration['Train']['odesolve']['source'], roll_out= configuration['Train']['odesolve']['method'])
 
     elif configuration['Train']['odesolve']['source'] == 'torchdiffeq':
-        # eval = torch_odesolve.Eval_Setup(model, test_in, test_out, roll_out= configuration['Train']['odesolve']['method'], ode_solver='torchdiffeq')
-        eval = torchdiffeq_odesolve.Eval_Setup( model, test_in, test_out, normalizer='False', method=configuration['Train']['odesolve']['method']
+        eval = torch_odesolve.Eval_Setup( model, test_in, test_out, normalizer='False', method=configuration['Train']['odesolve']['method']
 )
     pred_encoded, error = eval.inference(configuration['Data']['step'], configuration['Data']['t_out']-1, dt=dt)
 

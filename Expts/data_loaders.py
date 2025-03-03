@@ -108,7 +108,7 @@ def Euler_FV(configuration):
     data =  np.load(data_loc + '/NS_FV_combined.npz')
     u = data['u'].astype(np.float32)[:n_sims]
     v = data['v'].astype(np.float32)[:n_sims]
-    p = data['p'].astype(np.float32)[:n_sims]
+    p = data['p'].astype(np.float32)[:n_sims] 
     rho = data['rho'].astype(np.float32)[:n_sims]
     dx = data['dx']
     x = np.linspace(0, 1, 128)
