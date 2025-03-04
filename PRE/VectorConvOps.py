@@ -6,8 +6,8 @@
 Vector Operations implemented using the ConvOps Class 
 Data used for all operations should be in the shape: BS, Nt, Nx, Ny
 """
-
-from PRE.ConvOps_2d import *
+# %%
+from ConvOps_2d import *
 
 #############################################  
 #Vector Operations 

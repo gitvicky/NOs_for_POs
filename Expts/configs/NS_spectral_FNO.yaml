@@ -9,6 +9,8 @@ Physics:
   Nx: 100
   Ny: 100
   Nt: 100
+  dx: 0.01
+  dy: 0.01
   dt: 0.01
   x_slice: 2
   y_slice: 2
@@ -24,6 +26,7 @@ Model:
   n_layers: 6
   act: 'gelu'
   operator splitting: False
+  os_type: 'fixed' #Kind of operator splitting: 'fixed', 'learnt'
 
 Data: 
   name: 'NS_Spectral_combined.npz'

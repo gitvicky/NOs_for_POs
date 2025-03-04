@@ -8,6 +8,7 @@ Wrapper for Implementing Convolutional Operator as the Differential and Integral
 
 Data used for all operations should be in the shape: BS, Nt, Nx, Ny
 """
+# %% 
 import numpy as np 
 import torch 
 import torch.nn as nn 
