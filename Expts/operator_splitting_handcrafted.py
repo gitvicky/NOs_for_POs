@@ -6,28 +6,29 @@ import torch.nn as nn
 
 import sys
 sys.path.append("..")
-from Neural_PDE.Models.FNO import FNO_multi2d
 from PRE.VectorConvOps_Spatial import *
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 
 # %%
 
 class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand-side. 
-    def __init__(self, configuration):
+    def __init__(self, configuration, device):
         super(NS_spectral_OS_rhs, self).__init__()
-        self.nu = torch.tensor(0.001, dtype=torch.float32, requires_grad=True).to(device)
-        self.dx = torch.tensor(configuration['Physics']['dx'], dtype=torch.float32, requires_grad=True).to(device)
-        self.dy = torch.tensor(configuration['Physics']['dy'], dtype=torch.float32, requires_grad=True).to(device)
 
-        self.gradient = Gradient(scale=1/(2*self.dx), device=device, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
-        self.laplace = Laplace(scale=1/(self.dx**2), device=device, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+        self.nu = torch.tensor(0.001, dtype=torch.float32, device=device, requires_grad=True)
+        self.dx = torch.tensor(configuration['Physics']['dx'], dtype=torch.float32, device=device, requires_grad=True)
+        self.dy = torch.tensor(configuration['Physics']['dy'], dtype=torch.float32, device=device, requires_grad=True)
+
+        self.gradient = Gradient(scale=1/(2*self.dx), taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+        self.laplace = Laplace(scale=1/(self.dx**2), taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
 
     def forward(self, vars):
-        u = vars[:, 0:1][0]
-        v = vars[:, 1:2][0]
-        uv = vars[:, 0:2][0]
-        p = vars[:, 2:3][0]
+        #vars is for a single time instance
+
+        u  = vars[:, 0:1]
+        v  = vars[:, 1:2]
+        uv = vars[:, 0:2]
+        p  = vars[:, 2:3]
+
         rhs =  -dot(uv, self.gradient(u)) - dot(uv, self.gradient(v)) + self.nu*self.laplace(u, v) + self.gradient(p)                   
 
         return rhs 
@@ -41,7 +42,7 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
 
 # %% 
 class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Operator-Splitting right-hand-side.
-    def __init__(self, configuration):
+    def __init__(self, configuration, device):
         super(Euler_FV_OS_rhs, self).__init__()
 
         self.dx = torch.tensor(configuration['Physics']['dx'], dtype=torch.float32, requires_grad=True).to(device)
@@ -54,12 +55,12 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         self.divergence = Divergence(scale = 1/(2*self.dx), taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
 
     def forward(self, vars):
-        #[0] index for the single time instance
-        u = vars[:, 0:1][0]
-        v = vars[:, 1:2][0]
-        uv = vars[:, 0:2][0]
-        p = vars[:, 2:3][0]
-        rho = vars[:, 3:4][0]
+        #vars is for a single time instance
+        u   = vars[:, 0:1]
+        v   = vars[:, 1:2]
+        uv  = vars[:, 0:2]
+        p   = vars[:, 2:3]
+        rho = vars[:, 3:4]
         
         rhs_mass = - rho*self.divergence(uv) - dot(uv, self.gradient(rho))
         rhs_mom = -dot(uv, self.gradient(u)) - dot(uv, self.gradient(v)) + self.laplace(u, v) + (1/self.rho)*self.gradient(p)            

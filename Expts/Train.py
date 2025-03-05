@@ -205,7 +205,7 @@ with Run(mode='online') as run:
         train_loss = train_loss / len(train_loader)
         test_loss = test_loss / len(test_loader)
 
-        print(f"Epoch {ep}, Time Taken: {round(t2-t1,3)}, Train Loss: {round(train_loss, 3)}, Test Loss: {round(test_loss,3)}")
+        print(f"Epoch {ep}, Time Taken: {round(t2-t1,3)}, Train Loss: {round(train_loss, 5)}, Test Loss: {round(test_loss,5)}")
         run.log_metrics({'Train Loss': train_loss, 'Test Loss': test_loss})
 
         current_lr = optimizer.param_groups[0]['lr']

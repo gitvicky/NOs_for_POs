@@ -32,12 +32,13 @@ def vectorize(a, b):
 
 class Gradient(ConvOperator):
     # 1 -> 2 
-    def __init__(self, domain=('x','y'), order=1, scale=1.0, taylor_order=2, boundary_cond='periodic', conv='direct', device='cpu', requires_grad=False):
+    def __init__(self, domain=('x','y'), order=1, scale=1.0, taylor_order=2, boundary_cond='periodic', conv='direct', device=torch.device("cpu"), requires_grad=False):
         super(Gradient, self).__init__()
         
-        self.grad_x = ConvOperator(domain[0], order, scale, taylor_order, conv, device, requires_grad)
-        self.grad_y = ConvOperator(domain[1], order, scale, taylor_order, conv, device, requires_grad)
-        
+        self.grad_x = ConvOperator(domain[0], order, scale, taylor_order, conv, device=torch.device("cuda"), requires_grad=True)
+        self.grad_y = ConvOperator(domain[1], order, scale, taylor_order, conv, device=torch.device("cuda"), requires_grad=True)
+
+
         #Setting the boundary conditions
         self.bc = BoundaryManager(kernel_size=(taylor_order+1, taylor_order+1))
         self.bc.set_all_boundaries(bc_type=boundary_cond)

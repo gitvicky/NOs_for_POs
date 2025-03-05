@@ -80,8 +80,7 @@ class ConvOperator():
             Can be 't' for time domain or ('x', 'y') for spatial domain.
         order (int): The order of derivation.
     """
-    def __init__(self, domain=None, order=None, scale=1.0, taylor_order=2, conv='direct', device='cpu', requires_grad=False):
-
+    def __init__(self, domain=None, order=None, scale=1.0, taylor_order=2, conv='direct', device=torch.device("cuda"), requires_grad=False):
         try: 
             self.domain = domain #Axis across with the derivative is taken. 
             self.dims = len(self.domain) #Domain size
@@ -98,8 +97,11 @@ class ConvOperator():
                 raise ValueError("Invalid Domain. Must be either x,y or their combination")
             
             self.kernel = self.stencil
-            self.kernel = scale*self.kernel
             self.kernel = self.kernel.to(device)
+
+            self.scale = torch.tensor(scale, dtype=torch.float32, device=device, requires_grad=True)
+            self.scale.to(device)
+            self.kernel = self.scale*self.kernel
 
             if requires_grad==True:
                 self.kernel.requires_grad_ = True 
