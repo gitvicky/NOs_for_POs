@@ -84,7 +84,7 @@ with Run(mode='online') as run:
     if pde == 'Euler-Fluid':
         fields, x, y, dt = Euler_FV(configuration)
             
-    t = torch.arange(0, fields.shape[-1], dt)
+    t = torch.arange(0, configuration['Data']['t_out']*dt, dt)
 
     fields = fields[...,:configuration['Data']['t_out']]
 
@@ -109,6 +109,9 @@ with Run(mode='online') as run:
     train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=configuration['Data']['test-train-split'], random_state=42)
     print("Training Input: " + str(train_in.shape))
     print("Training Output: " + str(train_out.shape))
+
+    train_data = torch.cat((train_in, train_out), dim=-1)#Merging for creating the windowed dataset.
+    test_data = torch.cat((test_in, test_out), dim=-1)
 
     # #Setting up the data loaders
     # train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Data']['batch size'], shuffle=False)
@@ -144,22 +147,22 @@ with Run(mode='online') as run:
         timestep = rk4
 
     # %% 
-    ####################################
+    ########################################################################
     #Solving the PDE using an explicit time stepping scheme    
-    ####################################
+    ########################################################################
 
     start_time = default_timer()
-    u_n = train_in[...,0].to(device)
-    for ii in tqdm(range(1, len(t))): 
+    u_n = train_data[...,0].to(device)
+    for ii in tqdm(range(1, configuration['Data']['t_out'])): 
         
         t1 = default_timer()
         u_nplus1 = timestep(model, u_n, dt)
         u_n = u_nplus1
         t2 = default_timer()
 
-        solve_loss = (u_nplus1 - train_out[...,ii]).pow(2).mean()
+        solve_loss = (u_nplus1 - train_data[...,ii].to(device)).pow(2).mean()
 
-        print(f"Timestep {ii}, Time Taken: {round(t2-t1,3)}, Solve Loss: {round(solve_loss, 5)}")
+        print(f"Timestep {ii}, Time Taken: {round(t2-t1,3)}, Solve Loss: {round(solve_loss.item(), 5)}")
         run.log_metrics({'Solve Loss': solve_loss})
 
     solve_time = default_timer() - start_time
@@ -168,8 +171,8 @@ with Run(mode='online') as run:
     #Evaluation 
     start_time = default_timer()
     pred_set = []
-    u_n = test_in[...,0:1]
-    for ii in tqdm(1, range(t)): 
+    u_n = test_data[...,0].to(device)
+    for ii in tqdm(range(1, configuration['Data']['t_out'])): 
         
         t1 = default_timer()
         u_nplus1 = timestep(model, u_n, dt)
@@ -177,15 +180,16 @@ with Run(mode='online') as run:
         u_n = u_nplus1
         t2 = default_timer()
 
-        eval_loss = (u_nplus1 - test_out[...,ii:ii+1]).pow(2).mean()
+        eval_loss = (u_nplus1 - test_data[...,ii].to(device)).pow(2).mean()
 
-        print(f"Timestep {ii}, Time Taken: {round(t2-t1,3)}, Solve Loss: {round(eval_loss, 5)}")
+        print(f"Timestep {ii}, Time Taken: {round(t2-t1,3)}, Solve Loss: {round(eval_loss.item(), 5)}")
         run.log_metrics({'Eval Loss': eval_loss})
 
     eval_time = default_timer() - start_time
-    pred_set = torch.cat(pred_set, dim=0)
+    pred_set = torch.stack(pred_set, dim=1).permute(0, 2, 3, 4, 1)
+    print(pred_set.shape, test_out.shape)
 
-    error = (pred_set - test_out).pow(2).mean()
+    error = (pred_set - test_out.to(device)).pow(2).mean()
     print('(MSE) Evaluation Error: %.3e' % (error))
 
     run.update_metadata({'Eval Time': float(eval_time),
@@ -203,7 +207,7 @@ with Run(mode='online') as run:
     #Plotting the results 
     from Utils.plots import plots_2d_yaml
     idx = 0 
-    plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run, idx, save=True)
+    plots_2d_yaml(configuration, test_out.detach(), pred_set.detach(), plot_loc, run, idx, save=True)
     # %%
     run.close()
     # %%

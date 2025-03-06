@@ -6,7 +6,7 @@ import torch.nn as nn
 import sys
 sys.path.append("..")
 from Neural_PDE.Models.FNO import FNO_multi2d
-from PRE.VectorConvOps import Gradient
+from PRE.VectorConvOps_Spatial import *
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -41,21 +41,40 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
 class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Operator-Splitting right-hand-side.
     def __init__(self, configuration):
         super(Euler_FV_OS_rhs, self).__init__()
-        self.continuity = FNO_multi2d(in_vars=3, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
-        self.convection = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
-        self.gradient = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
-        self.divergence = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
+
+        # Mixed Operators
+        # self.continuity = FNO_multi2d(in_vars=3, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
+        # self.convection = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+        # self.gradient = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
+        # self.divergence = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
+        
+        #vector physical operators
+        self.gradient = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+        self.laplace = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+        self.divergence = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+
         self.gamma = torch.tensor(5/3, dtype=torch.float32, requires_grad=True).to(device)
 
     def forward(self, vars):
-        uv = vars[:, 0:2]
-        p = vars[:, 2:3]
-        rho = vars[:, 3:4]
+        rho = vars[:, 0:1]
+        u   = vars[:, 1:2]
+        v   = vars[:, 2:3]
+        uv  = vars[:, 1:3]
+        p   = vars[:, 3:4]
         
-        grad_p = self.gradient(p)
-        rhs_mass = -self.continuity(torch.cat((uv,rho), dim=1))
-        rhs_mom = -self.convection(uv) - grad_p / rho
-        rhs_energy = -self.gamma*p*self.divergence(uv) - uv[:,0:1]*grad_p[:,0:1] - uv[:,1:2]*grad_p[:,1:2]        
+        #Mixed Operators
+        # grad_p = self.gradient(p)
+        # rhs_mass = -self.continuity(torch.cat((uv,rho), dim=1))
+        # rhs_mom = -self.convection(uv) - grad_p / rho
+        # rhs_energy = -self.gamma*p*self.divergence(uv) - uv[:,0:1]*grad_p[:,0:1] - uv[:,1:2]*grad_p[:,1:2]        
+        # rhs = torch.cat((rhs_mass, rhs_mom[:, 0:1], rhs_mom[:, 1:2], rhs_energy), dim=1)
+
+        div_uv = self.divergence(uv)
+        grad_rho = self.gradient(rho)
+
+        rhs_mass = - rho*div_uv - dot(uv, grad_rho)
+        rhs_mom = -dot(uv, self.gradient(u)) - dot(uv, self.gradient(v)) + self.laplace(uv) + (1/rho)*self.gradient(p)            
+        rhs_energy = -self.gamma*p*div_uv - dot(uv, grad_rho)        
         
         rhs = torch.cat((rhs_mass, rhs_mom[:, 0:1], rhs_mom[:, 1:2], rhs_energy), dim=1)
         return rhs

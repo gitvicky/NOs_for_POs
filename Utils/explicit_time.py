@@ -123,6 +123,7 @@ class Train_Setup():
 
                 #Recon Loss
                 loss += self.loss_func(im.reshape(batch_size, -1), y.reshape(batch_size, -1))
+                print(loss.item())
 
                 if t == 0:
                     pred = im

@@ -94,7 +94,7 @@ with Run(mode='online') as run:
         if configuration['Physics']['source'] == 'JOREK': 
             fields, x, y, dt = JOREK_electrostatic(configuration)
             
-    t = torch.arange(0, fields.shape[-1], dt)
+    t = torch.arange(0, configuration['Data']['t_out']*dt, dt)
 
     fields = fields[...,:configuration['Data']['t_out']]
 

@@ -20,7 +20,7 @@ Physics:
 Data: 
   name: 'NS_Spectral_combined.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
-  ntrain: 10
+  ntrain: 100
   test-train-split: 0.2
   t_in: 1
   t_out: 50
@@ -33,7 +33,7 @@ Train:
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
     method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
-    adjoint: True #Only for torchdiffeq
+    adjoint: False #Only for torchdiffeq
 
 Simvue:
   mode: 'online'

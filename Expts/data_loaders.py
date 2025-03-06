@@ -116,7 +116,7 @@ def Euler_FV(configuration):
     dt = data['dt']
     dt = torch.tensor(dt, dtype=torch.float)
 
-    fields = stacked_fields([u,v,p,rho])
+    fields = stacked_fields([rho,u,v,p])
 
     #Slicing the data to reduce the size.
     fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]

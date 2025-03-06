@@ -33,9 +33,9 @@ def get_stencil(dims, deriv_order, taylor_order=2):
             ], dtype=torch.float32)
         elif deriv_order == 1 and taylor_order == 2:
             return torch.tensor([
-                [0, -1, 0],
+                [0, -1/2, 0],
                 [0, 0, 0],
-                [0, 1, 0]
+                [0, 1/2, 0]
             ], dtype=torch.float32)
     elif dims == 2:
         if deriv_order == 2 and taylor_order == 2:
