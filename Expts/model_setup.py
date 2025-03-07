@@ -26,8 +26,8 @@ def model_initialisation(configuration):
             from operator_splitting import Euler_FV_OS_rhs
             model = Euler_FV_OS_rhs(configuration)
         if pde == 'Incomp. Navier-Stokes':
-            from operator_splitting import Incomp_NS_OS_rhs
-            model = Incomp_NS_OS_rhs(configuration)
+            from operator_splitting import Incomp_PDEB_NS_OS_rhs
+            model = Incomp_PDEB_NS_OS_rhs(configuration)
         if pde == 'Comp. Navier-Stokes':
             from operator_splitting import Comp_NS_OS_rhs
             model = Comp_NS_OS_rhs(configuration)

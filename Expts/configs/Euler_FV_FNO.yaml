@@ -21,11 +21,11 @@ Model:
   arch: 'FNO'
   in_vars: 4
   out_vars: 4
-  modes: 4
+  modes: 16
   width: 32
   n_layers: 2
   act: 'gelu'
-  operator splitting: True
+  operator splitting: False
 
 Data: 
   name: 'NS_FV_combined.npz'
@@ -53,11 +53,11 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 10
+  rollout_length: 3
   input_noise: 0.0
   odesolve: 
-    source: 'torchdiffeq' #'torchdiffeq', 'custom'
-    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    source: 'custom' #'torchdiffeq', 'custom'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   checkpoint:
     epochs: 100

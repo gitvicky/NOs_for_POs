@@ -4,30 +4,35 @@ seed: 907
 Physics: 
   pde: 'Incomp. Navier-Stokes'
   source: 'PDEBench' 
-  field: 'u, v, p'
-  variables: 3
+  field: 'u, v'
+  variables: 2
   Nx: 128
   Ny: 128
   Nt: 100
+  dx: 0.01
+  dy: 0.01
   dt: 0.05
+  x_slice: 1
+  y_slice: 1
+  t_slice: 1 
   physics normalisation: True 
 
 Model:
   arch: 'FNO'
-  in_vars: 3
-  out_vars: 3
-  modes: 16
-  width: 32
-  n_layers: 6
+  in_vars: 2
+  out_vars: 2
+  modes: 32
+  width: 64
+  n_layers: 3
   act: 'gelu'
-  operator splitting: False
+  operator splitting: True
 
 Data: 
   name: 'NS_incomp_velocity_100_128_128.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
   ntrain: 50
   test-train-split: 0.2
-  batch size: 50
+  batch size: 10
   t_in: 1
   t_out: 50
   step: 1
@@ -48,11 +53,11 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 2
-  input_noise: 0.001
+  rollout_length: 10
+  input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   checkpoint:
     epochs: 100

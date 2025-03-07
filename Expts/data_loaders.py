@@ -91,7 +91,7 @@ def Navier_Stokes_Spectral(configuration):
     dt = data['dt']
     dt = torch.tensor(dt, dtype=torch.float)
 
-    fields = stacked_fields([u,v,p])
+    fields = stacked_fields([u,v])
 
     #Slicing the data to reduce the size.
     fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
@@ -136,7 +136,7 @@ def Navier_Stokes_Incomp(configuration):
     p = data['pressure'][...,0][:n_sims] / 3.0
     force = data['force']
 
-    fields = stacked_fields([u,v,p])
+    fields = stacked_fields([u,v])
     x, y = np.arange(0, 1, 128), np.arange(0, 1, 128) 
     t = np.arange(0, 5.0, 0.005) * 10 
     dt = 0.005 * 10 
@@ -194,7 +194,7 @@ def Navier_Stokes_Comp(configuration):
         # z = np.array(z, dtype=np.float32)
         dt = t[1] - t[0]
 
-        fields = stacked_fields([vx, vy, pressure, density])
+        fields = stacked_fields([density, vx, vy, pressure])
         dt, x, y = torch.tensor(dt), torch.tensor(x), torch.tensor(y)
 
 

@@ -71,7 +71,7 @@ def neural_ode(ode_func, u_n, dt):
 
 #Setting up the training pipeline. 
 class Train_Setup():
-    def __init__(self, model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs, ode_solver='custom', roll_out='AR', noise=False): #roll_out = AR, Euler, RK4
+    def __init__(self, model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs, ode_solver='custom', roll_out='AR', noise=False, batch_norm=False): #roll_out = AR, Euler, RK4
         super(Train_Setup, self).__init__()
 
         self.model = model
@@ -100,6 +100,11 @@ class Train_Setup():
         
         self.noisy_factor = torch.tensor(noise, dtype=torch.float32)
 
+        if batch_norm:
+            self.bn = nn.BatchNorm3d(num_features=4, device=device)
+        else:
+            self.bn = nn.Identity()
+
         model.to(device)
         self.model.train()
 
@@ -119,11 +124,11 @@ class Train_Setup():
             for t in range(0, train_T_out, step):
                 y = yy[..., t:t + step]
                 xx = xx + self.noisy_factor*torch.randn_like(xx) #Adding noise to the input.
+                xx = self.bn(xx) #Batch Normalisation
                 im = self.forward(self.model, xx, dt)
 
                 #Recon Loss
                 loss += self.loss_func(im.reshape(batch_size, -1), y.reshape(batch_size, -1))
-                print(loss.item())
 
                 if t == 0:
                     pred = im

@@ -4,27 +4,33 @@ seed: 907
 Physics: 
   pde: 'Comp. Navier-Stokes'
   source: 'PDEBench' 
+  coeff: 'M0.1_Eta0.1_Zeta0.1'
   field: 'u, v, p, rho'
   variables: 4
   Nx: 128
   Ny: 128
   Nt: 21
+  dx: 0.0078
+  dy: 0.0078
   dt: 0.05
+  x_slice: 1
+  y_slice: 1
+  t_slice: 1 
   physics normalisation: False
 
 Model:
   arch: 'FNO'
   in_vars: 4
   out_vars: 4
-  modes: 8
-  width: 16
+  modes: 32
+  width: 64
   n_layers: 6
   act: 'gelu'
   operator splitting: False
 
 Data: 
-  name: 'NS_incomp_velocity_100_128_128.npz'
-  loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
+  name: '2D_CFD_Rand_M0.1_Eta0.01_Zeta0.01_periodic_128_Train.hdf5' #and others
+  loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/PDEBench/pdebench/2D/CFD/2D_Train_Rand/'
   ntrain: 100
   test-train-split: 0.2
   batch size: 20
@@ -48,10 +54,11 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
+  input_noise: 0.0
   rollout_length: 10
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   checkpoint:
     epochs: 100
@@ -61,4 +68,4 @@ Train:
 Simvue:
   mode: 'online'
   name: None 
-  folder: '/Neural_PDE/Incompressible_NS' 
+  folder: '/Neural_PDE/Compressible_NS' 
