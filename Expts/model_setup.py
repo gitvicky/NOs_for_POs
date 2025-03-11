@@ -29,8 +29,8 @@ def model_initialisation(configuration):
             from operator_splitting import Incomp_PDEB_NS_OS_rhs
             model = Incomp_PDEB_NS_OS_rhs(configuration)
         if pde == 'Comp. Navier-Stokes':
-            from operator_splitting import Comp_NS_OS_rhs
-            model = Comp_NS_OS_rhs(configuration)
+            from operator_splitting import Comp_NS_PDEB_OS_rhs
+            model = Comp_NS_PDEB_OS_rhs(configuration)
     
     else:
             
@@ -48,7 +48,8 @@ def model_initialisation(configuration):
             model = UNet2d(configuration['Data']['t_in'], 
                         configuration['Data']['step'], 
                         configuration['Model']['width'], 
-                        configuration['Physics']['variables']
+                        configuration['Model']['in_vars'],
+                        configuration['Model']['out_vars']
                         )
         
         if configuration['Model']['arch'] == 'ViT':

@@ -23,7 +23,7 @@ Model:
   out_vars: 4
   modes: 16
   width: 32
-  n_layers: 2
+  n_layers: 4
   act: 'gelu'
   operator splitting: False
 
@@ -32,7 +32,7 @@ Data:
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
   ntrain: 100
   test-train-split: 0.2
-  batch size: 20
+  batch size: 5
   t_in: 1
   t_out: 30
   step: 1
@@ -53,12 +53,12 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 3
+  rollout_length: 10
   input_noise: 0.0
   odesolve: 
-    source: 'custom' #'torchdiffeq', 'custom'
-    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
-    adjoint: False #Only for torchdiffeq
+    source: 'torchdiffeq' #'torchdiffeq', 'custom'
+    method: 'rk4' # 'AR', 'euler', 'midpoint', rk4'
+    adjoint: True #Only for torchdiffeq
   checkpoint:
     epochs: 100
   restart: False

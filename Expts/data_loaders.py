@@ -194,7 +194,7 @@ def Navier_Stokes_Comp(configuration):
         # z = np.array(z, dtype=np.float32)
         dt = t[1] - t[0]
 
-        fields = stacked_fields([density, vx, vy, pressure])
+        fields = stacked_fields([density, vx, vy])
         dt, x, y = torch.tensor(dt), torch.tensor(x), torch.tensor(y)
 
 

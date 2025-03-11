@@ -111,7 +111,7 @@ class Train_Setup():
 
     def one_epoch(self, step, train_T_out, test_T_out, dt=0):
         
-        train_l2_step = 0
+        # train_l2_step = 0
         train_l2_full = 0
 
         for xx, yy in self.train_loader:
@@ -137,7 +137,7 @@ class Train_Setup():
 
                 xx = torch.cat((xx[..., step:], im), dim=-1)
 
-            train_l2_step += loss.item()
+            # train_l2_step += loss.item()
             l2_full = self.loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1))
             train_l2_full += l2_full.item()
 

@@ -21,7 +21,7 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         # self.NO_diffusion = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
         
         self.NO_pressure_poisson = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
-        self.gradient = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+        # self.gradient = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
         self.nu = torch.tensor(0.001, dtype=torch.float32, requires_grad=True).to(device)
 
         #Vector physical operators
@@ -29,6 +29,7 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         self.laplace = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
 
     def forward(self, vars):
+
         u = vars[:, 0:1]
         v = vars[:, 1:2]
         uv = vars[:, 0:2]
@@ -39,11 +40,12 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         # diffusion = self.NO_diffusion(uv) 
         # pressure = self.NO_pressure_poisson(vars) #Poisson Solve
         # pressure_grad = self.gradient(pressure[...,0]).unsqueeze(-1) #PRE for gradient. 
-        # rhs = - convection + self.nu*diffusion - pressure_grad
+        # rhs = - convection + self.nu*diffusion + pressure_grad
 
         # Vector physical operators
         p = self.NO_pressure_poisson(uv) #Poisson Solve
-        rhs = -dot(uv, self.gradient(u)) - dot(uv, self.gradient(v)) + (self.eta/self.rho) * self.laplace(uv) + (1/self.rho)*self.gradient(p)            
+        print(p.shape)
+        rhs = -dot(uv, self.gradient(u)) - dot(uv, self.gradient(v)) + self.nu * self.laplace(uv) + self.gradient(p)            
 
         return rhs #, pressure #Only modelling for u and v for the time being. 
 
@@ -124,7 +126,7 @@ class Incomp_PDEB_NS_OS_rhs(nn.Module):#PDEBench incompressible Navier-Stokes Op
         # p = vars[:, 2:3]
 
         p = self.NO_pressure_poisson(vars) #Poisson Solve
-        rhs = -dot(uv, self.gradient(u)) - dot(uv, self.gradient(v)) + (self.eta/self.rho) * self.laplace(uv) + (1/self.rho)*self.gradient(p)            
+        rhs = -dot(uv, self.gradient(u)) - dot(uv, self.gradient(v)) - (1/self.rho)*self.gradient(p) + (self.eta/self.rho) * self.laplace(uv) 
 
         # convection = self.NO_convection(uv)
         # diffusion = self.NO_diffusion(uv) 
@@ -144,26 +146,49 @@ class Incomp_PDEB_NS_OS_rhs(nn.Module):#PDEBench incompressible Navier-Stokes Op
 class Comp_NS_PDEB_OS_rhs(nn.Module):#PDE Bench Compressible Navier-Stokes Operator-Splitting right-hand-side. #Momentum equation only at the moment. 
     def __init__(self, configuration):
         super(Comp_NS_PDEB_OS_rhs, self).__init__()
-        self.NO_convection = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
-        self.NO_diffusion = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
-        self.NO_pressure_poisson = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
-        self.gradient = Gradient(scale=1, device=device, requires_grad=True)
-        self.NO_compression = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
-    
+
+        self.gradient = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+        self.laplace = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+        self.divergence = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+        self.NO_pressure = FNO_multi2d(in_vars=3, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
+
+        # self.NO_convection = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
+        # self.NO_diffusion = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
+        # self.NO_pressure_poisson = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
+        # self.gradient = Gradient(scale=1, device=device, requires_grad=True)
+        # self.NO_compression = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
+
+        self.eta = torch.tensor(0.1, dtype=torch.float32, requires_grad=True).to(device)
+        self.zeta = torch.tensor(0.1, dtype=torch.float32, requires_grad=True).to(device)
+
     def forward(self, vars):
-        uv = vars[:, 0:2]
-        p = vars[:, 2:3]
-        rho = vars[:, 3:4]
+        rho = vars[:, 0:1]
+        u = vars[:, 1:2]
+        uv = vars[:, 1:3]
+        v = vars[:, 2:3]
+        # p = vars[:, 3:4]
 
-        eta, zeta = 0.001, 0.001
+        # convection = self.NO_convection(uv)
+        # diffusion = self.NO_diffusion(uv) 
+        # pressure = self.NO_pressure_poisson(vars) #Poisson Solve
+        # pressure_grad = self.gradient(pressure[...,0]).unsqueeze(-1)
+        # compression = self.NO_compression(uv)
+        # rhs =  - convection + (eta*diffusion - pressure_grad + (eta+zeta/3)*compression)/rho #rho might need to be duplicated to match the dimensions. 
+        # return rhs #, pressure #Only modelling for u and v for the time being. 
 
-        convection = self.NO_convection(uv)
-        diffusion = self.NO_diffusion(uv) 
-        pressure = self.NO_pressure_poisson(vars) #Poisson Solve
-        pressure_grad = self.gradient(pressure[...,0]).unsqueeze(-1)
-        compression = self.NO_compression(uv)
-        rhs =  - convection + (eta*diffusion - pressure_grad + (eta+zeta/3)*compression)/rho #rho might need to be duplicated to match the dimensions. 
-        return rhs #, pressure #Only modelling for u and v for the time being. 
+
+        div_uv = self.divergence(uv)
+        grad_rho = self.gradient(rho)
+        p = self.NO_pressure(vars)
+
+        rhs_mass = - rho*div_uv - dot(uv, grad_rho)
+        rhs_mom = -dot(uv, self.gradient(u)) - dot(uv, self.gradient(v)) + 1/rho * (self.eta*self.laplace(uv) - self.gradient(p) + (self.zeta + self.eta/3)*self.gradient(div_uv))
+        # rhs_energy = -self.gamma*p*div_uv - dot(uv, grad_rho)        
+        
+        rhs = torch.cat((rhs_mass, rhs_mom[:, 0:1], rhs_mom[:, 1:2]), dim=1)
+
+        return rhs
+
 
     def count_params(self):
         nparams = 0
