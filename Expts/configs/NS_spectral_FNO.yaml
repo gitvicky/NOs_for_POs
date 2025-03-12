@@ -21,8 +21,8 @@ Model:
   arch: 'FNO'
   in_vars: 2
   out_vars: 2
-  modes: 32
-  width: 64
+  modes: 20
+  width: 40
   n_layers: 3
   act: 'gelu'
   operator splitting: True

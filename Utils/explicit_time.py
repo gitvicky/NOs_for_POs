@@ -143,8 +143,8 @@ class Train_Setup():
 
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
-            # if grad_norm > self.grad_clip:
-            #     print(f"Warning: Gradient norm {grad_norm:.2f} exceeded clip threshold")
+            if grad_norm > self.grad_clip:
+                print(f"Warning: Gradient norm {grad_norm:.2f} exceeded clip threshold")
             self.optimizer.step()
 
         train_loss = train_l2_full 

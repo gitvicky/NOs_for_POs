@@ -183,7 +183,7 @@ with Run(mode='online') as run:
     # Setting up the Training pipeline
     if configuration['Train']['odesolve']['source'] == 'custom':
         from Utils import explicit_time
-        train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  ode_solver=configuration['Train']['odesolve']['source'], roll_out=configuration['Train']['odesolve']['method'], noise=configuration['Train']['input_noise'])
+        train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  ode_solver=configuration['Train']['odesolve']['source'], roll_out=configuration['Train']['odesolve']['method'], noise=configuration['Train']['input_noise'], batch_norm=configuration['Train']['batch_norm'])
     elif configuration['Train']['odesolve']['source'] == 'torchdiffeq':
         from Utils import torch_odesolve  
         # train = torch_odesolve.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Train']['odesolve']['method'],  configuration['Train']['odesolve']['adjoint'])
@@ -210,16 +210,16 @@ with Run(mode='online') as run:
         run.log_metrics({'Train Loss': train_loss, 'Test Loss': test_loss, 'Learning Rate': current_lr})
 
         
-        # run.create_alert(
-        #     name='Unstable',
-        #     source='metrics',
-        #     rule='is above',
-        #     metric='Train Loss',
-        #     frequency=1,
-        #     window=1,
-        #     threshold=1e5,
-        #     trigger_abort=True
-        #     )
+        run.create_alert(
+            name='Unstable',
+            source='metrics',
+            rule='is above',
+            metric='Train Loss',
+            frequency=1,
+            window=1,
+            threshold=1e5,
+            trigger_abort=True
+            )
                     
         scheduler.step()
 

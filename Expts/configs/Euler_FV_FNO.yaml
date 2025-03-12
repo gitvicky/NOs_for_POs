@@ -12,9 +12,9 @@ Physics:
   dx: 0.0078125
   dy: 0.0078125
   dt: 0.02
-  x_slice: 2
-  y_slice: 2
-  t_slice: 2 
+  x_slice: 1
+  y_slice: 1
+  t_slice: 1
   physics normalisation: False
 
 Model:
@@ -40,7 +40,7 @@ Data:
 
 Opt:
   optimizer: 'adam'
-  epochs: 10
+  epochs: 500
   learning rate: 0.005
   beta1: 0.9
   beta2: 0.9
@@ -56,9 +56,10 @@ Train:
   rollout_length: 10
   input_noise: 0.0
   odesolve: 
-    source: 'torchdiffeq' #'torchdiffeq', 'custom'
-    method: 'rk4' # 'AR', 'euler', 'midpoint', rk4'
+    source: 'custom' #'torchdiffeq', 'custom'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: True #Only for torchdiffeq
+  batch_norm: True
   checkpoint:
     epochs: 100
   restart: False

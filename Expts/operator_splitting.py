@@ -44,7 +44,6 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
 
         # Vector physical operators
         p = self.NO_pressure_poisson(uv) #Poisson Solve
-        print(p.shape)
         rhs = -dot(uv, self.gradient(u)) - dot(uv, self.gradient(v)) + self.nu * self.laplace(uv) + self.gradient(p)            
 
         return rhs #, pressure #Only modelling for u and v for the time being. 
