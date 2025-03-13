@@ -159,7 +159,6 @@ class Train_Setup():
                 for t in range(0, test_T_out, step):
                     y = yy[..., t:t + step]
                     out = self.forward(self.model, xx, dt)
-
                     if t == 0:
                         pred = out
                     else:
@@ -225,7 +224,6 @@ class Eval_Setup():
                 for t in range(0, T_out, step):
                     y = yy[..., t:t + step]
                     out = self.forward(self.model, xx, dt)
-
                     if t == 0:
                         pred = out
                     else:

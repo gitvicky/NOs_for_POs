@@ -155,8 +155,8 @@ with Run(mode='online') as run:
     model = model_initialisation(configuration)
     model.to(device)
 
-    run.update_metadata({'Number of Params': int(model.count_params())})
-    print("Number of model params : " + str(model.count_params()))
+    # run.update_metadata({'Number of Params': int(model.count_params())})
+    # print("Number of model params : " + str(model.count_params()))
 
     #Setting up the optimizer and scheduler, loss and epochs 
     optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning rate'], weight_decay=1e-4)
@@ -210,16 +210,16 @@ with Run(mode='online') as run:
         run.log_metrics({'Train Loss': train_loss, 'Test Loss': test_loss, 'Learning Rate': current_lr})
 
         
-        run.create_alert(
-            name='Unstable',
-            source='metrics',
-            rule='is above',
-            metric='Train Loss',
-            frequency=1,
-            window=1,
-            threshold=1e5,
-            trigger_abort=True
-            )
+        # run.create_alert(
+        #     name='Unstable',
+        #     source='metrics',
+        #     rule='is above',  
+        #     metric='Train Loss',
+        #     frequency=1,
+        #     window=1,
+        #     threshold=1e5,
+        #     trigger_abort=True
+        #     )
                     
         scheduler.step()
 

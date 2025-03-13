@@ -12,6 +12,8 @@ from Neural_PDE.Models.UNet import *
 from Neural_PDE.Models.CNO import * 
 from Neural_PDE.Models.gMLP_Vision import * 
 
+# from neuralop.models import FNO2d
+
 
 def model_initialisation(configuration):
     pde = configuration['Physics']['pde']
@@ -43,6 +45,24 @@ def model_initialisation(configuration):
                                     configuration['Model']['width'],
                                     configuration['Model']['n_layers']
                                     )
+
+        # if configuration['Model']['arch'] == 'FNO':
+        #     if configuration['Model']['operator splitting'] == False:
+        #         model = FNO2d(
+        #                 n_modes_height=configuration['Model']['modes'],       # Number of Fourier modes to keep along height dimension
+        #                 n_modes_width=configuration['Model']['modes'],        # Number of Fourier modes to keep along width dimension
+        #                 hidden_channels=configuration['Model']['width'],      # Width of the FNO (number of channels)
+        #                 in_channels=configuration['Model']['in_vars'],           # Number of input channels
+        #                 out_channels=configuration['Model']['in_vars'],          # Number of output channels
+        #                 lifting_channels=configuration['Model']['width'],    # Channels in the lifting block (lifting_channel_ratio * hidden_channels)
+        #                 projection_channels=256, # Channels in the projection block
+        #                 n_layers=4,              # Number of Fourier layers
+        #                 # factorization=None,      # No tensor factorization
+        #                 # stabilizer=None,         # No stabilizer
+        #                 # fno_block_precision="full", # Precision mode for spectral convolution
+        #                 # domain_padding=0.1,      # Pad the domain by 10%
+        #                 # domain_padding_mode="symmetric" # Symmetric padding
+        #         )
             
         if configuration['Model']['arch'] == 'U-Net':
             model = UNet2d(configuration['Data']['t_in'], 

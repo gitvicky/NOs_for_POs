@@ -12,17 +12,17 @@ Physics:
   dx: 0.0078125
   dy: 0.0078125
   dt: 0.02
-  x_slice: 1
-  y_slice: 1
-  t_slice: 1
+  x_slice: 2
+  y_slice: 2
+  t_slice: 2
   physics normalisation: False
 
 Model:
   arch: 'FNO'
   in_vars: 4
   out_vars: 4
-  modes: 16
-  width: 32
+  modes: 32
+  width: 64
   n_layers: 4
   act: 'gelu'
   operator splitting: False
@@ -32,9 +32,9 @@ Data:
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
   ntrain: 100
   test-train-split: 0.2
-  batch size: 5
+  batch size: 20
   t_in: 1
-  t_out: 30
+  t_out: 50
   step: 1
   normalisation: 'Min-Max_variable'
 
@@ -57,9 +57,9 @@ Train:
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
-    adjoint: True #Only for torchdiffeq
-  batch_norm: True
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    adjoint: False #Only for torchdiffeq
+  batch_norm: False
   checkpoint:
     epochs: 100
   restart: False
