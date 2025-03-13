@@ -1,70 +1,71 @@
 
-seed: 907
+  seed: 907
 
-Physics: 
-  pde: 'Navier-Stokes'
-  source: 'Spectral' 
-  field: 'u, v, p'
-  variables: 2
-  Nx: 100
-  Ny: 100
-  Nt: 100
-  dx: 0.01
-  dy: 0.01
-  dt: 0.01
-  x_slice: 1
-  y_slice: 1
-  t_slice: 1
-  physics normalisation: False
+  Physics: 
+    pde: 'Navier-Stokes'
+    source: 'Spectral' 
+    field: 'u, v'
+    variables: 2
+    Nx: 100
+    Ny: 100
+    Nt: 100
+    dx: 0.01
+    dy: 0.01
+    dt: 0.01
+    x_slice: 1
+    y_slice: 1
+    t_slice: 1
+    physics normalisation: False
 
-Model:
-  arch: 'FNO'
-  in_vars: 2
-  out_vars: 2
-  modes: 20
-  width: 40
-  n_layers: 3
-  act: 'gelu'
-  operator splitting: True
+  Model:
+    arch: 'FNO'
+    in_vars: 2
+    out_vars: 2
+    modes: 8
+    width: 16
+    n_layers: 2
+    act: 'gelu'
+    operator splitting: True
 
-Data: 
-  name: 'NS_Spectral_combined.npz'
-  loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
-  ntrain: 100
-  test-train-split: 0.2
-  batch size: 10
-  t_in: 1
-  t_out: 50
-  step: 1
-  normalisation: 'Min-Max'
+  Data: 
+    name: 'NS_Spectral_combined.npz'
+    loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+    ntrain: 100
+    test-train-split: 0.2
+    batch size: 30
+    t_in: 1
+    t_out: 50
+    step: 1
+    normalisation: 'Min-Max'
 
-Opt:
-  optimizer: 'adam'
-  epochs: 500
-  learning rate: 0.005
-  beta1: 0.9
-  beta2: 0.9
-  weight_decay: 1e-4
-  scheduler: 'step'  
-  scheduler step : 100
-  scheduler gamma: 0.5
-  grad_clip: 2.0
+  Opt:
+    optimizer: 'adam'
+    epochs: 500
+    learning rate: 0.005
+    beta1: 0.9
+    beta2: 0.9
+    weight_decay: 1e-4
+    scheduler: 'step'  
+    scheduler step : 100
+    scheduler gamma: 0.5
+    grad_clip: 2.0
 
-Train: 
-  loss: 'LP'
-  input_length: 1
-  rollout_length: 30
-  input_noise: 0.0
-  odesolve: 
-    source: 'custom' #'torchdiffeq', 'custom'
-    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
-    adjoint: False #Only for torchdiffeq
-  checkpoint:
-    epochs: 100
-  restart: False
-  restart run name: '' #simvue run name 
+  Train: 
+    loss: 'LP'
+    input_length: 1
+    rollout_length: 20
+    input_noise: 0.0
+    odesolve: 
+      source: 'custom' #'torchdiffeq', 'custom'
+      method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+      adjoint: False #Only for torchdiffeq
+    batch_norm: False
+    checkpoint:
+      epochs: 100
+    restart: False
+    restart run name: '' #simvue run name 
 
-Simvue:
-  mode: 'online'
-  name: None 
-  folder: '/Neural_PDE/NS_spectral' 
+  Simvue:
+    mode: 'online'
+    name: None 
+    folder: '/Neural_PDE/NS_spectral' 
