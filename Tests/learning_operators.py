@@ -66,6 +66,8 @@ with Run(mode='online') as run:
     from Neural_PDE.Utils.processing_utils import * 
     from Neural_PDE.Utils.training_utils import * 
 
+    from Tests.model_builder import build_model
+    model = build_model(configuration)
     # %% 
     ####################################
     # Data Preparation.
@@ -120,16 +122,9 @@ with Run(mode='online') as run:
     ####################################
     # Setting up the Model and Optimizers 
     ####################################
-    from learnable_matrices import LearnableMatrix, count_parameters
-    
-    model = nn.Sequential(
-                LearnableMatrix(xsize=configuration['Physics']['Nx'], ysize=configuration['Physics']['Ny'], 
-                                features= configuration['Physics']['variables'], init_type='random'),
-                # nn.Tanh()
-                # LearnableMatrix(xsize=configuration['Physics']['Nx'], ysize=configuration['Physics']['Ny'], 
-                #                 features= configuration['Physics']['variables'], init_type='random'),
 
-        )
+    from Tests.model_builder import build_model
+    model = build_model(configuration)
     model.to(device)
     num_params = count_parameters(model)
     run.update_metadata({'Number of Params': num_params})
@@ -139,10 +134,7 @@ with Run(mode='online') as run:
     optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning rate'], weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler step'], gamma=configuration['Opt']['scheduler gamma'])
 
-    if configuration['Model']['arch']=='fno':
-        loss_func = LpLoss(size_average=False)
-    else:
-        loss_func = torch.nn.MSELoss()
+    loss_func = torch.nn.MSELoss()
 
     epoch_init = 0
     epochs = configuration['Opt']['epochs']
@@ -154,6 +146,24 @@ with Run(mode='online') as run:
     from PRE.VectorConvOps_Spatial import *
     gradient = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
 
+    # laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+    # divergence = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+
+    # def gradient_func(uv):
+    #     u = uv[:,0:1]
+    #     v = uv[:,1:2]
+    #     return gradient(u), gradient(v)
+    
+    # def laplace_func(uv):
+    #     u = uv[:,0:1]
+    #     v = uv[:,1:2]
+    #     return laplace(u), laplace(v)
+    
+    # def divergence_func(uv):
+    #     u = uv[:,0:1]
+    #     v = uv[:,1:2]
+    #     return divergence(u, v)
+    
     def convection(uv):
         with torch.no_grad():
             u = uv[:,0:1]
