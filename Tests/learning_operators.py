@@ -66,8 +66,8 @@ with Run(mode='online') as run:
     from Neural_PDE.Utils.processing_utils import * 
     from Neural_PDE.Utils.training_utils import * 
 
-    from Tests.model_builder import build_model
-    model = build_model(configuration)
+    # from Tests.model_builder import build_model
+    # model = build_model(configuration)
     # %% 
     ####################################
     # Data Preparation.

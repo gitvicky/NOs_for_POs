@@ -379,3 +379,129 @@ class SpectralConv2d(nn.Module):
         """
         # Each complex number has 2 parameters (real and imaginary parts)
         return 2 * (self.weights1.numel() + self.weights2.numel())
+    
+    
+class MLP2d(nn.Module):
+    def __init__(self, in_channels, out_channels, mid_channels):
+        """
+        Create a 2D Multi-Layer Perceptron using 1x1 convolutions.
+        
+        Args:
+            in_channels (int): Number of input channels
+            out_channels (int): Number of output channels
+            mid_channels (int): Number of channels in the hidden layer
+        """
+        super(MLP2d, self).__init__()
+        
+        # First layer: in_channels -> mid_channels with 1x1 convolution
+        self.mlp1 = nn.Conv2d(in_channels, mid_channels, 1)
+        
+        # Second layer: mid_channels -> out_channels with 1x1 convolution
+        self.mlp2 = nn.Conv2d(mid_channels, out_channels, 1)
+        
+        # Activation function - GELU (Gaussian Error Linear Unit)
+        self.activation = F.gelu
+
+    def forward(self, x):
+        """
+        Forward pass of the MLP2d network.
+        
+        Args:
+            x (torch.Tensor): Input tensor with shape (batch_size, in_channels, height, width)
+        
+        Returns:
+            torch.Tensor: Output tensor with shape (batch_size, out_channels, height, width)
+        """
+        # Apply first convolution
+        x = self.mlp1(x)
+        
+        # Apply activation function
+        x = self.activation(x)
+        
+        # Apply second convolution
+        x = self.mlp2(x)
+        
+        return x
+
+
+class FNO2d(nn.Module):
+    def __init__(self, in_channels, out_channels, modes1, modes2, grid='arbitrary'):
+        """
+        Create a 2D Fourier Neural Operator layer.
+        
+        The FNO2d combines spectral convolution with residual connections.
+        
+        Args:
+            modes1 (int): Number of Fourier modes to multiply in first dimension
+            modes2 (int): Number of Fourier modes to multiply in second dimension
+            width (int): Number of channels to use throughout the network
+            grid (str): Type of grid to use, defaults to 'arbitrary'
+        """
+        super(FNO2d, self).__init__()
+
+        self.modes1 = modes1  # Number of Fourier modes in first dimension
+        self.modes2 = modes2  # Number of Fourier modes in second dimension
+        self.in_channels = in_channels  # Channel width
+        self.out_channels = out_channels  # Channel width
+        self.grid = grid      # Grid type
+        
+        # Spectral convolution component
+        self.conv = SpectralConv2d(self.in_channels, self.out_channels, self.modes1, self.modes2)
+        
+        # MLP component for non-linear processing
+        self.mlp = MLP2d(self.in_channels, self.out_channels, self.in_channels*2)
+        
+        # Standard convolution for residual connection
+        self.w = nn.Conv2d(self.in_channels, self.out_channels, 1)
+        
+        # # Coordinate grid encoder
+        # self.b = nn.Conv2d(2, self.out_channels, 1)
+
+
+    def forward(self, x, grid=None):
+        """
+        Forward pass of the FNO2d layer.
+        
+        Args:
+            x (torch.Tensor): Input tensor with shape (batch_size, width, height, width)
+            grid (torch.Tensor, optional): Coordinate grid tensor with shape 
+                                          (batch_size, 2, height, width)
+                                          where 2 represents the x and y coordinates.
+                                          If None, a grid will be created based on 
+                                          the self.grid setting.
+        
+        Returns:
+            torch.Tensor: Output tensor with shape (batch_size, width, height, width)
+        """
+        shape = x.shape
+        batchsize, size_x, size_y = shape[0], shape[1], shape[2]
+        
+        # Create grid if not provided
+        if grid is None:
+            if self.grid == 'arbitrary':
+                # Create normalized coordinate grid
+                gridx = torch.tensor(torch.linspace(0, 1, size_x), dtype=torch.float, device=x.device)
+                gridy = torch.tensor(torch.linspace(0, 1, size_y), dtype=torch.float, device=x.device)
+                
+                # Meshgrid for 2D coordinates
+                gridx, gridy = torch.meshgrid(gridx, gridy, indexing='ij')
+                
+                # Stack and reshape to create the grid tensor
+                grid = torch.stack([gridx, gridy], dim=-1)
+                grid = grid.reshape(1, size_x, size_y, 2).permute(0, 3, 1, 2)
+                grid = grid.repeat(batchsize, 1, 1, 1)
+        
+        # Apply spectral convolution followed by MLP
+        x1 = self.conv(x)
+        x1 = self.mlp(x1)
+        
+        # Apply residual connection
+        x2 = self.w(x)
+        
+        # # Incorporate coordinate information
+        # x3 = self.b(grid)
+        
+        # Combine all branches
+        x = x1 + x2 #+ x3
+        
+        return x

@@ -19,12 +19,12 @@ Physics:
   physics normalisation: False
 
 Model:
-  arch: 'Conv' # Matrix, Conv, FNO
+  arch: 'FNO' # Matrix, Conv, SpectralConv, FNO
   in_vars: 2
   out_vars: 2
   n_layers: 3
-  kernel_size: 3
-  modes: None
+  kernel_size: None
+  modes: 32
   act: 'gelu'
   init: 'random'
   dropout: 0.0
@@ -54,7 +54,7 @@ Opt:
   grad_clip: 2.0
 
 Train: 
-  loss: 'LP'
+  loss: 'MSELoss'
   input_length: None
   rollout_length: None
   input_noise: 0.0

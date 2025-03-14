@@ -87,7 +87,7 @@ def sequential_model(
                 )
             )
 
-        elif layer_type == 'FNO':
+        elif layer_type == 'SpectralConv':
             layers.append(
                 SpectralConv2d(
                     in_channels=configuration['Model']['in_vars'],
@@ -95,6 +95,17 @@ def sequential_model(
                     modes1=configuration['Model']['modes'],
                     modes2=configuration['Model']['modes'],
                     init_type=configuration['Model'].get('init', 'random'),
+                )
+            )
+        
+        elif layer_type == 'FNO':
+            layers.append(
+                FNO2d(
+                    in_channels=configuration['Model']['in_vars'],
+                    out_channels=configuration['Model']['out_vars'],
+                    modes1=configuration['Model']['modes'],
+                    modes2=configuration['Model']['modes'],
+                    # init_type=configuration['Model'].get('init', 'random'),
                 )
             )
         else:
