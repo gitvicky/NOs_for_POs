@@ -108,6 +108,17 @@ def sequential_model(
                     # init_type=configuration['Model'].get('init', 'random'),
                 )
             )
+        
+
+        elif layer_type == 'SelfAttention':
+            layers.append(
+                SelfAttention2d(
+                            channels=configuration['Model']['channels'],
+                            heads=configuration['Model']['heads'],  
+                            dropout=configuration['Model']['dropout'],
+                            init_type=configuration['Model'].get('init', 'random'),
+                )
+            )
         else:
             raise ValueError(f"Unknown layer type: {layer_type}")
         

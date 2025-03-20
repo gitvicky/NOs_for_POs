@@ -5,7 +5,7 @@ Learning the convection operator alone.
 """
 # %%
 #Specifying the run instance
-run_name = 'presto-sample'
+run_name = 'wise-stew'
 
 # %% 
 #Setting up simvue 
@@ -133,9 +133,8 @@ loss_func = torch.nn.MSELoss()
 ####################################
 from PRE.VectorConvOps_Spatial import *
 gradient = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
-
 # laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
-# divergence = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+divergence = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
 
 # def gradient_func(uv):
 #     u = uv[:,0:1]
@@ -147,10 +146,12 @@ gradient = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=de
 #     v = uv[:,1:2]
 #     return laplace(u), laplace(v)
 
-# def divergence_func(uv):
-#     u = uv[:,0:1]
-#     v = uv[:,1:2]
-#     return divergence(u, v)
+def divergence_func(uv):
+    with torch.no_grad():
+        u = uv[:,0:1]
+        v = uv[:,1:2]
+        div = divergence(u, v)
+    return div
 
 def convection(uv):
     with torch.no_grad():
@@ -162,7 +163,8 @@ def convection(uv):
 def forward(model, uv):
     out = model(uv)
     out = out[:, 0:1] + out[:, 1:2]
-    yy = convection(uv)
+    # yy = convection(uv)
+    yy = divergence_func(uv)
     return out, yy 
 
 
@@ -202,13 +204,13 @@ uv = uv.permute(0, 4, 1, 2, 3).reshape(uv.shape[0]*uv.shape[4], uv.shape[1], uv.
 fields_encoded = normalizer.encode(uv)
 test = fields_encoded[-101:]
 
-#Testing it on the incompressible NS PDEBench
-# configuration['Data']['ntrain'] = 10
-# fields, force, x, y, dt = Navier_Stokes_Incomp(configuration)
-# uv = fields[:, 0:2]
-# uv = uv.permute(0, 4, 1, 2, 3).reshape(uv.shape[0]*uv.shape[4], uv.shape[1], uv.shape[2], uv.shape[3])
-# fields_encoded = normalizer.encode(uv)
-# test = fields_encoded[-100:]
+# Testing it on the incompressible NS PDEBench
+configuration['Data']['ntrain'] = 10
+fields, force, x, y, dt = Navier_Stokes_Incomp(configuration)
+uv = fields[:, 0:2]
+uv = uv.permute(0, 4, 1, 2, 3).reshape(uv.shape[0]*uv.shape[4], uv.shape[1], uv.shape[2], uv.shape[3])
+fields_encoded = normalizer.encode(uv)
+test = fields_encoded[-100:]
 # %% 
 with torch.no_grad():
 

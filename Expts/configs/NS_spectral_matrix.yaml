@@ -3,7 +3,7 @@ seed: 907
 
 Physics: 
   pde: 'Navier-Stokes'
-  operator: 'Convection'
+  operator: 'Divergence'
   source: 'Spectral' 
   field: 'u, v'
   variables: 2
@@ -19,13 +19,15 @@ Physics:
   physics normalisation: False
 
 Model:
-  arch: 'FNO' # Matrix, Conv, SpectralConv, FNO
+  arch: 'SelfAttention' # Matrix, Conv, SpectralConv, FNO, SelfAttention, Transformer
   in_vars: 2
   out_vars: 2
-  n_layers: 3
-  kernel_size: None
-  modes: 32
-  act: 'gelu'
+  n_layers: 1
+  kernel_size: None #Convolution
+  modes: None #FNO and SpectralConv
+  channels: 2 #Attention
+  heads: 2 #Attention
+  act: None
   init: 'random'
   dropout: 0.0
   operator splitting: False

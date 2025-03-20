@@ -505,3 +505,392 @@ class FNO2d(nn.Module):
         x = x1 + x2 #+ x3
         
         return x
+    
+
+# %% 
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class SelfAttention2d(nn.Module):
+    def __init__(self, channels, heads=1, head_dim=None, dropout=0.0, init_type='random'):
+        """
+        Create a 2D Self-Attention module for image data transformations.
+        
+        Args:
+            channels (int): Number of input/output channels
+            heads (int): Number of attention heads
+            head_dim (int, optional): Dimension of each attention head. If None, will be channels // heads
+            dropout (float): Dropout probability for attention weights
+            init_type (str): Initialization strategy - 'random', 'zeros', or 'identity'
+        """
+        super(SelfAttention2d, self).__init__()
+        
+        self.channels = channels
+        self.heads = heads
+        self.head_dim = head_dim if head_dim is not None else channels // heads
+        self.scale = self.head_dim ** -0.5  # Scaling factor for dot product attention
+        
+        # Check that channels can be divided evenly by heads
+        assert (self.head_dim * heads == channels), "Channels must be divisible by heads"
+        
+        # Create query, key, and value projection layers
+        self.q_proj = nn.Conv2d(channels, channels, kernel_size=1, bias=True)
+        self.k_proj = nn.Conv2d(channels, channels, kernel_size=1, bias=True)
+        self.v_proj = nn.Conv2d(channels, channels, kernel_size=1, bias=True)
+        
+        # Output projection
+        self.out_proj = nn.Conv2d(channels, channels, kernel_size=1, bias=True)
+        
+        # Dropout for attention weights
+        self.dropout = nn.Dropout(dropout)
+        
+        # Initialize weights based on the specified strategy
+        self._init_weights(init_type)
+    
+    def _init_weights(self, init_type):
+        """
+        Initialize the weights for the projection layers.
+        
+        Args:
+            init_type (str): Initialization strategy
+        """
+        if init_type == 'random':
+            # Xavier/Glorot initialization
+            for m in [self.q_proj, self.k_proj, self.v_proj, self.out_proj]:
+                nn.init.xavier_uniform_(m.weight)
+                nn.init.zeros_(m.bias)
+        elif init_type == 'zeros':
+            # Initialize with zeros
+            for m in [self.q_proj, self.k_proj, self.v_proj, self.out_proj]:
+                nn.init.zeros_(m.weight)
+                nn.init.zeros_(m.bias)
+        elif init_type == 'identity':
+            # Initialize to approximate identity operation
+            for m in [self.q_proj, self.k_proj, self.v_proj, self.out_proj]:
+                nn.init.zeros_(m.weight)
+                nn.init.zeros_(m.bias)
+                
+            # For self-attention, identity means attending only to the same position
+            # Setup the q, k projections to create high dot products at the same position
+            for h in range(self.heads):
+                head_start = h * self.head_dim
+                head_end = (h + 1) * self.head_dim
+                
+                # Set diagonal elements in each head section
+                for i in range(head_start, head_end):
+                    self.q_proj.weight[i, i, 0, 0] = 1.0
+                    self.k_proj.weight[i, i, 0, 0] = 1.0
+                    
+            # Setup v_proj and out_proj to pass through values
+            for i in range(self.channels):
+                self.v_proj.weight[i, i, 0, 0] = 1.0
+                self.out_proj.weight[i, i, 0, 0] = 1.0
+        else:
+            raise ValueError(f"Unknown initialization type: {init_type}")
+    
+    def forward(self, x=None):
+        """
+        Forward pass of the self-attention module.
+        
+        Args:
+            x (torch.Tensor): Input tensor with shape (batch_size, channels, height, width)
+                             If None, return the current projection weights
+        
+        Returns:
+            torch.Tensor: Output tensor with same shape as input
+        """
+        if x is None:
+            # Return the projection weights when no input is provided
+            return {
+                'q_proj': self.q_proj.weight.detach(),
+                'k_proj': self.k_proj.weight.detach(),
+                'v_proj': self.v_proj.weight.detach(),
+                'out_proj': self.out_proj.weight.detach()
+            }
+        
+        # Input shape validation and reshaping if needed
+        original_shape = x.shape
+        original_ndim = len(original_shape)
+        
+        # Handle different input shapes
+        if original_ndim == 2:  # (height, width)
+            x = x.unsqueeze(0).unsqueeze(0)  # -> (1, 1, height, width)
+        elif original_ndim == 3:  # (batch, height, width) or (channels, height, width)
+            # Determine if this is batch or channels dimension
+            if original_shape[0] == self.channels:
+                # It's (channels, height, width), convert to (1, channels, height, width)
+                x = x.unsqueeze(0)
+            else:
+                # It's (batch, height, width), convert to (batch, 1, height, width)
+                x = x.unsqueeze(1)
+        
+        batch_size, n_channels, height, width = x.shape
+        
+        # Handle the case where input channels don't match expected channels
+        if n_channels != self.channels:
+            # Either repeat the input channels or use only first 'channels' channels
+            if n_channels < self.channels:
+                # Repeat input channels to match channels count
+                x = x.repeat(1, self.channels // n_channels + 1, 1, 1)[:, :self.channels, :, :]
+            else:
+                # Use only the first 'channels' channels
+                x = x[:, :self.channels, :, :]
+        
+        # Project input to queries, keys, and values
+        q = self.q_proj(x)  # (batch_size, channels, height, width)
+        k = self.k_proj(x)  # (batch_size, channels, height, width)
+        v = self.v_proj(x)  # (batch_size, channels, height, width)
+        
+        # Reshape to separate the head dimension and flatten spatial dimensions
+        # From (batch_size, channels, height, width) to 
+        # (batch_size, heads, head_dim, height*width)
+        q = q.reshape(batch_size, self.heads, self.head_dim, height * width)
+        k = k.reshape(batch_size, self.heads, self.head_dim, height * width)
+        v = v.reshape(batch_size, self.heads, self.head_dim, height * width)
+        
+        # Transpose for matrix multiplication
+        # From (batch_size, heads, head_dim, height*width) to 
+        # (batch_size, heads, height*width, head_dim)
+        q = q.transpose(-1, -2)  # (batch_size, heads, height*width, head_dim)
+        k = k.transpose(-1, -2)  # (batch_size, heads, height*width, head_dim)
+        v = v.transpose(-1, -2)  # (batch_size, heads, height*width, head_dim)
+        
+        # Compute attention scores
+        # (batch_size, heads, height*width, head_dim) @ (batch_size, heads, head_dim, height*width)
+        # -> (batch_size, heads, height*width, height*width)
+        attn_weights = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+        
+        # Apply softmax to get attention probabilities
+        attn_weights = F.softmax(attn_weights, dim=-1)
+        
+        # Apply dropout to attention weights
+        attn_weights = self.dropout(attn_weights)
+        
+        # Apply attention weights to values
+        # (batch_size, heads, height*width, height*width) @ (batch_size, heads, height*width, head_dim)
+        # -> (batch_size, heads, height*width, head_dim)
+        out = torch.matmul(attn_weights, v)
+        
+        # Transpose back to original format
+        # From (batch_size, heads, height*width, head_dim) to 
+        # (batch_size, heads, head_dim, height*width)
+        out = out.transpose(-1, -2)
+        
+        # Reshape back to (batch_size, channels, height, width)
+        out = out.reshape(batch_size, self.channels, height, width)
+        
+        # Apply output projection
+        out = self.out_proj(out)
+        
+        # Restore original shape dimensionality
+        if original_ndim == 2:
+            out = out.squeeze(0).squeeze(0)  # -> (height, width)
+        elif original_ndim == 3:
+            if original_shape[0] == self.channels:
+                # It was (channels, height, width)
+                out = out.squeeze(0)  # -> (channels, height, width)
+            else:
+                # It was (batch, height, width)
+                out = out.squeeze(1)  # -> (batch, height, width)
+        
+        return out
+    
+    def get_attention_map(self, x):
+        """
+        Compute and return the attention map for visualization purposes.
+        
+        Args:
+            x (torch.Tensor): Input tensor with shape (batch_size, channels, height, width)
+            
+        Returns:
+            torch.Tensor: Attention weights tensor with shape (batch_size, heads, height*width, height*width)
+        """
+        # Input shape validation
+        if len(x.shape) != 4:
+            raise ValueError(f"Expected 4D input tensor, got shape {x.shape}")
+        
+        batch_size, n_channels, height, width = x.shape
+        
+        if n_channels != self.channels:
+            raise ValueError(f"Expected {self.channels} channels, got {n_channels}")
+        
+        # Project input to queries and keys
+        q = self.q_proj(x)  # (batch_size, channels, height, width)
+        k = self.k_proj(x)  # (batch_size, channels, height, width)
+        
+        # Reshape and transpose for attention calculation
+        q = q.reshape(batch_size, self.heads, self.head_dim, height * width).transpose(-1, -2)
+        k = k.reshape(batch_size, self.heads, self.head_dim, height * width).transpose(-1, -2)
+        
+        # Compute attention scores and apply softmax
+        attn_weights = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+        attn_weights = F.softmax(attn_weights, dim=-1)
+        
+        return attn_weights
+    
+    def count_params(self):
+        """
+        Count the number of parameters in the self-attention module.
+        
+        Returns:
+            int: The number of parameters
+        """
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+
+class AttentionBlock2d(nn.Module):
+    def __init__(self, channels, heads=1, head_dim=None, dropout=0.0, init_type='random'):
+        """
+        Create a 2D Attention Block with residual connection and normalization.
+        
+        Args:
+            channels (int): Number of input/output channels
+            heads (int): Number of attention heads
+            head_dim (int, optional): Dimension of each attention head
+            dropout (float): Dropout probability for attention weights
+            init_type (str): Initialization strategy
+        """
+        super(AttentionBlock2d, self).__init__()
+        
+        # Layer normalization applied before attention
+        self.norm = nn.GroupNorm(1, channels)
+        
+        # Self-attention layer
+        self.attention = SelfAttention2d(
+            channels=channels,
+            heads=heads,
+            head_dim=head_dim,
+            dropout=dropout,
+            init_type=init_type
+        )
+    
+    def forward(self, x):
+        """
+        Forward pass of the attention block.
+        
+        Args:
+            x (torch.Tensor): Input tensor with shape (batch_size, channels, height, width)
+            
+        Returns:
+            torch.Tensor: Output tensor with same shape as input
+        """
+        # Apply residual connection: output = x + attention(norm(x))
+        return x + self.attention(self.norm(x))
+    
+    def count_params(self):
+        """
+        Count the number of parameters in the attention block.
+        
+        Returns:
+            int: The number of parameters
+        """
+        return self.attention.count_params() + sum(p.numel() for p in self.norm.parameters() if p.requires_grad)
+
+
+class FeedForward2d(nn.Module):
+    def __init__(self, channels, expansion_factor=4, dropout=0.0):
+        """
+        Create a 2D Feed-Forward Network module for use with attention.
+        
+        Args:
+            channels (int): Number of input/output channels
+            expansion_factor (int): Factor to expand the hidden dimension
+            dropout (float): Dropout probability
+        """
+        super(FeedForward2d, self).__init__()
+        
+        hidden_dim = channels * expansion_factor
+        
+        self.net = nn.Sequential(
+            nn.GroupNorm(1, channels),
+            nn.Conv2d(channels, hidden_dim, kernel_size=1),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Conv2d(hidden_dim, channels, kernel_size=1),
+            nn.Dropout(dropout)
+        )
+    
+    def forward(self, x):
+        """
+        Forward pass of the feed-forward network.
+        
+        Args:
+            x (torch.Tensor): Input tensor with shape (batch_size, channels, height, width)
+            
+        Returns:
+            torch.Tensor: Output tensor with same shape as input
+        """
+        # Apply residual connection
+        return x + self.net(x)
+    
+    def count_params(self):
+        """
+        Count the number of parameters in the feed-forward network.
+        
+        Returns:
+            int: The number of parameters
+        """
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+
+class TransformerBlock2d(nn.Module):
+    def __init__(self, channels, heads=1, head_dim=None, ff_expansion=4, dropout=0.0, init_type='random'):
+        """
+        Create a 2D Transformer Block combining self-attention and feed-forward network.
+        
+        Args:
+            channels (int): Number of input/output channels
+            heads (int): Number of attention heads
+            head_dim (int, optional): Dimension of each attention head
+            ff_expansion (int): Expansion factor for feed-forward network
+            dropout (float): Dropout probability
+            init_type (str): Initialization strategy for attention weights
+        """
+        super(TransformerBlock2d, self).__init__()
+        
+        # Self-attention block with residual connection
+        self.attention_block = AttentionBlock2d(
+            channels=channels,
+            heads=heads,
+            head_dim=head_dim,
+            dropout=dropout,
+            init_type=init_type
+        )
+        
+        # Feed-forward network block with residual connection
+        self.ff_block = FeedForward2d(
+            channels=channels,
+            expansion_factor=ff_expansion,
+            dropout=dropout
+        )
+    
+    def forward(self, x):
+        """
+        Forward pass of the transformer block.
+        
+        Args:
+            x (torch.Tensor): Input tensor with shape (batch_size, channels, height, width)
+            
+        Returns:
+            torch.Tensor: Output tensor with same shape as input
+        """
+        # Apply attention block
+        x = self.attention_block(x)
+        
+        # Apply feed-forward block
+        x = self.ff_block(x)
+        
+        return x
+    
+    def count_params(self):
+        """
+        Count the number of parameters in the transformer block.
+        
+        Returns:
+            int: The number of parameters
+        """
+        return self.attention_block.count_params() + self.ff_block.count_params()
+

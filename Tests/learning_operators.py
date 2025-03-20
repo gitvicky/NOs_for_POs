@@ -144,10 +144,10 @@ with Run(mode='online') as run:
     #Training
     ####################################
     from PRE.VectorConvOps_Spatial import *
-    gradient = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+    # gradient = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
 
     # laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
-    # divergence = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+    divergence = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
 
     # def gradient_func(uv):
     #     u = uv[:,0:1]
@@ -159,22 +159,25 @@ with Run(mode='online') as run:
     #     v = uv[:,1:2]
     #     return laplace(u), laplace(v)
     
-    # def divergence_func(uv):
-    #     u = uv[:,0:1]
-    #     v = uv[:,1:2]
-    #     return divergence(u, v)
-    
-    def convection(uv):
+    def divergence_func(uv):
         with torch.no_grad():
             u = uv[:,0:1]
             v = uv[:,1:2]
-            conv = dot(uv, gradient(u)) + dot(uv, gradient(v))
-        return conv
+            div = divergence(u, v)
+        return div
+    
+    # def convection(uv):
+    #     with torch.no_grad():
+    #         u = uv[:,0:1]
+    #         v = uv[:,1:2]
+    #         conv = dot(uv, gradient(u)) + dot(uv, gradient(v))
+    #     return conv
     
     def forward(model, uv):
         out = model(uv)
         out = out[:, 0:1] + out[:, 1:2]
-        yy = convection(uv)
+        # yy = convection(uv)
+        yy = divergence_func(uv)
         return out, yy 
         
     rollout_length = configuration['Train']['rollout_length']
