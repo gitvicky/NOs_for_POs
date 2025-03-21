@@ -3,9 +3,10 @@ import torch
 import torch.nn as nn
 from typing import List, Dict, Union, Optional, Tuple, Any
 
-import sys 
+import sys
+sys.path.append('.') 
 sys.path.append('..')
-from learnable_matrices import * 
+from Tests.learnable_matrices import * 
 from Utils.boundary_conditions import BoundaryManager
 
 def sequential_model(

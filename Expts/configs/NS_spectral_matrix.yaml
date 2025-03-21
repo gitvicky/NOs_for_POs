@@ -19,15 +19,15 @@ Physics:
   physics normalisation: False
 
 Model:
-  arch: 'SelfAttention' # Matrix, Conv, SpectralConv, FNO, SelfAttention, Transformer
+  arch: 'Conv' # Matrix, Conv, SpectralConv, FNO, SelfAttention, Transformer
   in_vars: 2
   out_vars: 2
-  n_layers: 1
-  kernel_size: None #Convolution
+  n_layers: 2
+  kernel_size: 5 #Convolution
   modes: None #FNO and SpectralConv
-  channels: 2 #Attention
-  heads: 2 #Attention
-  act: None
+  channels: None #Attention
+  heads: None #Attention
+  act: 'gelu'
   init: 'random'
   dropout: 0.0
   operator splitting: False
@@ -37,7 +37,7 @@ Data:
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
   ntrain: 100
   test-train-split: 0.2
-  batch size: 10
+  batch size: 30
   t_in: 1
   t_out: 50
   step: 1
@@ -62,8 +62,9 @@ Train:
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
+  batch_norm: False
   checkpoint:
     epochs: 100
   restart: False

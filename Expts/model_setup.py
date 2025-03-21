@@ -11,6 +11,7 @@ from Neural_PDE.Models.ViT_new import *
 from Neural_PDE.Models.UNet import * 
 from Neural_PDE.Models.CNO import * 
 from Neural_PDE.Models.gMLP_Vision import * 
+from Neural_PDE.Models.ConvOperator import *
 
 # from neuralop.models import FNO2d
 
@@ -64,7 +65,7 @@ def model_initialisation(configuration):
         #                 # domain_padding_mode="symmetric" # Symmetric padding
         #         )
             
-        if configuration['Model']['arch'] == 'U-Net':
+        elif configuration['Model']['arch'] == 'U-Net':
             model = UNet2d(configuration['Data']['t_in'], 
                         configuration['Data']['step'], 
                         configuration['Model']['width'], 
@@ -72,7 +73,7 @@ def model_initialisation(configuration):
                         configuration['Model']['out_vars']
                         )
         
-        if configuration['Model']['arch'] == 'ViT':
+        elif configuration['Model']['arch'] == 'ViT':
             model = ViT(
                 image_size=(configuration['Physics']['Nx'], configuration['Physics']['Ny']),
                 patch_size=(configuration['Model']['patch size'], configuration['Model']['patch size']),
@@ -84,7 +85,7 @@ def model_initialisation(configuration):
                 dim_head = 32
                 )
         
-        if configuration['Model']['arch'] == 'CNO':
+        elif configuration['Model']['arch'] == 'CNO':
             model = CNO2d(in_dim = configuration['Model']['in channels'],             
                         out_dim = configuration['Model']['out channels'],
                         size = configuration['Model']['Nx'],
@@ -96,12 +97,24 @@ def model_initialisation(configuration):
                         )      
             
 
-        if configuration['Model']['arch'] == 'gMLP':
+        elif configuration['Model']['arch'] == 'gMLP':
             model = gMLP(n_blocks = configuration['Model']['n_blocks'],
                         d_in = configuration['Model']['d_in'],
                         d_ffn = configuration['Model']['d_ffn'],
                         Nx = configuration['Model']['Nx'],
                         Ny = configuration['Model']['Ny'])
+            
+        
+        elif configuration['Model']['arch'] == 'Conv':
+            model = ConvolutionalModel(
+                in_features=configuration['Model']['in_vars'],
+                out_features=configuration['Model']['out_vars'],
+                hidden_features=configuration['Model']['hidden_vars'],
+                num_layers=configuration['Model']['n_layers'],
+                activation=configuration['Model']['act'],
+                final_activation='none',
+                init_type='random'
+            )
 
     return model
 

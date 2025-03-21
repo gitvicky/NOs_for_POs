@@ -5,7 +5,7 @@ Learning the convection operator alone.
 """
 # %%
 #Specifying the run instance
-run_name = 'wise-stew'
+run_name = 'warm-seller'
 
 # %% 
 #Setting up simvue 
@@ -36,7 +36,7 @@ except:
 run_id = client.get_run_id_from_name(run_name)
 client.get_artifacts_as_files(run_id, contains='yaml', path=tmp_loc)
 configuration = yaml.safe_load(open(next(Path(tmp_loc).glob('*.yaml'))))
-
+configuration['Model']['kernel_size']=5
 # %% 
 #Importing the necessary packages
 import sys
@@ -196,6 +196,10 @@ configuration['Physics']['variables']=1
 run = client.get_run_id_from_name(run_name)
 plots_2d_yaml(configuration, test_out.unsqueeze(0).permute(0, 2, 1, 3, 4), pred_set.unsqueeze(0).permute(0, 2, 1, 3, 4), plot_loc, run, idx, save=False)
 # %%    
+#Exploring the learnt Matrices
+kernel = model[0].get_kernel()
+
+# %%
 #Testing it on the Euler Fluid Data
 configuration['Data']['ntrain'] = 10
 fields, x, y, dt = Euler_FV(configuration)

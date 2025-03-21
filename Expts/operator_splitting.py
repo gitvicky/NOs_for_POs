@@ -6,6 +6,8 @@ import torch.nn as nn
 import sys
 sys.path.append("..")
 from Neural_PDE.Models.FNO import FNO_multi2d
+from Neural_PDE.Models.ConvOperator import ConvolutionalModel
+from Neural_PDE.Models.UNet import UNet2d
 from PRE.VectorConvOps_Spatial import *
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -20,21 +22,69 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         # self.NO_convection = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
         # self.NO_diffusion = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
         
-        self.NO_pressure_poisson = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
-        # self.gradient = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+        # self.NO_pressure_poisson = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
+        # # self.gradient = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
         self.nu = torch.tensor(0.001, dtype=torch.float32, requires_grad=True).to(device)
 
-        #Vector physical operators
-        self.gradient = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
-        self.laplace = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+        # #Vector physical operators
+        # self.gradient = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+        # self.laplace = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
 
+        # #Convolutions with BCs
+        # self.pressure_poisson = ConvolutionalModel(
+        #         in_features=2,
+        #         out_features=2,
+        #         hidden_features=configuration['Model']['hidden_vars'],
+        #         num_layers=configuration['Model']['n_layers'],
+        #         activation=configuration['Model']['act'],
+        #         final_activation='none',
+        #         init_type='random')
+        
+        # self.convection_operator = ConvolutionalModel(
+        #         in_features=2,
+        #         out_features=2,
+        #         hidden_features=configuration['Model']['hidden_vars'],
+        #         num_layers=configuration['Model']['n_layers'],
+        #         activation=configuration['Model']['act'],
+        #         final_activation='none',
+        #         init_type='random')
 
-        #
+        # self.diffusion_operator = ConvolutionalModel(
+        #         in_features=2,
+        #         out_features=2,
+        #         hidden_features=configuration['Model']['hidden_vars'],
+        #         num_layers=configuration['Model']['n_layers'],
+        #         activation=configuration['Model']['act'],
+        #         final_activation='none',
+        #         init_type='random')
+
+  #Convolutions with BCs
+        self.pressure_poisson = UNet2d(in_channels=configuration['Data']['t_in'], 
+                        out_channels=configuration['Data']['step'], 
+                        init_features=configuration['Model']['width'], 
+                        in_vars=configuration['Model']['in_vars'],
+                        out_vars=configuration['Model']['out_vars']
+                        )
+        self.convection_operator = UNet2d(in_channels=configuration['Data']['t_in'], 
+                        out_channels=configuration['Data']['step'], 
+                        init_features=configuration['Model']['width'], 
+                        in_vars=configuration['Model']['in_vars'],
+                        out_vars=configuration['Model']['out_vars']
+                        )
+
+        self.diffusion_operator = UNet2d(in_channels=configuration['Data']['t_in'], 
+                        out_channels=configuration['Data']['step'], 
+                        init_features=configuration['Model']['width'], 
+                        in_vars=configuration['Model']['in_vars'],
+                        out_vars=configuration['Model']['out_vars']
+                        )
+        
     def forward(self, vars):
 
-        u = vars[:, 0:1]
-        v = vars[:, 1:2]
+        # u = vars[:, 0:1]
+        # v = vars[:, 1:2]
         uv = vars[:, 0:2]
+
         # p = vars[:, 2:3]
 
         # #Mixed Operators
@@ -44,9 +94,16 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         # pressure_grad = self.gradient(pressure[...,0]).unsqueeze(-1) #PRE for gradient. 
         # rhs = - convection + self.nu*diffusion + pressure_grad
 
-        # Vector physical operators
-        p = self.NO_pressure_poisson(uv) #Poisson Solve
-        rhs = -dot(uv, self.gradient(u)) - dot(uv, self.gradient(v)) + self.nu * self.laplace(uv) + self.gradient(p)            
+        # # Vector physical operators
+        # p = self.NO_pressure_poisson(uv) #Poisson Solve
+        # rhs = -dot(uv, self.gradient(u)) - dot(uv, self.gradient(v)) + self.nu * self.laplace(uv) + self.gradient(p)            
+
+        pressure_grad = self.pressure_poisson(uv)
+        convection = self.convection_operator(uv)
+        diffusion = self.diffusion_operator(uv)
+
+        rhs = - convection + self.nu*diffusion + pressure_grad
+        rhs = rhs
 
         return rhs #, pressure #Only modelling for u and v for the time being. 
 
@@ -199,11 +256,11 @@ class Comp_NS_PDEB_OS_rhs(nn.Module):#PDE Bench Compressible Navier-Stokes Opera
         return nparams 
 
 
-# # %% 
+# %% 
 # #Example Usage
 # import yaml
 
-# config_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Expts/configs/NS_spectral_FNO.yaml'
+# config_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Expts/configs/NS_spectral_matrix.yaml'
 # with open(config_loc, 'r') as f:
 #     configuration = yaml.safe_load(f)
 
