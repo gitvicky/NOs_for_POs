@@ -12,20 +12,21 @@ Physics:
   dx: 0.01
   dy: 0.01
   dt: 0.05
-  x_slice: 1
-  y_slice: 1
-  t_slice: 1 
-  physics normalisation: True 
+  x_slice: 2
+  y_slice: 2
+  t_slice: 1
+  physics normalisation: False
 
 Model:
   arch: 'FNO'
   in_vars: 2
   out_vars: 2
-  modes: 32
-  width: 64
+  modes: 8
+  width: 16
   n_layers: 3
   act: 'gelu'
-  operator splitting: True
+  operator splitting: True 
+  ops_split norm: True
 
 Data: 
   name: 'NS_incomp_velocity_100_128_128.npz'
@@ -57,8 +58,9 @@ Train:
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
+  batch_norm: False
   checkpoint:
     epochs: 100
   restart: False

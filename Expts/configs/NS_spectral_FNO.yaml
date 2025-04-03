@@ -25,7 +25,8 @@
     width: 16
     n_layers: 2
     act: 'gelu'
-    operator splitting: True
+    operator splitting: True  
+    ops_split norm: True
 
   Data: 
     name: 'NS_Spectral_combined.npz'
@@ -68,4 +69,4 @@
   Simvue:
     mode: 'online'
     name: None 
-    folder: '/Neural_PDE/NS_spectral' 
+    folder: '/Neural_PDE/NS_Spectral' 

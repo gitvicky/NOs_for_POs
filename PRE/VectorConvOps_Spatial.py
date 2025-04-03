@@ -142,7 +142,7 @@ class Curl(ConvOperator):
 class Vector_Gradient(ConvOperator):
     # 2 -> 1 
     def __init__(self, domain=('x','y'), order=1, scale=1.0, taylor_order=2, boundary_cond='periodic', conv='direct', device=torch.device("cpu"), requires_grad=False):
-        super(Gradient, self).__init__()
+        super(ConvOperator, self).__init__()
         
         self.grad_x = ConvOperator(domain[0], order, scale, taylor_order, conv, device=torch.device("cuda"), requires_grad=True)
         self.grad_y = ConvOperator(domain[1], order, scale, taylor_order, conv, device=torch.device("cuda"), requires_grad=True)
@@ -160,6 +160,6 @@ class Vector_Gradient(ConvOperator):
         input_x = self.bc.pad_signal(input_x)
         input_y = self.bc.pad_signal(input_y)
         
-        outputs = self.grad(input_x)**2 + self.grad(input_y)**2 + 2*self.grad_y(input_x)*self.grad_x(input_y)
+        outputs = self.grad_x(input_x)**2 + self.grad_y(input_y)**2 + 2*self.grad_y(input_x)*self.grad_x(input_y)
 
         return outputs

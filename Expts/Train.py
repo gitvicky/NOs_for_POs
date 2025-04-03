@@ -90,9 +90,11 @@ with Run(mode='online') as run:
     if pde == 'Electrostatic MHD':
         if configuration['Physics']['source'] == 'JOREK': 
             fields, x, y, dt = JOREK_electrostatic(configuration)
-    if pde == 'Eelctromagnetic MHD':
+    if pde == 'Electromagnetic MHD':
         if configuration['Physics']['source'] == 'JOREK': 
             fields, x, y, dt = JOREK_electrostatic(configuration)
+    if pde == 'FDS':
+            fields, x, y, dt = FDS_Carpark(configuration)
             
     t = torch.arange(0, configuration['Data']['t_out']*dt, dt)
 
@@ -107,7 +109,10 @@ with Run(mode='online') as run:
     #Normalising the data -- using the same normalisations for inputs and outputs
     normalizer_func = Normalisation(configuration['Data']['normalisation'])
     normalizer = normalizer_func(fields)
-    fields_encoded = normalizer.encode(fields)
+    if configuration['Model']['ops_split norm']: #Normalise and Denormalise done within the Model. 
+        fields_encoded = fields
+    else:
+        fields_encoded = normalizer.encode(fields)
     
     #Saving Normalisation 
     saved_normalisations = model_loc + '/norms.npz'
@@ -152,7 +157,7 @@ with Run(mode='online') as run:
     # Setting up the Model and Optimizers 
     ####################################
 
-    model = model_initialisation(configuration)
+    model = model_initialisation(configuration, normalizer, run)
     model.to(device)
 
     # run.update_metadata({'Number of Params': int(model.count_params())})
@@ -207,7 +212,7 @@ with Run(mode='online') as run:
 
         print(f"Epoch {ep}, Time Taken: {round(t2-t1,3)}, Train Loss: {round(train_loss, 5)}, Test Loss: {round(test_loss,5)}")
         current_lr = optimizer.param_groups[0]['lr']
-        run.log_metrics({'Train Loss': train_loss, 'Test Loss': test_loss, 'Learning Rate': current_lr})
+        run.log_metrics({'Train Loss': train_loss, 'Test Loss': test_loss, 'Learning Rate': current_lr}, step=ep)
 
         
         # run.create_alert(
@@ -258,8 +263,12 @@ with Run(mode='online') as run:
                         })
 
     #Denormalising the test and predictions
-    test_out = normalizer.decode(test_out.to(device)).cpu()
-    pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
+    if configuration['Model']['ops_split norm'] == False: #Normalise/Denormalise done within the Model for OS. 
+        test_out = normalizer.decode(test_out.to(device)).cpu()
+        pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
+    else:
+        test_out = test_out.cpu()
+        pred_set = pred_encoded.cpu()
 
     #Shaping back to [BS, vars, Nt, Nx, Ny]
     test_out = test_out.permute(0,1,4,2,3)

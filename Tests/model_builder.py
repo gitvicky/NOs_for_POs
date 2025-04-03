@@ -176,4 +176,3 @@ def build_model(configuration: Dict[str, Any]) -> nn.Module:
         dropout_rate=dropout_rate,
         layer_types=layer_types
     )
-

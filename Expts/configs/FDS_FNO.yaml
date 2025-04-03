@@ -1,43 +1,42 @@
-
 seed: 907
 
 Physics: 
-  pde: 'Navier-Stokes'
-  source: 'Spectral' 
-  field: 'u, v'
-  variables: 2
-  Nx: 100
-  Ny: 100
-  Nt: 100
-  dx: 0.01
-  dy: 0.01
-  dt: 0.01
+  pde: 'FDS'
+  source: 'Finite Volume' 
+  field: 'T'
+  variables: 1
+  Nx: 250
+  Ny: 74
+  Nt: 303
+  dx: 0.4
+  dy: 0.4
+  dt: 0.008
   x_slice: 1
   y_slice: 1
   t_slice: 1
   physics normalisation: False
 
 Model:
-  arch: 'U-Net'
-  in_channels: 1
-  out_channels: 1
-  in_vars: 2
-  out_vars: 2 
-  width: 32
-  act: 'tanh'
-  operator splitting: True
-  ops_split norm: True
+  arch: 'FNO'
+  in_vars: 1
+  out_vars: 1
+  modes: 8
+  width: 16
+  n_layers: 4
+  act: 'gelu'
+  operator splitting: False
+
 
 Data: 
-  name: 'NS_Spectral_combined.npz'
-  loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+  name: 'FDS_Carpark_test.npy'
+  loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
   ntrain: 100
   test-train-split: 0.2
-  batch size: 30
+  batch size: 100
   t_in: 1
-  t_out: 50
+  t_out: 300
   step: 1
-  normalisation: 'Min-Max'
+  normalisation: 'Min-Max_variable'
 
 Opt:
   optimizer: 'adam'
@@ -52,13 +51,13 @@ Opt:
   grad_clip: 2.0
 
 Train: 
-  loss: 'MSELoss'
+  loss: 'LP'
   input_length: 1
-  rollout_length: 20
+  rollout_length: 1
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:
@@ -69,5 +68,4 @@ Train:
 Simvue:
   mode: 'online'
   name: None 
-  folder: '/Neural_PDE/NS_Spectral' 
-
+  folder: '/Neural_PDE/Euler' 

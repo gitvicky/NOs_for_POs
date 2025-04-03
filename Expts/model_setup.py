@@ -16,7 +16,7 @@ from Neural_PDE.Models.ConvOperator import *
 # from neuralop.models import FNO2d
 
 
-def model_initialisation(configuration):
+def model_initialisation(configuration, normalizer, run):
     pde = configuration['Physics']['pde']
 
     if configuration['Model']['operator splitting'] == True: 
@@ -24,16 +24,17 @@ def model_initialisation(configuration):
     #With Operator Splitting.
         if pde == 'Navier-Stokes':
             from operator_splitting import NS_spectral_OS_rhs
-            model = NS_spectral_OS_rhs(configuration)
+            model = NS_spectral_OS_rhs(configuration, normalizer, run)
         if pde == 'Euler-Fluid':
             from operator_splitting import Euler_FV_OS_rhs
-            model = Euler_FV_OS_rhs(configuration)
+            model = Euler_FV_OS_rhs(configuration, normalizer, run)
         if pde == 'Incomp. Navier-Stokes':
             from operator_splitting import Incomp_PDEB_NS_OS_rhs
-            model = Incomp_PDEB_NS_OS_rhs(configuration)
+            model = Incomp_PDEB_NS_OS_rhs(configuration, normalizer, run)
         if pde == 'Comp. Navier-Stokes':
             from operator_splitting import Comp_NS_PDEB_OS_rhs
             model = Comp_NS_PDEB_OS_rhs(configuration)
+        
     
     else:
             

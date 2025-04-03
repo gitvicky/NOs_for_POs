@@ -106,10 +106,10 @@ def Euler_FV(configuration):
     n_sims = configuration['Data']['ntrain']
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
     data =  np.load(data_loc + '/NS_FV_combined.npz')
+    rho = data['rho'].astype(np.float32)[:n_sims]
     u = data['u'].astype(np.float32)[:n_sims]
     v = data['v'].astype(np.float32)[:n_sims]
     p = data['p'].astype(np.float32)[:n_sims] 
-    rho = data['rho'].astype(np.float32)[:n_sims]
     dx = data['dx']
     x = np.linspace(0, 1, 128)
 
@@ -133,7 +133,7 @@ def Navier_Stokes_Incomp(configuration):
     data = np.load(data_loc + '/NS_incomp_velocity_100_128_128.npz') 
     u = data['velocity'][...,0][:n_sims]
     v = data['velocity'][...,1][:n_sims]
-    p = data['pressure'][...,0][:n_sims] / 3.0
+    p = data['pressure'][...,0][:n_sims] #/ 3.0
     force = data['force']
 
     fields = stacked_fields([u,v])
@@ -334,4 +334,24 @@ def JOREK_electromagnetic(configuration):
 
     return fields, x, y, dt
 
+def FDS_Carpark(configuration):
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
+    data = np.load(data_loc + '/FDS_Carpark_test.npy')
+    data = np.nan_to_num(data)
+    data = data.astype(np.float32)
+    
+    T = torch.tensor(data, dtype=torch.float32)
+    x = np.arange(0, 100, 0.4)
+    y = np.arange(0, 29.6, 0.4)
+    z = np.array((2, 6, 10, 14, 18))
+    t = np.linspace(0, 1, 128)
+    fire_loc = [45, 15, 0.8]
+    dt = t[1] - t[0]
+    dt = torch.tensor(dt, dtype=torch.float)
+
+    # fields = stacked_fields([T])
+    fields = T 
+    fields = fields.permute(2, 0, 1, 3).unsqueeze(0)
+
+    return fields, x, y, dt
 # %%
