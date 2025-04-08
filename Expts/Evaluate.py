@@ -5,8 +5,13 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'primordial-class'
+run_name = 'steel-loan'
 
+class Run:
+    def __init__(self, name=None):
+        self.name = name
+
+run = Run(run_name)
 # %% 
 #Setting up simvue 
 import os
@@ -66,28 +71,29 @@ from Neural_PDE.Utils.training_utils import *
 
 t1 = default_timer()
 n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test-train-split'])
+configuration['Data']['ntrain'] = n_sims
 from data_loaders import *
 pde = configuration['Physics']['pde']
 if pde == 'Navier-Stokes':
-    fields, x, y, dt = Navier_Stokes_Spectral(n_sims)
+    fields, x, y, dt = Navier_Stokes_Spectral(configuration)
 if pde == 'Euler Fluid':
-    fields, x, y, dt = Euler_FV(n_sims)
+    fields, x, y, dt = Euler_FV(configuration)
 if pde == 'Incomp. Navier-Stokes':
-    fields, force, x, y, dt = Navier_Stokes_Incomp(n_sims)
+    fields, force, x, y, dt = Navier_Stokes_Incomp(configuration)
 if pde == 'Comp. Navier-Stokes':
-    fields, x, y, dt = Navier_Stokes_Comp(n_sims, coeff=configuration['Physics']['coeff'])
+    fields, x, y, dt = Navier_Stokes_Comp(configuration, coeff=configuration['Physics']['coeff'])
 if pde == 'Electrostatic MHD':
     if configuration['Physics']['source'] == 'JOREK': 
-        fields, x, y, dt = JOREK_electrostatic(n_sims)
+        fields, x, y, dt = JOREK_electrostatic(configuration)
 if pde == 'Electromagnetic MHD':
     if configuration['Physics']['source'] == 'JOREK': 
-        fields, x, y, dt = JOREK_electrostatic(n_sims)
+        fields, x, y, dt = JOREK_electrostatic(configuration)
 
 t = torch.arange(0, fields.shape[-1], dt)
 fields = fields[...,:configuration['Data']['t_out']]
 
 #Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
-expected_shape = (n_sims, configuration['Physics']['variables'], configuration['Physics']['Nx'], configuration['Physics']['Ny'], configuration['Data']['t_out'])
+expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['variables'], configuration['Physics']['Nx']//configuration['Physics']['x_slice'], configuration['Physics']['Ny']//configuration['Physics']['y_slice'], configuration['Data']['t_out'])
 assert fields.shape == expected_shape, \
     f"Expected fields shape to be {expected_shape}, but got {fields.shape}"
 
@@ -101,9 +107,10 @@ normalizer = normalizer_func(torch.tensor(0))
 normalizer.a, normalizer.b = torch.tensor(norms['a']), torch.tensor(norms['b'])
 
 fields_encoded = normalizer.encode(fields)
+# fields_encoded = fields
 
 # %% 
-test_in = fields_encoded[...,:configuration['Data']['t_in']] + torch.randn_like(fields_encoded[...,:configuration['Data']['t_in']])*0.001
+test_in = fields_encoded[...,:configuration['Data']['t_in']] + torch.randn_like(fields_encoded[...,:configuration['Data']['t_in']])
 test_out = fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']]
 
 print("Test Input: " + str(test_in.shape))
@@ -118,7 +125,7 @@ print('preprocessing finished, time used:', t2-t1)
 # Setting up the Model and Optimizers 
 ####################################
 from model_setup import * 
-model = model_initialisation(configuration)
+model = model_initialisation(configuration, normalizer, run=None)
 
 # #Loading the checkpoint
 # client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'checkpoint.pt', path=tmp_loc)
@@ -147,18 +154,21 @@ print('(MSE) Testing Error: %.3e' % (error))
 test_out = normalizer.decode(test_out.to(device)).cpu()
 pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
 
-# #Shaping back to [BS, vars, Nt, Nx, Ny]
-# test_out = test_out.permute(0,1,4,2,3)
-# pred_set = pred_set.permute(0,1,4,2,3)
-
-# %% 
-#Visualising the results
-from Utils.plots import plots_2d_yaml
-idx = 0
-# plots_2d_yaml(configuration, test_out, pred_set, tmp_loc, run_name, idx, save=True)
 
 #Visualising the rollout error 
 from Utils.plots import temporal_rollout_error
-temporal_rollout_error(configuration, test_out, pred_set, tmp_loc, run_name, save=True)
+temporal_rollout_error(configuration, test_out, pred_set, tmp_loc, run, save=False)
+
+
+# %% 
+#Shaping back to [BS, vars, Nt, Nx, Ny]
+test_out = test_out.permute(0,1,4,2,3)
+pred_set = pred_set.permute(0,1,4,2,3)
+
+
+#Visualising the results
+from Utils.plots import plots_2d_yaml
+idx = 0
+plots_2d_yaml(configuration, test_out, pred_set, tmp_loc, run, idx, save=False)
 
 # %% 

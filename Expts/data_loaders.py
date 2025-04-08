@@ -116,7 +116,19 @@ def Euler_FV(configuration):
     dt = data['dt']
     dt = torch.tensor(dt, dtype=torch.float)
 
-    fields = stacked_fields([rho,u,v,p])
+    if configuration['Physics']['conservative']:
+        # Converting from primitive variables to conservative variables
+        vol = dx**2
+        gamma = 5/3
+        Mass   = rho * vol
+        Momx   = rho * u * vol
+        Momy   = rho * v * vol
+        Energy = (p/(gamma-1) + 0.5*rho*(u**2+v**2))*vol
+        
+        fields =  stacked_fields([Mass, Momx, Momy, Energy]) #Reformulating to avoid division by rho
+    else:
+        # fields = stacked_fields([rho,u,v,p])
+        fields = stacked_fields([rho,rho*u,rho*v,p])
 
     #Slicing the data to reduce the size.
     fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
@@ -355,3 +367,69 @@ def FDS_Carpark(configuration):
 
     return fields, x, y, dt
 # %%
+
+# import torch.nn as nn
+# import sys
+# sys.path.append('..')
+# from PRE.ConvOps_2d import ConvOperator
+# class CNS_residuals(nn.Module):
+#     def __init__(self, device='cpu'):
+#         super(CNS_residuals, self).__init__()
+
+#         self.dx = torch.tensor(0.0078, dtype=torch.float32, requires_grad=True).to(device)
+#         self.dy = torch.tensor(0.0078, dtype=torch.float32, requires_grad=True).to(device)  
+#         self.dt = torch.tensor(0.05, dtype=torch.float32, requires_grad=True).to(device)
+        
+#         #Defining the required Convolutional Operations. 
+#         self.D_t = ConvOperator(domain='t', order=1)
+#         self.D_x = ConvOperator(domain='x', order=1)
+#         self.D_y = ConvOperator(domain='y', order=1)
+
+
+#     def mass(self, vars, boundary=False):
+#         rho = vars[:, 0]
+#         u   = vars[:, 1]
+#         v   = vars[:, 2]
+
+#         print(u.shape, v.shape)
+        
+#         # mass_residual = self.D_t(rho) + rho*(self.D_x(u) + self.D_y(v)) + u*self.D_x(rho) + v*self.D_y(rho)
+#         mass_residual = self.D_t(rho)*self.dx + rho*(self.D_x(u) + self.D_y(v))*self.dt + u*self.D_x(rho)*self.dx + v*self.D_y(rho)*self.dy
+
+#         if boundary: 
+#             return mass_residual
+#         else:
+#             return mass_residual[...,1:-1,1:-1,1:-1]
+    
+# # %%
+# res = CNS_residuals()
+# residual = res.mass(fields.permute(0, 1, 4, 2, 3)) #BS, Nvars, Nt, Nx, Ny
+# # %%
+# from PRE.VectorConvOps_Spatial import * 
+
+# class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Operator-Splitting right-hand-side.
+#     def __init__(self, device='cpu'):
+#         super(Euler_FV_OS_rhs, self).__init__()
+
+#         self.dx = torch.tensor(0.0078, dtype=torch.float32, requires_grad=True).to(device)
+#         self.dy = torch.tensor(0.0078, dtype=torch.float32, requires_grad=True).to(device)  
+#         self.dt = torch.tensor(0.05, dtype=torch.float32, requires_grad=True).to(device)
+
+#         self.gradient = Gradient(scale=1/(self.dx), taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+#         self.laplace = Laplace(scale=1/(self.dx**2), taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+#         self.divergence = Divergence(scale = 1/(self.dx), taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+
+#     def forward(self, vars):
+#         #vars is for a single time instance
+#         rho = vars[:, 0]
+#         u   = vars[:, 1]
+#         v   = vars[:, 2]
+                
+#         rhs_mass = - rho*self.divergence(u,v) - dot(vectorize(u,v), self.gradient(rho)) 
+
+#         return rhs_mass
+
+# res = Euler_FV_OS_rhs()
+# residual = res(fields.permute(0, 1, 4, 2, 3))
+
+# # %%

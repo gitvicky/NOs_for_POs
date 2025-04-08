@@ -4,7 +4,7 @@ Physics:
   pde: 'FDS'
   source: 'Finite Volume' 
   field: 'T'
-  variables: 1
+  variables: 5
   Nx: 250
   Ny: 74
   Nt: 303
@@ -18,21 +18,22 @@ Physics:
 
 Model:
   arch: 'FNO'
-  in_vars: 1
-  out_vars: 1
-  modes: 8
-  width: 16
+  in_vars: 5
+  out_vars: 5
+  modes: 16
+  width: 32
   n_layers: 4
   act: 'gelu'
   operator splitting: False
+  ops_split norm: False
 
 
 Data: 
   name: 'FDS_Carpark_test.npy'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
-  ntrain: 100
-  test-train-split: 0.2
-  batch size: 100
+  ntrain: 1
+  test-train-split: 0.0
+  batch size: 500
   t_in: 1
   t_out: 300
   step: 1
@@ -53,7 +54,7 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 1
+  rollout_length: 2
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
@@ -68,4 +69,4 @@ Train:
 Simvue:
   mode: 'online'
   name: None 
-  folder: '/Neural_PDE/Euler' 
+  folder: '/Neural_PDE/FDS' 

@@ -168,6 +168,7 @@ def temporal_rollout_error(configuration, test_out, pred_set, plot_loc, run, sav
 
     plt.show()
 
-    plot_name = plot_loc + '/temporal_error_' + run.name + '.png'
-    plt.savefig(plot_name)
-    run.save_file(plot_name, 'output')
+    if save==True:
+        plot_name = plot_loc + '/temporal_error_' + run.name + '.png'
+        plt.savefig(plot_name)
+        run.save_file(plot_name, 'output')

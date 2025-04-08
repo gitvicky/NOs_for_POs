@@ -113,9 +113,9 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
 
         rhs = - convection + self.nu*diffusion + pressure_grad
 
-        self.run.log_metrics({"rhs_momx": rhs[:, 0].detach().mean(),
-                              "rhs_momy": rhs[:, 1].detach().mean(),
-                             })
+        # self.run.log_metrics({"rhs_momx": rhs[:, 0].detach().mean(),
+        #                       "rhs_momy": rhs[:, 1].detach().mean(),
+        #                      })
 
         return rhs #, pressure #Only modelling for u and v for the time being. 
 
@@ -140,38 +140,38 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         self.gamma = torch.tensor(5/3, dtype=torch.float32, requires_grad=True).to(device)
         self.eps = torch.tensor(1e-6, dtype=torch.float32, requires_grad=True).to(device)
 
-        # #FNO
-        # self.divergence_operator = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
-        # self.convection_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
-        # self.gradient_operator = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+        #FNO
+        self.divergence_operator = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+        self.convection_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
+        self.gradient_operator = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
 
-         #Convolutions with BCs
-        self.divergence_operator = ConvolutionalModel(
-                in_features=2,
-                out_features=1,
-                hidden_features=4,
-                num_layers=2,
-                activation='tanh',
-                final_activation='none',
-                init_type='random')
+        #  #Convolutions with BCs
+        # self.divergence_operator = ConvolutionalModel(
+        #         in_features=2,
+        #         out_features=1,
+        #         hidden_features=4,
+        #         num_layers=2,
+        #         activation='tanh',
+        #         final_activation='none',
+        #         init_type='random')
         
-        self.convection_operator = ConvolutionalModel(
-                in_features=2,
-                out_features=2,
-                hidden_features=4,
-                num_layers=2,
-                activation='tanh',
-                final_activation='none',
-                init_type='random')
+        # self.convection_operator = ConvolutionalModel(
+        #         in_features=2,
+        #         out_features=2,
+        #         hidden_features=4,
+        #         num_layers=2,
+        #         activation='tanh',
+        #         final_activation='none',
+        #         init_type='random')
 
-        self.gradient_operator = ConvolutionalModel(
-                in_features=1,
-                out_features=2,
-                hidden_features=4,
-                num_layers=2,
-                activation='tanh',
-                final_activation='none',
-                init_type='random')
+        # self.gradient_operator = ConvolutionalModel(
+        #         in_features=1,
+        #         out_features=2,
+        #         hidden_features=4,
+        #         num_layers=2,
+        #         activation='tanh',
+        #         final_activation='none',
+        #         init_type='random')
 
     def forward(self, vars):
 
@@ -195,20 +195,16 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         convection = self.convection_operator(uv)
 
         rhs_mass = - rho*div_uv - dot(uv, grad_rho)
-        rhs_mom = -convection - (1/(rho + self.eps))*grad_p         
+        
+        # rhs_mom = -convection - (1/rho)*grad_p         
+        rhs_mom =  -rho*convection - grad_p #Reformulated to avoid division by rho
+        
         rhs_energy = -self.gamma*p*div_uv - dot(uv, grad_p)
         
-        one_by_rho = 1/(rho + self.eps)
-        uv_dot_grad_rho  = dot(uv, grad_rho)
-        uv_dot_grad_p  = dot(uv, grad_p)
-        
+
         self.run.log_metrics({"rhs_mass": rhs_mass.detach().mean(),
                               "rhs_mom.": rhs_mom.detach().mean(),
-                              "rhs_energy": rhs_energy.detach().mean(),
-                              "div_uv": div_uv.detach().mean(),
-                              "uv_dot_grad_rho": uv_dot_grad_rho.detach().mean(),
-                              "uv_dot_grad_p": uv_dot_grad_p.detach().mean(),
-                              "1_by_rho": one_by_rho.detach().mean(),
+                              "rhs_energy": rhs_energy.detach().mean()
                              })
 
 
@@ -251,9 +247,9 @@ class Incomp_PDEB_NS_OS_rhs(nn.Module):#PDEBench incompressible Navier-Stokes Op
 
         rhs = - convection + (self.eta*diffusion - pressure_grad) / self.rho
         
-        self.run.log_metrics({"rhs_momx": rhs[:, 0].detach().mean(),
-                              "rhs_momy": rhs[:, 1].detach().mean(),
-                             })
+        # self.run.log_metrics({"rhs_momx": rhs[:, 0].detach().mean(),
+        #                       "rhs_momy": rhs[:, 1].detach().mean(),
+        #                      })
         
         return rhs #, pressure #Only modelling for u and v for the time being. 
 

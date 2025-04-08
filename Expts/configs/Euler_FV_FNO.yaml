@@ -16,29 +16,31 @@ Physics:
   y_slice: 2
   t_slice: 2
   physics normalisation: False
-
-# Model:
-#   arch: 'FNO'
-#   in_vars: 4
-#   out_vars: 4
-#   modes: 8
-#   width: 16
-#   n_layers: 4
-#   act: 'gelu'
-#   operator splitting: True
+  conservative: True
 
 Model:
-  arch: 'Conv'
-  in_vars: 2
-  out_vars: 2
-  hidden_vars: [4]
-  n_layers: 2
-  kernel_size: 3 #Convolution
-  act: 'tanh'
-  init: 'random'
-  dropout: 0.0
+  arch: 'FNO'
+  in_vars: 4
+  out_vars: 4
+  modes: 8
+  width: 16
+  n_layers: 4
+  act: 'gelu'
   operator splitting: True
   ops_split norm: False
+
+# Model:
+#   arch: 'Conv'
+#   in_vars: 2
+#   out_vars: 2
+#   hidden_vars: [4]
+#   n_layers: 2
+#   kernel_size: 3 #Convolution
+#   act: 'tanh'
+#   init: 'random'
+#   dropout: 0.0
+#   operator splitting: True
+#   ops_split norm: False
 
 
 Data: 
@@ -71,7 +73,7 @@ Train:
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'rk4' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:
