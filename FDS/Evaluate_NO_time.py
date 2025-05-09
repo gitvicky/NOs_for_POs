@@ -5,7 +5,7 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'national-plateau'
+run_name = 'prepared-music'
 
 class Run:
     def __init__(self, name=None):
@@ -74,44 +74,26 @@ n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test-train-s
 configuration['Data']['ntrain'] = n_sims
 from data_loaders import *
 pde = configuration['Physics']['pde']
-if pde == 'Navier-Stokes':
-    fields, x, y, dt = Navier_Stokes_Spectral(configuration)
-if pde == 'Euler Fluid':
-    fields, x, y, dt = Euler_FV(configuration)
-if pde == 'Incomp. Navier-Stokes':
-    fields, force, x, y, dt = Navier_Stokes_Incomp(configuration)
-if pde == 'Comp. Navier-Stokes':
-    fields, x, y, dt = Navier_Stokes_Comp(configuration, coeff=configuration['Physics']['coeff'])
-if pde == 'Electrostatic MHD':
-    if configuration['Physics']['source'] == 'JOREK': 
-        fields, x, y, dt = JOREK_electrostatic(configuration)
-if pde == 'Electromagnetic MHD':
-    if configuration['Physics']['source'] == 'JOREK': 
-        fields, x, y, dt = JOREK_electrostatic(configuration)
-
-t = torch.arange(0, fields.shape[-1], dt)
-fields = fields[...,:configuration['Data']['t_out']]
-
-#Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
-expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['variables'], configuration['Physics']['Nx']//configuration['Physics']['x_slice'], configuration['Physics']['Ny']//configuration['Physics']['y_slice'], configuration['Data']['t_out'])
-assert fields.shape == expected_shape, \
-    f"Expected fields shape to be {expected_shape}, but got {fields.shape}"
+if pde == 'FDS':
+    fields, x, y, z, t, dt, fire_loc, vent_open_time = FDS_Carpark(configuration)
 
 # %%
-#Normalising the data -- Taking the normalisation from the trained run. 
-client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'norms.npz', path=tmp_loc)
-norms = np.load(tmp_loc +'/norms.npz')
+# #Normalising the data -- Taking the normalisation from the trained run. 
+# client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'norms.npz', path=tmp_loc)
+# norms = np.load(tmp_loc +'/norms.npz')
+# normalizer_func = Normalisation(configuration['Data']['normalisation'])
+# normalizer = normalizer_func(torch.tensor(0))
+# normalizer.a, normalizer.b = torch.tensor(norms['a']), torch.tensor(norms['b'])
 
+#Normalising the data -- using the same normalisations for inputs and outputs
 normalizer_func = Normalisation(configuration['Data']['normalisation'])
-normalizer = normalizer_func(torch.tensor(0))
-normalizer.a, normalizer.b = torch.tensor(norms['a']), torch.tensor(norms['b'])
-
+normalizer = normalizer_func(fields)
 fields_encoded = normalizer.encode(fields)
 # fields_encoded = fields
 
 # %% 
-test_in = fields_encoded[...,:configuration['Data']['t_in']] + torch.randn_like(fields_encoded[...,:configuration['Data']['t_in']])
-test_out = fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']]
+from sklearn.model_selection import train_test_split
+train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=0.8, random_state=42)
 
 print("Test Input: " + str(test_in.shape))
 print("Test Output: " + str(test_out.shape))
@@ -125,7 +107,7 @@ print('preprocessing finished, time used:', t2-t1)
 # Setting up the Model and Optimizers 
 ####################################
 from model_setup import * 
-model = model_initialisation(configuration, normalizer, run=None)
+model = model_initialisation(configuration, run=None)
 
 # #Loading the checkpoint
 # client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'checkpoint.pt', path=tmp_loc)
@@ -140,7 +122,6 @@ model_path = tmp_loc + '/model.pth'
 model.load_state_dict(torch.load(model_path, map_location='cpu'))
 
 model.to(device)
-print("Number of model params : " + str(model.count_params()))
 # %%
 from Utils import explicit_time
 
@@ -151,24 +132,22 @@ pred_encoded, error = eval.inference(configuration['Data']['step'], configuratio
 print('(MSE) Testing Error: %.3e' % (error))
 
 #Denormalising the test and predictions
-test_out = normalizer.decode(test_out.to(device)).cpu()
+test_set = normalizer.decode(test_out.to(device)).cpu()
 pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
 
-
-#Visualising the rollout error 
-from Utils.plots import temporal_rollout_error
-temporal_rollout_error(configuration, test_out, pred_set, tmp_loc, run, save=False)
-
+# #Visualising the rollout error 
+# from Utils.plots import temporal_rollout_error
+# temporal_rollout_error(configuration, test_out, pred_set, tmp_loc, run, save=False)
 
 # %% 
 #Shaping back to [BS, vars, Nt, Nx, Ny]
-test_out = test_out.permute(0,1,4,2,3)
+test_set = test_set.permute(0,1,4,2,3)
 pred_set = pred_set.permute(0,1,4,2,3)
 
-
+# %% 
 #Visualising the results
 from Utils.plots import plots_2d_yaml
 idx = 0
-plots_2d_yaml(configuration, test_out, pred_set, tmp_loc, run, idx, save=False)
+plots_2d_yaml(configuration, test_set, pred_set, tmp_loc, run, idx, save=False)
 
 # %% 

@@ -91,7 +91,7 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         # u = vars[:, 0:1]
         # v = vars[:, 1:2]
         uv = vars[:, 0:2]
-        uv = self.normalizer.encode(uv)
+        # uv = self.normalizer.encode(uv)
 
         # p = vars[:, 2:3]
 
@@ -106,16 +106,20 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         # p = self.NO_pressure_poisson(uv) #Poisson Solve
         # rhs = -dot(uv, self.gradient(u)) - dot(uv, self.gradient(v)) + self.nu * self.laplace(uv) + self.gradient(p)            
 
-        pressure_grad = self.normalizer.decode(self.pressure_poisson(uv))
-        convection = self.normalizer.decode(self.convection_operator(uv))
-        diffusion = self.normalizer.decode(self.diffusion_operator(uv))
+        # pressure_grad = self.normalizer.decode(self.pressure_poisson(uv))
+        # convection = self.normalizer.decode(self.convection_operator(uv))
+        # diffusion = self.normalizer.decode(self.diffusion_operator(uv))
+
+        pressure_grad = self.pressure_poisson(uv)
+        convection = self.convection_operator(uv)
+        diffusion = self.diffusion_operator(uv)
 
 
         rhs = - convection + self.nu*diffusion + pressure_grad
 
-        # self.run.log_metrics({"rhs_momx": rhs[:, 0].detach().mean(),
-        #                       "rhs_momy": rhs[:, 1].detach().mean(),
-        #                      })
+        self.run.log_metrics({"rhs_momx": rhs[:, 0].detach().mean(),
+                              "rhs_momy": rhs[:, 1].detach().mean(),
+                             })
 
         return rhs #, pressure #Only modelling for u and v for the time being. 
 
@@ -240,16 +244,21 @@ class Incomp_PDEB_NS_OS_rhs(nn.Module):#PDEBench incompressible Navier-Stokes Op
 
     def forward(self, vars):
         uv = vars[:, 0:2]
+
         uv = self.normalizer.encode(uv)
         pressure_grad = self.normalizer.decode(self.pressure_poisson(uv))
         convection = self.normalizer.decode(self.convection_operator(uv))
         diffusion = self.normalizer.decode(self.diffusion_operator(uv))
 
+        # pressure_grad = self.pressure_poisson(uv)
+        # convection = self.convection_operator(uv)
+        # diffusion = self.diffusion_operator(uv)
+
         rhs = - convection + (self.eta*diffusion - pressure_grad) / self.rho
         
-        # self.run.log_metrics({"rhs_momx": rhs[:, 0].detach().mean(),
-        #                       "rhs_momy": rhs[:, 1].detach().mean(),
-        #                      })
+        self.run.log_metrics({"rhs_momx": rhs[:, 0].detach().mean(),
+                              "rhs_momy": rhs[:, 1].detach().mean(),
+                             })
         
         return rhs #, pressure #Only modelling for u and v for the time being. 
 

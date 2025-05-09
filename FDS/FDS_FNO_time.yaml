@@ -1,43 +1,43 @@
-
 seed: 907
 
 Physics: 
-  pde: 'Incomp. Navier-Stokes'
-  source: 'PDEBench' 
-  field: 'u, v'
-  variables: 2
-  Nx: 128
-  Ny: 128
-  Nt: 100
-  dx: 0.01
-  dy: 0.01
-  dt: 0.05
-  x_slice: 2
-  y_slice: 2
-  t_slice: 1
+  pde: 'FDS'
+  source: 'Finite Volume' 
+  field: 'T1, T2, T3, T4, T5'
+  variables: 5 #Floors
+  Nx: 101
+  Ny: 31
+  Nt: 120
+  dx: 1.0
+  dy: 1.0
+  dt: 15
+  x_slice: 1
+  y_slice: 1
+  t_slice: 2
   physics normalisation: False
 
 Model:
   arch: 'FNO'
-  in_vars: 2
-  out_vars: 2
-  modes: 16
-  width: 32
-  n_layers: 4
+  in_vars: 5
+  out_vars: 5
+  modes_x: 50
+  modes_y: 15
+  width: 100
+  n_layers: 6
   act: 'gelu'
   operator splitting: False
   ops_split norm: False
 
 Data: 
-  name: 'NS_incomp_velocity_100_128_128.npz'
-  loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
-  ntrain: 50
+  name: 'TEMPS_COMBINED.npz'
+  loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/FDS/Data'
+  ntrain: 245
   test-train-split: 0.2
-  batch size: 10
+  batch size: 20
   t_in: 1
-  t_out: 50
+  t_out: 56
   step: 1
-  normalisation: 'Min-Max'
+  normalisation: 'Min-Max_variable'
 
 Opt:
   optimizer: 'adam'
@@ -54,11 +54,11 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 10
+  rollout_length: 56
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:
@@ -69,4 +69,4 @@ Train:
 Simvue:
   mode: 'online'
   name: None 
-  folder: '/Neural_PDE/Incompressible_NS' 
+  folder: '/FDS' 

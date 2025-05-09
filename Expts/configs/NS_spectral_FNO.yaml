@@ -21,12 +21,12 @@
     arch: 'FNO'
     in_vars: 2
     out_vars: 2
-    modes: 8
-    width: 16
-    n_layers: 2
+    modes: 16
+    width: 32
+    n_layers: 4
     act: 'gelu'
-    operator splitting: True  
-    ops_split norm: True
+    operator splitting: False
+    ops_split norm: False
 
   Data: 
     name: 'NS_Spectral_combined.npz'

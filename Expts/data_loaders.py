@@ -347,17 +347,21 @@ def JOREK_electromagnetic(configuration):
     return fields, x, y, dt
 
 def FDS_Carpark(configuration):
-    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
-    data = np.load(data_loc + '/FDS_Carpark_test.npy')
-    data = np.nan_to_num(data)
-    data = data.astype(np.float32)
+    ntrain = configuration['ntrain']
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data/FDS'
+    data = np.load(data_loc + '/FDS_Carpark_temp_time_average.npz')
+    fire_loc = data['fire_locations']
+    temp = data['temperature']
+    temp = np.nan_to_num(temp)
+    temp = temp.astype(np.float32)
     
-    T = torch.tensor(data, dtype=torch.float32)
-    x = np.arange(0, 100, 0.4)
-    y = np.arange(0, 29.6, 0.4)
+    T = torch.tensor(temp, dtype=torch.float32)
+    x = np.arange(0, 100, 1.0)
+    y = np.arange(0, 30, 1.0)
     z = np.array((2, 6, 10, 14, 18))
-    t = np.linspace(0, 1, 128)
-    fire_loc = [45, 15, 0.8]
+    t = np.arange(0, 1800, 15)
+    vent_open = 120 #Vent Opening time
+
     dt = t[1] - t[0]
     dt = torch.tensor(dt, dtype=torch.float)
 
@@ -365,7 +369,7 @@ def FDS_Carpark(configuration):
     fields = T 
     fields = fields.permute(2, 0, 1, 3).unsqueeze(0)
 
-    return fields, x, y, dt
+    return fields, x, y, z, t, dt, fire_loc, vent_open
 # %%
 
 # import torch.nn as nn

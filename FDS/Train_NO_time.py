@@ -79,26 +79,8 @@ with Run(mode='online') as run:
 
     from data_loaders import *
     pde = configuration['Physics']['pde']
-    if pde == 'Navier-Stokes':
-        fields, x, y, dt = Navier_Stokes_Spectral(configuration)
-    if pde == 'Euler-Fluid':
-        fields, x, y, dt = Euler_FV(configuration)
-    if pde == 'Incomp. Navier-Stokes':
-        fields, force, x, y, dt = Navier_Stokes_Incomp(configuration)
-    if pde == 'Comp. Navier-Stokes':
-        fields, x, y, dt = Navier_Stokes_Comp(configuration)
-    if pde == 'Electrostatic MHD':
-        if configuration['Physics']['source'] == 'JOREK': 
-            fields, x, y, dt = JOREK_electrostatic(configuration)
-    if pde == 'Electromagnetic MHD':
-        if configuration['Physics']['source'] == 'JOREK': 
-            fields, x, y, dt = JOREK_electrostatic(configuration)
     if pde == 'FDS':
-            fields, x, y, dt = FDS_Carpark(configuration)
-            
-    t = torch.arange(0, configuration['Data']['t_out']*dt, dt)
-
-    fields = fields[...,:configuration['Data']['t_out']]
+        fields, x, y, z, t, dt, fire_loc, vent_open_time = FDS_Carpark(configuration)
 
     #Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
     expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['variables'], configuration['Physics']['Nx']//configuration['Physics']['x_slice'], configuration['Physics']['Ny']//configuration['Physics']['y_slice'], configuration['Data']['t_out'])
@@ -156,11 +138,11 @@ with Run(mode='online') as run:
     # Setting up the Model and Optimizers 
     ####################################
 
-    model = model_initialisation(configuration, normalizer, run)
+    model = model_initialisation(configuration, run)
     model.to(device)
 
-    # run.update_metadata({'Number of Params': int(model.count_params())})
-    # print("Number of model params : " + str(model.count_params()))
+    run.update_metadata({'Number of Params': count_parameters(model)})
+    print("Number of model params : " + str(count_parameters(model)))
 
     #Setting up the optimizer and scheduler, loss and epochs 
     optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning rate'], weight_decay=1e-4)
@@ -272,10 +254,10 @@ with Run(mode='online') as run:
     test_out = test_out.permute(0,1,4,2,3)
     pred_set = pred_set.permute(0,1,4,2,3)
 
-    from Utils.metrics import MSE, NRMSE
-    run.update_metadata({'MSE (Physical)': MSE(pred_set, test_out)['average'],
-                        'NRMSE (Physical)': NRMSE(pred_set, test_out)['average']
-                        })  
+    # from Utils.metrics import MSE, NRMSE
+    # run.update_metadata({'MSE (Physical)': MSE(pred_set, test_out)['average'],
+    #                     'NRMSE (Physical)': NRMSE(pred_set, test_out)['average']
+    #                     })  
     # %% 
     #Plotting the results 
     from Utils.plots import plots_2d_yaml
