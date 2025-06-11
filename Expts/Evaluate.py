@@ -88,6 +88,8 @@ if pde == 'Electrostatic MHD':
 if pde == 'Electromagnetic MHD':
     if configuration['Physics']['source'] == 'JOREK': 
         fields, x, y, dt = JOREK_electrostatic(configuration)
+if pde == 'Shear Flow':
+    fields, x, y, dt = Shear_Flow(configuration)
 
 t = torch.arange(0, fields.shape[-1], dt)
 fields = fields[...,:configuration['Data']['t_out']]

@@ -376,6 +376,8 @@ def FDS_Carpark(configuration):
 
 # The well datasets.
 def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
+    reynolds = configuration['Data']['reynolds']
+    schmidt = configuration['Data']['schmidt']
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/shear_flow/data/test'
     file = f'shear_flow_Reynolds_{reynolds}_Schmidt_{schmidt}.hdf5'
     data_vars = {}
@@ -398,7 +400,7 @@ def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
 
         u = data_vars.get('t1_fields_velocity')[..., 0]
         v = data_vars.get('t1_fields_velocity')[..., 1]
-        p = data_vars.get('t1_fields_pressure')
+        p = data_vars.get('t0_fields_pressure')
         reynolds = data_vars.get('scalars_Reynolds')
         schmidt = data_vars.get('scalars_Schmidt')
 
