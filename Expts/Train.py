@@ -4,6 +4,7 @@
 Training Pipeline. 
 """
 # %%
+
 #Setting up simvue 
 import os
 import yaml 
@@ -109,7 +110,7 @@ with Run(mode='online') as run:
     #Normalising the data -- using the same normalisations for inputs and outputs
     normalizer_func = Normalisation(configuration['Data']['normalisation'])
     normalizer = normalizer_func(fields)
-    if configuration['Model']['ops_split norm']: #Normalise and Denormalise done within the Model. 
+    if configuration['Model']['ops_split normalise']: #Normalise and Denormalise done within the Model. 
         fields_encoded = fields
     else:
         fields_encoded = normalizer.encode(fields)
@@ -261,7 +262,7 @@ with Run(mode='online') as run:
                         })
 
     #Denormalising the test and predictions
-    if configuration['Model']['ops_split norm'] == False: #Normalise/Denormalise done within the Model for OS. 
+    if configuration['Model']['ops_split normalise'] == False: #Normalise/Denormalise done within the Model for OS. 
         test_out = normalizer.decode(test_out.to(device)).cpu()
         pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
     else:
@@ -273,8 +274,8 @@ with Run(mode='online') as run:
     pred_set = pred_set.permute(0,1,4,2,3)
 
     from Utils.metrics import MSE, NRMSE
-    run.update_metadata({'MSE (Physical)': MSE(pred_set, test_out)['average'],
-                        'NRMSE (Physical)': NRMSE(pred_set, test_out)['average']
+    run.update_metadata({'MSE (Physical)': float(MSE(pred_set, test_out)['average']),
+                        'NRMSE (Physical)': float(NRMSE(pred_set, test_out)['average'])
                         })  
     # %% 
     #Plotting the results 

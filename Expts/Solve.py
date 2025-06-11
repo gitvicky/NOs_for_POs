@@ -129,7 +129,7 @@ with Run(mode='online') as run:
     pde = configuration['Physics']['pde']
 
     if pde == 'Navier-Stokes':
-        model = NS_spectral_OS_rhs(configuration, device)
+        model = NS_spectral_OS_rhs(configuration, run, device)
     if pde == 'Euler-Fluid':
        model = Euler_FV_OS_rhs(configuration, device)
         

@@ -4,8 +4,8 @@ seed: 907
 Physics: 
   pde: 'Navier-Stokes'
   source: 'Spectral' 
-  field: 'u, v, p'
-  variables: 3
+  field: 'u, v'
+  variables: 2
   Nx: 100
   Ny: 100
   Nt: 100

@@ -28,9 +28,11 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         # #FNO
         self.pressure_poisson = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
         self.convection_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
-        self.diffusion_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
+        # self.diffusion_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
         
         # # self.gradient = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+        self.laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True, scalar=False)
+        # self.laplacian = ConvOperator(domain=('x','y'), order=2)
         self.nu = torch.tensor(0.001, dtype=torch.float32, requires_grad=True).to(device)
 
         # #Vector physical operators
@@ -110,9 +112,16 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         # convection = self.normalizer.decode(self.convection_operator(uv))
         # diffusion = self.normalizer.decode(self.diffusion_operator(uv))
 
+
+        ## Using only convection operator -- yet to be tested. 
+        # convection = self.convection_operator(uv)
+        # pressure_grad = self.laplacian.integrate(Divergence(convection))
+        # diffusion = self.laplace(uv)
+
         pressure_grad = self.pressure_poisson(uv)
         convection = self.convection_operator(uv)
-        diffusion = self.diffusion_operator(uv)
+        # diffusion = self.diffusion_operator(uv)
+        diffusion = self.laplace(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1) #Assuming uv is a 2D vector field with shape (batch_size, 2, height, width, 1).
 
 
         rhs = - convection + self.nu*diffusion + pressure_grad
@@ -144,11 +153,15 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         self.gamma = torch.tensor(5/3, dtype=torch.float32, requires_grad=True).to(device)
         self.eps = torch.tensor(1e-6, dtype=torch.float32, requires_grad=True).to(device)
 
-        #FNO
+        #FNO - primitive variables.
         self.divergence_operator = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
         self.convection_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
         self.gradient_operator = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
 
+        # #FNO - conservative variables.
+        # self.grad_x = FNO_multi2d(in_vars=4, out_vars=4, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+        # self.grad_y = FNO_multi2d(in_vars=4, out_vars=4, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
+        
         #  #Convolutions with BCs
         # self.divergence_operator = ConvolutionalModel(
         #         in_features=2,
@@ -177,12 +190,14 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         #         final_activation='none',
         #         init_type='random')
 
-    def forward(self, vars):
+#Using primitive variables.
+    def forward(self, vars): 
 
         rho = vars[:, 0:1]
         uv  = vars[:, 1:3]
         p   = vars[:, 3:4]
-        
+
+
         # vars_enc = self.normalizer.encode(vars)
         # rho_enc = vars_enc[:, 0:1]
         # uv_enc  = vars_enc[:, 1:3]
@@ -200,8 +215,8 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
 
         rhs_mass = - rho*div_uv - dot(uv, grad_rho)
         
-        # rhs_mom = -convection - (1/rho)*grad_p         
-        rhs_mom =  -rho*convection - grad_p #Reformulated to avoid division by rho
+        rhs_mom = -convection - (1/(rho+1e-6))*grad_p   #regularisation to avoid division by zero.     
+        # rhs_mom =  -rho*convection - grad_p #Reformulated to avoid division by rho
         
         rhs_energy = -self.gamma*p*div_uv - dot(uv, grad_p)
         
@@ -211,10 +226,31 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
                               "rhs_energy": rhs_energy.detach().mean()
                              })
 
-
         
         rhs = torch.cat((rhs_mass, rhs_mom, rhs_energy), dim=1)
         return rhs
+
+
+# #Using conservative variables.
+#     def forward(self, vars): 
+
+#         M = vars[:, 0:1]  # Mass density
+#         Mx = vars[:, 1:2]  # x-momentum density
+#         My = vars[:, 2:3]  # y-momentum density
+#         E = vars[:, 3:4]  # Energy density
+#         P = (self.gamma - 1) * (E - 0.5 * (Mx**2 + My**2) / M)  # Pressure from energy density
+
+#         F_rhs = torch.cat((Mx, Mx**2/M + P,  (Mx*My)/M, (E+P)*(Mx/M)), dim=1)
+#         G_rhs = torch.cat((My, (Mx*My)/M, My**2/M + P, (E+P)*(My/M)), dim=1)
+#         F_x = self.grad_x(F_rhs)
+#         G_y = self.grad_y(G_rhs)
+#         rhs = -  F_x - G_y # Divergence of F
+
+#         self.run.log_metrics({"rhs_mass": rhs[:,0:1].detach().mean(),
+#                               "rhs_mom.": rhs[:,1:3].detach().mean(),
+#                               "rhs_energy": rhs[:,3:4].detach().mean()
+#                              })
+#         return rhs
 
     def count_params(self):
         nparams = 0

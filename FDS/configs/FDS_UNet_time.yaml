@@ -3,7 +3,10 @@ seed: 907
 Physics: 
   pde: 'FDS'
   source: 'Finite Volume' 
-  field: 'T1, T2, T3, T4, T5'
+  # variable: 'Temperature'
+  # field: 'T1, T2, T3, T4, T5'
+  variable: 'Smoke'
+  field: 'V1, V2, V3, V4, V5'
   variables: 5 #Floors
   Nx: 101
   Ny: 31
@@ -13,20 +16,17 @@ Physics:
   dt: 15
   x_slice: 1
   y_slice: 1
-  t_slice: 2
+  t_slice: 4
   physics normalisation: False
 
 Model:
-  arch: 'FNO'
+  arch: 'UNet'
   in_vars: 5
   out_vars: 5
-  modes_x: 50
-  modes_y: 15
-  width: 100
-  n_layers: 6
   act: 'gelu'
   operator splitting: False
   ops_split norm: False
+
 
 Data: 
   name: 'TEMPS_COMBINED.npz'
@@ -35,9 +35,9 @@ Data:
   test-train-split: 0.2
   batch size: 20
   t_in: 1
-  t_out: 56
+  t_out: 10
   step: 1
-  normalisation: 'Min-Max_variable'
+  normalisation: 'Min-Max'
 
 Opt:
   optimizer: 'adam'
@@ -54,7 +54,7 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 56
+  rollout_length: 10
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'

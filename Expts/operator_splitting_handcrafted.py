@@ -11,16 +11,51 @@ from PRE.VectorConvOps_Spatial import *
 # %%
 
 class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand-side. 
-    def __init__(self, configuration, device):
+    def __init__(self, configuration, run, device):
         super(NS_spectral_OS_rhs, self).__init__()
 
+        self.rho = torch.tensor(1.0, dtype=torch.float32, device=device, requires_grad=True)
         self.nu = torch.tensor(0.001, dtype=torch.float32, device=device, requires_grad=True)
         self.dx = torch.tensor(configuration['Physics']['dx'], dtype=torch.float32, device=device, requires_grad=True)
         self.dy = torch.tensor(configuration['Physics']['dy'], dtype=torch.float32, device=device, requires_grad=True)
 
+        self.dx = torch.tensor(1.0, dtype=torch.float32, device=device, requires_grad=True) #For testing purposes
+        self.dy = torch.tensor(1.0, dtype=torch.float32, device=device, requires_grad=True) #For testing purposes
+
         self.gradient = Gradient(scale=1/(self.dx), taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
         self.laplace = Laplace(scale=1/(self.dx**2), taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
         self.pressure_poisson = Vector_Gradient(scale=1/(self.dx**2), taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+        self.divergence = Divergence(scale = 1/(self.dx), taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+        self.run = run
+        self.device = device
+
+        N = configuration['Physics']['Nx']  # spatial resolution
+        L = 1     # box size
+
+        # Fourier Space Variables
+        klin = 2.0 * torch.pi / L * torch.arange(-N/2, N/2)
+        kmax = torch.max(klin)
+        kx, ky = torch.meshgrid(klin, klin)
+        kx = torch.fft.ifftshift(kx)
+        ky = torch.fft.ifftshift(ky)
+        self.kSq = kx**2 + ky**2
+        self.kSq_inv = 1.0 / self.kSq
+        self.kSq_inv[self.kSq==0] = 1
+        self.kSq_inv = self.kSq_inv.to(device)
+        print(self.kSq_inv.device)
+
+
+    def solve_pressure_poisson(self, vars):
+        u  = vars[:, 0:1]
+        v  = vars[:, 1:2]
+        uv = vars[:, 0:2]
+
+        rhs =  -self.rho * self.divergence(dot(uv, self.gradient(u)), dot(uv, self.gradient(v)))
+
+        """solve the Poisson equation, given source field rho"""
+        V_hat = -(torch.fft.fftn(rhs)) * self.kSq_inv
+        V = torch.fft.ifftn(V_hat).real
+        return V
 
     def forward(self, vars):
         #vars is for a single time instance
@@ -29,11 +64,14 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         v  = vars[:, 1:2]
         uv = vars[:, 0:2]
         # p  = vars[:, 2:3]
+        
+        p = self.solve_pressure_poisson(vars)
+        
+        rhs =  -dot(uv, self.gradient(u)) - dot(uv, self.gradient(v)) + self.nu*self.laplace(u, v) + self.gradient(p)               
 
-        p_laplace = self.pressure_poisson(u,v)
-        # p = 
-        rhs =  -dot(uv, self.gradient(u)) - dot(uv, self.gradient(v)) + self.nu*self.laplace(u, v) #+ self.gradient(p)               
-
+        self.run.log_metrics({"rhs_momx": rhs[:, 0].detach().mean(),
+                              "rhs_momy": rhs[:, 1].detach().mean(),
+                             })
         return rhs 
 
     def count_params(self):
@@ -53,7 +91,7 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         self.gamma = torch.tensor(5/3, dtype=torch.float32, requires_grad=True).to(device)
 
         self.gradient = Gradient(scale=1/(self.dx), taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
-        self.laplace = Laplace(scale=1/(self.dx**2), taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+        self.laplace = Laplace(scale=1/(self.dx**2), taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True, scalar=False)
         self.divergence = Divergence(scale = 1/(self.dx), taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
 
     def forward(self, vars):
@@ -78,7 +116,7 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
             nparams += param.numel()
         return nparams 
 
-# %% 
+# # # %% 
 # n_sims = 10
 
 # import numpy as np 
@@ -160,4 +198,31 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
 
 # rhs = torch.cat((rhs_mass, rhs_mom[:, 0:1], rhs_mom[:, 1:2], rhs_energy), dim=1)
 
-# %%
+
+# # %%
+# from PRE.ConvOps_Spatial import ConvOperator
+# laplacian = ConvOperator(domain=('x','y'), order=2, scale=1/(dx**2))
+# lap = laplacian.differentiate(rho, correlation=False, slice_pad=False)
+# lap_inv = laplacian.integrate(lap, correlation=False, slice_pad=True, eps=1e-16)
+# laplace_oper = Laplace(scale=1/(dx**2), taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+# laplace_oper = laplace_oper(rho).detach().numpy()
+
+# # Create figure with 2 subplots
+# fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+# # First subplot
+# im1 = ax1.imshow(rho[0,0])
+# ax1.set_title('Field')
+# cbar1 = plt.colorbar(im1, ax=ax1)
+
+# # Second subplot
+# im2 = ax2.imshow(lap[0,0, 4:-4, :-2])
+# ax2.set_title('Retrieved Field')
+# cbar2 = plt.colorbar(im2, ax=ax2)
+# # Adjust layout to prevent overlap
+# plt.tight_layout()
+# # plt.title('Laplacian of Pressure Field')
+
+# # Display the plot
+# plt.show()
+# # %%

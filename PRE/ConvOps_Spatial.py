@@ -38,6 +38,12 @@ def get_stencil(dims, deriv_order, taylor_order=2):
                 [0, 1/2, 0]
             ], dtype=torch.float32)
     elif dims == 2:
+        if deriv_order == 1 and taylor_order == 2:
+            return torch.tensor([
+                [0., -1/2., 0.],
+                [-1/2, 0, 1/2],
+                [0., 1/2, 0.]
+            ], dtype=torch.float32)
         if deriv_order == 2 and taylor_order == 2:
             return torch.tensor([
                 [0., 1., 0.],
@@ -67,8 +73,8 @@ def get_stencil(dims, deriv_order, taylor_order=2):
 
 def pad_kernel(grid, kernel):#Could go into the deriv conv class
     kernel_size = kernel.shape[0]
-    bs, nt, nx, ny = grid.shape[0], grid.shape[1], grid.shape[2], grid.shape[3]
-    return torch.nn.functional.pad(kernel, (0, nx - kernel_size, 0, ny-kernel_size, 0, nt-kernel_size), "constant", 0)
+    bs, nvar, nx, ny = grid.shape[0], grid.shape[1], grid.shape[2], grid.shape[3]
+    return torch.nn.functional.pad(kernel, (0, 0, nx - kernel_size, 0, ny-kernel_size, 0), "constant", 0)
 
 class ConvOperator():
     """
@@ -154,7 +160,6 @@ class ConvOperator():
 
         kernel = self.kernel.unsqueeze(0).unsqueeze(0)
         convfft = fft_conv(field, kernel, padding=(self.kernel.shape[0]//2, self.kernel.shape[1]//2), inverse=inverse)
-
         return convfft
 
 
@@ -193,7 +198,7 @@ class ConvOperator():
         if correlation == True:
             kernel_fft.imag *= -1
 
-        output = irfftn(field_fft * kernel_fft, dim=tuple(range(2, field.ndim)))
+        output = torch.fft.irfftn(field_fft * kernel_fft, dim=tuple(range(2, field.ndim)))
 
             # Remove extra padded values
         if slice_pad == True:
@@ -244,7 +249,7 @@ class ConvOperator():
         if correlation == True:
             inv_kernel_fft.imag *= -1 
 
-        output = irfftn(field_fft * inv_kernel_fft, dim=tuple(range(2, field.ndim)))
+        output = torch.fft.irfftn(field_fft * inv_kernel_fft, dim=tuple(range(2, field.ndim)))
 
             # Remove extra padded values
         if slice_pad == True:
@@ -303,7 +308,7 @@ class ConvOperator():
 # theta = torch.tensor(0.0, dtype=torch.float32)
 
 # gaussian_2d = lambda x, y: amplitude * torch.exp(-0.5 * (((x - x_mean) * torch.cos(theta) - (y - y_mean) * torch.sin(theta))**2 / x_sigma**2 + ((x - x_mean) * torch.sin(theta) + (y - y_mean) * torch.cos(theta))**2 / y_sigma**2))
-# signal = gaussian_2d(x, y).unsqueeze(0)
+# signal = gaussian_2d(x, y).unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
 
 # # %% 
 
@@ -317,7 +322,15 @@ class ConvOperator():
 # diff = D.differentiate(signal, correlation=True, slice_pad=True)
 # integ = D.integrate(diff, correlation=False, slice_pad=True)
 
-# plt.imshow(integ[0] - signal[0])
+
+# plt.imshow(signal[0,0])
 # plt.colorbar()
+# plt.title('Field')
+# plt.show()
+
+# plt.imshow(integ[0,0])
+# plt.colorbar()
+# plt.title('Integrated Field')
+# plt.show()
 
 # # %%

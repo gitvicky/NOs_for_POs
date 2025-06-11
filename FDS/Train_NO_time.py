@@ -28,7 +28,7 @@ run_config = flatten_dict(configuration)
 from simvue import Run, Client
 with Run(mode='online') as run:
 
-    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Tests'], metadata=run_config)
+    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], configuration['Physics']['variable'], 'Tests'], metadata=run_config)
 
     #setting up the client API 
     client = Client()
@@ -82,10 +82,11 @@ with Run(mode='online') as run:
     if pde == 'FDS':
         fields, x, y, z, t, dt, fire_loc, vent_open_time = FDS_Carpark(configuration)
 
-    #Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
-    expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['variables'], configuration['Physics']['Nx']//configuration['Physics']['x_slice'], configuration['Physics']['Ny']//configuration['Physics']['y_slice'], configuration['Data']['t_out'])
-    assert fields.shape == expected_shape, \
-        f"Expected fields shape to be {expected_shape}, but got {fields.shape}"
+
+    # #Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
+    # expected_shape = (len(fields), configuration['Physics']['variables'], configuration['Physics']['Nx']//configuration['Physics']['x_slice'], configuration['Physics']['Ny']//configuration['Physics']['y_slice'], configuration['Data']['t_out'])
+    # assert fields.shape == expected_shape, \
+    #     f"Expected fields shape to be {expected_shape}, but got {fields.shape}"
 
     # %%
     #Normalising the data -- using the same normalisations for inputs and outputs

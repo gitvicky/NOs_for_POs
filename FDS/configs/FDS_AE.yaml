@@ -3,7 +3,7 @@ seed: 907
 Physics: 
   pde: 'FDS'
   source: 'Finite Volume' 
-  field: 'T'
+  variable: 'Smoke'
   variables: 5 #Floors
   Nx: 101
   Ny: 31
@@ -24,7 +24,7 @@ Model:
   activation: 'relu'
 
 Data: 
-  name: 'FDS_Carpark_temp_time_average.npy'
+  # name: 'FDS_Carpark_temp_time_average.npy'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
   ntrain: 50
   test-train-split: 0.2

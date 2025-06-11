@@ -15,6 +15,9 @@ from Utils.simvue_utils import flatten_dict
 import matplotlib
 from matplotlib import pyplot as plt
 
+from FNO import *
+from UNet import *
+
 #Config files.
 def parse_args():
     parser = argparse.ArgumentParser(description='Training script with YAML config')
@@ -30,7 +33,7 @@ run_config = flatten_dict(configuration)
 from simvue import Run, Client
 with Run(mode='online') as run:
 
-    run.init(folder=configuration['Simvue']['folder'], tags=[configuration['Physics']['pde'], configuration['Model']['arch'], 'No-Time'], metadata=run_config)
+    run.init(folder=configuration['Simvue']['folder'], tags=[configuration['Physics']['pde'], configuration['Model']['arch'], configuration['Physics']['variable'], 'No-Time'], metadata=run_config)
 
     #setting up the client API 
     client = Client()
@@ -84,9 +87,9 @@ with Run(mode='online') as run:
     if pde == 'FDS':
         ins, conds, outs = FDS_Carpark(configuration)
     
-    if configuration['Model']['arch'] != 'FNO':
-        ins = ins[...,0]
-        outs = outs[...,0]
+    # if configuration['Model']['arch'] != 'FNO':
+    #     ins = ins[...,0]
+    #     outs = outs[...,0]
 
     print('ins shape:', ins.shape, 'outs shape:', outs.shape)
 
@@ -117,6 +120,31 @@ with Run(mode='online') as run:
     model = model_initialisation(configuration, run)
     model.to(device)
 
+    #Mixture of FNO and UNet
+    # class Mixture(torch.nn.Module):
+    #     def __init__(self, configuration):
+    #         super(Mixture, self).__init__()
+    #         self.fno = FNO_multi2d(configuration['Model']['in_vars'], 
+    #                         configuration['Model']['out_vars'], 
+    #                         configuration['Model']['modes_x'], 
+    #                         configuration['Model']['modes_y'],
+    #                         configuration['Model']['width'],
+    #                         configuration['Model']['n_layers']
+    #                         )
+    #         self.unet = UNet(
+    #         n_channels=configuration['Model']['in_vars'],
+    #         n_classes=configuration['Model']['out_vars'],
+    #                         )
+
+
+    #     def forward(self, x):
+    #         x1 = self.fno(x)
+    #         x2 = self.unet(x)
+    #         return x1 * x2
+
+    # model = Mixture(configuration)
+    # model.to(device)
+
     run.update_metadata({'Number of Params': count_parameters(model)})
     print("Number of model params : " + str(count_parameters(model)))
 
@@ -126,7 +154,7 @@ with Run(mode='online') as run:
     
     if configuration['Model']['arch']=='FNO' or configuration['Model']['arch']=='UNO':
         loss_func = LpLoss(size_average=False)
-    elif configuration['Model']['arch']=='UNet':
+    else:
         loss_func = torch.nn.MSELoss()
 
     epoch_init = 0

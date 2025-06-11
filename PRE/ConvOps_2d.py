@@ -13,7 +13,7 @@ import numpy as np
 import torch 
 import torch.nn as nn 
 import torch.nn.functional as F
-# from fft_conv_pytorch.fft_conv import * 
+from fft_conv_pytorch.fft_conv import * 
 
 def get_stencil(dims, deriv_order, taylor_order=2):
     if dims == 1:
@@ -215,7 +215,7 @@ class ConvOperator():
         if correlation == True:
             kernel_fft.imag *= -1
 
-        output = irfftn(field_fft * kernel_fft, dim=tuple(range(2, field.ndim)))
+        output = torch.fft.irfftn(field_fft * kernel_fft, dim=tuple(range(2, field.ndim)))
 
             # Remove extra padded values
         if slice_pad == True:
@@ -270,7 +270,7 @@ class ConvOperator():
         if correlation == True:
             inv_kernel_fft.imag *= -1 
 
-        output = irfftn(field_fft * inv_kernel_fft, dim=tuple(range(2, field.ndim)))
+        output = torch.fft.irfftn(field_fft * inv_kernel_fft, dim=tuple(range(2, field.ndim)))
 
             # Remove extra padded values
         if slice_pad == True:

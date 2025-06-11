@@ -30,7 +30,7 @@ run_config = flatten_dict(configuration)
 from simvue import Run, Client
 with Run(mode='online') as run:
 
-    run.init(folder=configuration['Simvue']['folder'], tags=[configuration['Physics']['pde'], configuration['Model']['arch']], metadata=run_config)
+    run.init(folder=configuration['Simvue']['folder'], tags=[configuration['Physics']['pde'], configuration['Model']['arch'], configuration['Physics']['variable']], metadata=run_config)
 
     #setting up the client API 
     client = Client()
@@ -83,8 +83,8 @@ with Run(mode='online') as run:
     pde = configuration['Physics']['pde']
     if pde == 'FDS':
         ins, conds, outs = FDS_Carpark(configuration)
-        outs = outs.permute(0, 4, 1, 2, 3)
-
+        ins = ins[...,0]
+        outs = outs[...,0]
     # %%
     #Normalising the data -- using the same normalisations for inputs and outputs
     normalizer_func = Normalisation(configuration['Data']['normalisation'])
@@ -141,8 +141,9 @@ with Run(mode='online') as run:
             xx, yy = xx.to(device), yy.to(device)
             grid = ins_encoded.unsqueeze(0).repeat(xx.shape[0], 1, 1, 1, 1).to(device)
             optimizer.zero_grad()
+            print('xx shape:', xx.shape, 'yy shape:', yy.shape, 'grid shape:', grid.shape)
             im = model(grid, xx)
-            loss = loss_func(im, yy)
+            loss = loss_func(im, yy) 
             loss.backward()
             optimizer.step()
             train_loss += loss.item()

@@ -9,6 +9,8 @@ from FNO import *
 from Cond_AE import *
 from Cond_VAE import *
 from UNet import *
+from Cond_UNet import *
+
 def model_initialisation(configuration, run):
     pde = configuration['Physics']['pde']
 
@@ -21,7 +23,14 @@ def model_initialisation(configuration, run):
                             configuration['Model']['n_layers']
                             )
     elif configuration['Model']['arch'] == 'AE':
+        # model = ConditionalUNet(n_channels=configuration['Model']['in_vars'], n_classes=configuration['Model']['out_vars'], cond_channels=3)
         model = Conv3DAutoencoder(
+            in_channels=3,
+            out_channels=1, 
+            conditional_features=3
+        )
+        
+        Conv3DAutoencoder(
             in_channels=3,
             out_channels=1, 
             conditional_features=3

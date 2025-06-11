@@ -16,7 +16,7 @@ Physics:
   y_slice: 2
   t_slice: 2
   physics normalisation: False
-  conservative: True
+  conservative: False
 
 Model:
   arch: 'FNO'
@@ -27,7 +27,7 @@ Model:
   n_layers: 4
   act: 'gelu'
   operator splitting: True
-  ops_split norm: False
+  ops_split normalise: False
 
 # Model:
 #   arch: 'Conv'

@@ -25,7 +25,7 @@ class SpatioTemporalDataset(Dataset):
             input_window (int): Number of time steps to use as input
             prediction_steps (int): Number of steps to predict ahead
         """
-        self.data = torch.FloatTensor(data)
+        self.data = torch.tensor(data, dtype=torch.float32)
         self.input_window = input_window
         self.prediction_steps = prediction_steps
         
@@ -106,10 +106,13 @@ def Euler_FV(configuration):
     n_sims = configuration['Data']['ntrain']
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
     data =  np.load(data_loc + '/NS_FV_combined.npz')
+    
     rho = data['rho'].astype(np.float32)[:n_sims]
     u = data['u'].astype(np.float32)[:n_sims]
     v = data['v'].astype(np.float32)[:n_sims]
     p = data['p'].astype(np.float32)[:n_sims] 
+
+
     dx = data['dx']
     x = np.linspace(0, 1, 128)
 
@@ -127,8 +130,8 @@ def Euler_FV(configuration):
         
         fields =  stacked_fields([Mass, Momx, Momy, Energy]) #Reformulating to avoid division by rho
     else:
-        # fields = stacked_fields([rho,u,v,p])
-        fields = stacked_fields([rho,rho*u,rho*v,p])
+        fields = stacked_fields([rho,u,v,p])
+        # fields = stacked_fields([rho,rho*u,rho*v,p])
 
     #Slicing the data to reduce the size.
     fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
@@ -208,7 +211,6 @@ def Navier_Stokes_Comp(configuration):
 
         fields = stacked_fields([density, vx, vy])
         dt, x, y = torch.tensor(dt), torch.tensor(x), torch.tensor(y)
-
 
     #Slicing the data to reduce the size.
     fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
@@ -372,42 +374,60 @@ def FDS_Carpark(configuration):
     return fields, x, y, z, t, dt, fire_loc, vent_open
 # %%
 
-# import torch.nn as nn
-# import sys
-# sys.path.append('..')
-# from PRE.ConvOps_2d import ConvOperator
-# class CNS_residuals(nn.Module):
-#     def __init__(self, device='cpu'):
-#         super(CNS_residuals, self).__init__()
+import torch.nn as nn
+import sys
+sys.path.append('..')
+from PRE.ConvOps_2d import ConvOperator
+class CNS_residuals(nn.Module):
+    def __init__(self, device='cpu'):
+        super(CNS_residuals, self).__init__()
 
-#         self.dx = torch.tensor(0.0078, dtype=torch.float32, requires_grad=True).to(device)
-#         self.dy = torch.tensor(0.0078, dtype=torch.float32, requires_grad=True).to(device)  
-#         self.dt = torch.tensor(0.05, dtype=torch.float32, requires_grad=True).to(device)
+        self.dx = torch.tensor(0.0078, dtype=torch.float32, requires_grad=True).to(device)
+        self.dy = torch.tensor(0.0078, dtype=torch.float32, requires_grad=True).to(device)  
+        self.dt = torch.tensor(0.05, dtype=torch.float32, requires_grad=True).to(device)
         
-#         #Defining the required Convolutional Operations. 
-#         self.D_t = ConvOperator(domain='t', order=1)
-#         self.D_x = ConvOperator(domain='x', order=1)
-#         self.D_y = ConvOperator(domain='y', order=1)
+        #Defining the required Convolutional Operations. 
+        self.D_t = ConvOperator(domain='t', order=1)
+        self.D_x = ConvOperator(domain='x', order=1)
+        self.D_y = ConvOperator(domain='y', order=1)
+        self.D_xx_yy = ConvOperator(domain=('x', 'y'), order=2)
+        self.eta = torch.tensor(0.01, dtype=torch.float32, requires_grad=True).to(device) #Dynamic viscosity
+        self.zeta = torch.tensor(0.01, dtype=torch.float32, requires_grad=True).to(device) #Bulk viscosity
 
+    def mass(self, vars, boundary=False):
+        rho = vars[:, 0]
+        u   = vars[:, 1]
+        v   = vars[:, 2]
 
-#     def mass(self, vars, boundary=False):
-#         rho = vars[:, 0]
-#         u   = vars[:, 1]
-#         v   = vars[:, 2]
-
-#         print(u.shape, v.shape)
+        print(u.shape, v.shape)
         
-#         # mass_residual = self.D_t(rho) + rho*(self.D_x(u) + self.D_y(v)) + u*self.D_x(rho) + v*self.D_y(rho)
-#         mass_residual = self.D_t(rho)*self.dx + rho*(self.D_x(u) + self.D_y(v))*self.dt + u*self.D_x(rho)*self.dx + v*self.D_y(rho)*self.dy
+        mass_residual = self.D_t(rho)*self.dx*self.dy + rho*(self.D_x(u) + self.D_y(v))*self.dt*self.dx + u*self.D_x(rho)*self.dx*self.dt + v*self.D_y(rho)*self.dy*self.dt
 
-#         if boundary: 
-#             return mass_residual
-#         else:
-#             return mass_residual[...,1:-1,1:-1,1:-1]
+        if boundary: 
+            return mass_residual
+        else:
+            return mass_residual[...,1:-1,1:-1,1:-1]
+        
+    def momentum(self, vars, boundary=False):
+        rho = vars[:, 0]
+        u   = vars[:, 1]
+        v   = vars[:, 2]
+        p   = vars[:, 3]
+
+        mom_res_x = rho*(self.D_t(u)*2*self.dx**2 + u*self.D_x(u)*2*self.dt*self.dx + v*self.D_y(u)*2*self.dt*self.dx) + self.D_x(p)*2*self.dt*self.dx - self.eta*self.D_xx_yy(u)*4*self.dt - (self.zeta+self.eta/3)*(self.D_x(self.D_x(u) + self.D_y(v)))*self.dt
+        mom_res_y = rho*(self.D_t(v)*2*self.dx**2 + u*self.D_x(v)*2*self.dt*self.dx + v*self.D_y(v)*2*self.dt*self.dx) + self.D_y(p)*2*self.dt*self.dx - self.eta*self.D_xx_yy(v)*4*self.dt - (self.zeta+self.eta/3)*(self.D_y(self.D_x(u) + self.D_y(v)))*self.dt
+
+        mom_residuals = mom_res_x + mom_res_y
+        if boundary: 
+            return mom_residuals
+        else:
+            return mom_residuals[...,1:-1,1:-1,1:-1]
     
-# # %%
-# res = CNS_residuals()
-# residual = res.mass(fields.permute(0, 1, 4, 2, 3)) #BS, Nvars, Nt, Nx, Ny
+# %%
+res = CNS_residuals()
+mass_residual = res.mass(fields.permute(0, 1, 4, 2, 3)) #BS, Nvars, Nt, Nx, Ny
+mom_residual = res.momentum(fields.permute(0, 1, 4, 2, 3)) #BS, Nvars, Nt, Nx, Ny
+
 # # %%
 # from PRE.VectorConvOps_Spatial import * 
 
@@ -437,3 +457,5 @@ def FDS_Carpark(configuration):
 # residual = res(fields.permute(0, 1, 4, 2, 3))
 
 # # %%
+
+# %%

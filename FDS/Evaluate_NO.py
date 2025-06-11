@@ -5,7 +5,8 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'blue-carrier'
+run_name = 'blue-carrier' #Minmax
+# run_name = 'coal-panel' #Gaussian
 
 class Run:
     def __init__(self, name=None):
@@ -14,6 +15,7 @@ class Run:
 run = Run(run_name)
 # %% 
 #Setting up simvue 
+import time 
 import os
 import yaml 
 import sys
@@ -71,7 +73,7 @@ from Neural_PDE.Utils.training_utils import *
 
 t1 = default_timer()
 n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test-train-split'])
-configuration['Data']['ntrain'] = n_sims
+configuration['Data']['ntrain'] = 245
 
 pde = configuration['Physics']['pde']
 from data_loaders import *
@@ -128,6 +130,7 @@ model.to(device)
 def validation(model, xx, yy):
     with torch.no_grad():
         xx, yy = xx.to(device), yy.to(device)
+        print(xx.shape, yy.shape)
         pred = model(xx)
 
         # Performance Metrics
@@ -136,9 +139,11 @@ def validation(model, xx, yy):
 
     return pred, MSE_error, MAE_error
 
+start_time = time.time()
 pred_encoded, mse_error, mae_error = validation(model, test_ins.to(device), test_outs.to(device))
+eval_time = (time.time() - start_time)/len(test_ins)
 
-
+print('Time taken for evaluation:', eval_time)
 print('(MSE) Testing Error: %.3e' % (mse_error))
 
 #Denormalising the test and predictions
@@ -146,55 +151,103 @@ test_set = normalizer_out.decode(test_outs.to(device)).cpu()
 pred_set = normalizer_out.decode(pred_encoded.to(device)).cpu()
 
 
-# %% 
-#Visualising the results
-import matplotlib
-idx = 0
-names = ['targs', 'preds']
-for ii, u_field in enumerate([test_set, pred_set]):
+# %%
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.gridspec as gridspec
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+idx = 38
+
+# Set publication-quality parameters
+plt.rcParams.update({
+    # 'font.family': 'serif',
+    # 'font.serif': ['Computer Modern Roman'],
+    # 'text.usetex': True,    # Enable LaTeX rendering for text
+    'axes.labelsize': 11,
+    'axes.titlesize': 12,
+    'xtick.labelsize': 10,
+    'ytick.labelsize': 10,
+    'legend.fontsize': 10,
+    'figure.dpi': 300,
+    'savefig.dpi': 300,
+    'savefig.bbox': 'tight',
+    'savefig.pad_inches': 0.05,
+    'figure.constrained_layout.use': True
+})
+
+names = ['Ground Truth', 'Prediction']
+datasets = [test_set, pred_set]
+
+for ii, u_field in enumerate(datasets):
+    # Process data based on model architecture
     if configuration['Model']['arch'] == 'FNO':
         u_field = u_field[idx,...,0]
     else:
         u_field = u_field[idx]
+    
+    # Calculate global min and max for consistent colormap scaling
+    v_min = 0
+    v_max = 40
+    
+    # Create figure with appropriate aspect ratio
+    fig = plt.figure(figsize=(10, 3))
+
+    # Use GridSpec for more control over subplot layout
+    gs = gridspec.GridSpec(1, 5, width_ratios=[0.5, 0.5, 0.5, 0.5, 0.5], wspace=0.005)
+    
+    # Create custom colormap for better visualization
+    cmap = plt.cm.coolwarm
+    
+    # Define time points
+    time_points = ['Floor 1', 'Floor 2', 'Floor 3', ' Floor 4', 'Floor 5']
+    
+    # Create subplots
+    axes = []
+    for t in range(5):
+        ax = plt.subplot(gs[t])
+        axes.append(ax)
         
-    v_min = torch.min(u_field)
-    v_max = torch.max(u_field)
+        # Plot the data with improved settings
+        im = ax.imshow(u_field[t], cmap=cmap, vmin=v_min, vmax=v_max, 
+                        interpolation='nearest', aspect='equal')
+        
+        # Set title with LaTeX formatting
+        ax.set_title(time_points[t], fontsize=12)
+        
+        # Only show ticks for the leftmost plot
+        if t == 0:
+            ax.set_xlabel('X')
+            ax.set_ylabel('Y')
+        else:
+            ax.set_xticks([])
+            ax.set_yticks([])
+        
+        # Add border to each subplot
+        for spine in ax.spines.values():
+            spine.set_visible(True)
+            spine.set_linewidth(0.5)
+        
+    # Add a single colorbar that applies to all plots
+    cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])
+    cbar = fig.colorbar(im, cax=cbar_ax)
+    cbar.set_label('Tempertaure')
+    
+    # Add main title
+    fig.suptitle(f'{names[ii]}', fontsize=14, y=0)
 
-    fig = plt.figure(figsize=plt.figaspect(0.5))
-    ax = fig.add_subplot(1, 5, 1)
-    pcm = ax.imshow(u_field[0], cmap=matplotlib.cm.coolwarm)
-    ax.title.set_text('T1')
-    fig.colorbar(pcm, pad=0.05)
+    # Adjust spacing between subplots
+    # plt.tight_layout(rect=[0, 0, 0.9, 0.95])
+    
+    # save_path = os.getcwd()
+    # plt.savefig(names[ii] + '_' + str(idx) + '.pdf', 
+    #                 bbox_inches='tight', pad_inches=0.1, dpi=300)
 
-    ax = fig.add_subplot(1, 5, 2)
-    pcm = ax.imshow(u_field[1], cmap=matplotlib.cm.coolwarm)
-    ax.title.set_text('T2')
-    ax.axes.xaxis.set_ticks([])
-    ax.axes.yaxis.set_ticks([])
-    fig.colorbar(pcm, pad=0.05)
-
-    ax = fig.add_subplot(1, 5, 3)
-    pcm = ax.imshow(u_field[2], cmap=matplotlib.cm.coolwarm)
-    ax.title.set_text('T3')
-    ax.axes.xaxis.set_ticks([])
-    ax.axes.yaxis.set_ticks([])
-    fig.colorbar(pcm, pad=0.05)
-
-
-    ax = fig.add_subplot(1, 5, 4)
-    pcm = ax.imshow(u_field[3], cmap=matplotlib.cm.coolwarm)
-    ax.title.set_text('T4')
-    ax.axes.xaxis.set_ticks([])
-    ax.axes.yaxis.set_ticks([])
-    fig.colorbar(pcm, pad=0.05)
-
-
-    ax = fig.add_subplot(1, 5, 5)
-    pcm = ax.imshow(u_field[4], cmap=matplotlib.cm.coolwarm)
-    ax.title.set_text('T5')
-    ax.axes.xaxis.set_ticks([])
-    ax.axes.yaxis.set_ticks([])
-    fig.colorbar(pcm, pad=0.05)
+    
+    plt.show()
+# %%
+print('MSE (Physical):', torch.mean((test_set - pred_set)**2))
 
 # %% 

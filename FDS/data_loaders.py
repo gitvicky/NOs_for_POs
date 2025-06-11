@@ -77,16 +77,31 @@ class SpatioTemporalDataset(Dataset):
 
 # %% 
 def FDS_Carpark(configuration):
-    ntrain = configuration['Data']['ntrain']
+    # ntrain = configuration['Data']['ntrain']
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data/FDS'
-    # data = np.load(data_loc + '/FDS_Carpark_temp_time_average.npz')
-    data = np.load(data_loc + '/TEMPS_COMBINED.npz')
-    fire_loc = data['fire_locations']
-    temp = data['temperatures']
-    temp = np.nan_to_num(temp)
-    temp = temp.astype(np.float32)
     
-    T = torch.tensor(temp, dtype=torch.float32)
+    # Temperature data
+    if configuration['Physics']['variable'] == 'Temperature':
+        data = np.load(data_loc + '/FDS_Carpark_temp_time_average.npz')
+        data = np.load(data_loc + '/TEMPS_COMBINED.npz')
+        temp = data['temperatures']
+        temp = np.nan_to_num(temp)
+        temp = temp.astype(np.float32)
+        var = temp
+        
+    #Visibility data
+    if configuration['Physics']['variable'] == 'Smoke':
+        data = np.load(data_loc + '/MULTI_VIS_825.npz')
+        vis = data['visibility']
+        vis = np.nan_to_num(vis)
+        vis = np.delete(vis, [267, 333, 510, 530, 629, 655], axis=0)
+        vis = vis.astype(np.float32)
+        var = vis
+
+    fire_loc = data['fire_locations']
+
+    ntrain = len(var)
+    T = torch.tensor(var, dtype=torch.float32)
     x = torch.arange(0, 101, 1.0)
     y = torch.arange(0, 31, 1.0)
     z = torch.tensor((2, 6, 10, 14, 18), dtype=torch.float32)
@@ -94,29 +109,33 @@ def FDS_Carpark(configuration):
     vent_open_time = 120 #Vent Opening time
     
 
-    if configuration['Train']['odesolve']['method'] == 'AR':
-
-        # fields = stacked_fields([T])
-        fields = T 
-        fields = fields.permute(0, 3, 1, 2, 4)[:ntrain,...,::configuration['Physics']['t_slice']]#[...,4:]
-        t = t[::configuration['Physics']['t_slice']]#[4:]
-        dt = t[1] - t[0]
-        return fields, x, y, z, t, dt, fire_loc, vent_open_time
-    
-    elif configuration['Train']['odesolve']['method'] == 'None':
-        fields = T 
-        ins = fields.permute(0, 3, 1, 2, 4)[...,0:1][:ntrain,...,::configuration['Physics']['t_slice']]
-        outs = fields.permute(0, 3, 1, 2, 4)[...,80:81][:ntrain,...,::configuration['Physics']['t_slice']]
-        # fields = torch.cat((ins, outs), dim=-1)  
-        t = t[::configuration['Physics']['t_slice']][...,80:81]
-        dt = 20*60
-        return ins, fire_loc[:ntrain], outs
-
-
-    elif configuration['Model']['arch'] == 'AE' or configuration['Model']['arch'] == 'VAE':
+    if configuration['Model']['arch'] == 'AE' or configuration['Model']['arch'] == 'VAE':
         xx, yy, zz = torch.meshgrid(x, y, z)
         ins = torch.stack((xx, yy, zz))
         conds = torch.tensor(fire_loc[:ntrain], dtype=torch.float32)
         outs = T[:ntrain, ..., 80:81]
+        print(ins.shape, conds.shape, outs.shape)
         return ins, conds, outs
+
+    else: 
+        if configuration['Train']['odesolve']['method'] == 'AR':
+
+            # fields = stacked_fields([T])
+            fields = T 
+            fields = fields.permute(0, 3, 1, 2, 4)[:ntrain,...,::configuration['Physics']['t_slice']]#[...,4:]
+            t = t[::configuration['Physics']['t_slice']]#[4:]
+            dt = t[1] - t[0]
+            return fields, x, y, z, t, dt, fire_loc, vent_open_time
+        
+        elif configuration['Train']['odesolve']['method'] == 'None':
+            fields = T 
+            ins = fields.permute(0, 3, 1, 2, 4)[...,0:1][:ntrain,...,::configuration['Physics']['t_slice']]
+            outs = fields.permute(0, 3, 1, 2, 4)[...,80:81][:ntrain,...,::configuration['Physics']['t_slice']]
+            # fields = torch.cat((ins, outs), dim=-1)  
+            t = t[::configuration['Physics']['t_slice']][...,80:81]
+            dt = 20*60
+            return ins, fire_loc[:ntrain], outs
+
+
+
 # %%

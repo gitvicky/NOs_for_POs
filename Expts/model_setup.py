@@ -7,7 +7,7 @@ import sys
 sys.path.append("..")
 
 from Neural_PDE.Models.FNO import *
-from Neural_PDE.Models.ViT_new import * 
+# from Neural_PDE.Models.ViT_new import * 
 from Neural_PDE.Models.UNet import * 
 from Neural_PDE.Models.CNO import * 
 from Neural_PDE.Models.gMLP_Vision import * 
@@ -74,17 +74,17 @@ def model_initialisation(configuration, normalizer, run):
                         configuration['Model']['out_vars']
                         )
         
-        elif configuration['Model']['arch'] == 'ViT':
-            model = ViT(
-                image_size=(configuration['Physics']['Nx'], configuration['Physics']['Ny']),
-                patch_size=(configuration['Model']['patch size'], configuration['Model']['patch size']),
-                embed_dim=configuration['Model']['embed dim'],
-                depth=configuration['Model']['depth'],
-                n_heads=configuration['Model']['num heads'],
-                channels=configuration['Physics']['variables'],
-                mlp_dim = 256,
-                dim_head = 32
-                )
+        # elif configuration['Model']['arch'] == 'ViT':
+        #     model = ViT(
+        #         image_size=(configuration['Physics']['Nx'], configuration['Physics']['Ny']),
+        #         patch_size=(configuration['Model']['patch size'], configuration['Model']['patch size']),
+        #         embed_dim=configuration['Model']['embed dim'],
+        #         depth=configuration['Model']['depth'],
+        #         n_heads=configuration['Model']['num heads'],
+        #         channels=configuration['Physics']['variables'],
+        #         mlp_dim = 256,
+        #         dim_head = 32
+        #         )
         
         elif configuration['Model']['arch'] == 'CNO':
             model = CNO2d(in_dim = configuration['Model']['in channels'],             
