@@ -25,10 +25,17 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
             self.normalizer.cpu()
         self.run = run
         
+        #Discretisation
+        dx, dy = configuration['Physics']['dx'] * configuration['Physics']['x_slice'], configuration['Physics']['dy'] * configuration['Physics']['y_slice']
+        Nx, Ny = configuration['Physics']['Nx'] / configuration['Physics']['x_slice'], configuration['Physics']['Ny'] / configuration['Physics']['y_slice']
+
+        gridx = torch.tensor(np.linspace(0, int(Nx*dx), int(Nx)), dtype=torch.float)
+        gridy = torch.tensor(np.linspace(0, int(Ny*dy), int(Ny)), dtype=torch.float)
+
         # #FNO
-        self.pressure_poisson = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
-        self.convection_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
-        # self.diffusion_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
+        self.pressure_poisson = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'], grid=[gridx, gridy]) 
+        self.convection_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'], grid=[gridx, gridy]) 
+        # self.diffusion_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'], grid=[gridx, gridy]) 
         
         # # self.gradient = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
         self.laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True, scalar=False)
@@ -154,9 +161,15 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         self.eps = torch.tensor(1e-6, dtype=torch.float32, requires_grad=True).to(device)
 
         #FNO - primitive variables.
-        self.divergence_operator = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
         self.convection_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
+        self.divergence_operator = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
         self.gradient_operator = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+
+        #Using predetermined operators.
+        # self.laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True, scalar=False)
+        # self.divergence_operator = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+        # self.gradient_operator = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+
 
         # #FNO - conservative variables.
         # self.grad_x = FNO_multi2d(in_vars=4, out_vars=4, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
@@ -208,6 +221,11 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         # grad_p = self.normalizer.decode(self.gradient_operator(p_enc), var_idx = [3,3])
         # convection = self.normalizer.decode(self.convection_operator(uv_enc), var_idx = [1,2])
         
+
+        # div_uv = self.divergence_operator(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1) #Assuming uv is a 2D vector field with shape (batch_size, 2, height, width, 1).
+        # grad_rho = self.gradient_operator(rho[...,0]).unsqueeze(-1) #Assuming rho is a scalar field with shape (batch_size, 1, height, width, 1).
+        # grad_p = self.gradient_operator(p[...,0]).unsqueeze(-1) #Assuming p is a scalar field with shape (batch_size, 1, height, width, 1).
+        
         div_uv = self.divergence_operator(uv)
         grad_rho = self.gradient_operator(rho)
         grad_p = self.gradient_operator(p)
@@ -226,7 +244,6 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
                               "rhs_energy": rhs_energy.detach().mean()
                              })
 
-        
         rhs = torch.cat((rhs_mass, rhs_mom, rhs_energy), dim=1)
         return rhs
 

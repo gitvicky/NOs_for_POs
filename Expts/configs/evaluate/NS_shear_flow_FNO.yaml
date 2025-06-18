@@ -70,5 +70,5 @@
 
   Simvue:
     mode: 'online'
-    name: None 
+    name: ''
     folder: '/Neural_PDE/NS_Shear_Flow' 
