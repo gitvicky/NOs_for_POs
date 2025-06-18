@@ -67,7 +67,7 @@ class Matrix2d(nn.Module):
         return self.weight.numel()
 
 
-from Utils.boundary_conditions import BoundaryManager
+from PRE.boundary_conditions import BoundaryManager
 
 class Convolution2d(nn.Module):
     def __init__(self, kernel_size=3, features=2, init_type='random', boundary_type='periodic'):

@@ -15,66 +15,16 @@ import numpy as np
 import torch 
 import torch.nn as nn 
 import torch.nn.functional as F
+import sys 
+sys.path.append("..")  # Adjust the path as necessary
 from PRE.fft_conv_pytorch.fft_conv import * 
+from PRE.Stencils import get_stencil
+from PRE.boundary_conditions import BoundaryManager
 
-def get_stencil(dims, deriv_order, taylor_order=2):
-    if dims == 1:
-        if deriv_order == 0:  # Identity convolution
-            return torch.tensor([
-                [0, 0, 0],
-                [0, 1, 0],
-                [0, 0, 0]
-            ], dtype=torch.float32)
-        elif deriv_order == 2 and taylor_order == 2:
-            return torch.tensor([
-                [0, 1, 0],
-                [0, -2, 0],
-                [0, 1, 0]
-            ], dtype=torch.float32)
-        elif deriv_order == 1 and taylor_order == 2:
-            return torch.tensor([
-                [0, -1/2, 0],
-                [0, 0, 0],
-                [0, 1/2, 0]
-            ], dtype=torch.float32)
-    elif dims == 2:
-        if deriv_order == 1 and taylor_order == 2:
-            return torch.tensor([
-                [0., -1/2., 0.],
-                [-1/2, 0, 1/2],
-                [0., 1/2, 0.]
-            ], dtype=torch.float32)
-        if deriv_order == 2 and taylor_order == 2:
-            return torch.tensor([
-                [0., 1., 0.],
-                [1., -4., 1.],
-                [0., 1., 0.]
-            ], dtype=torch.float32)
-        elif deriv_order == 2 and taylor_order == 4:
-            return torch.tensor([
-                [0, 0, -1/12, 0, 0],
-                [0, 0, 4/3, 0, 0],
-                [-1/12, 4/3, -5/2, 4/3, -1/12],
-                [0, 0, 4/3, 0, 0],
-                [0, 0, -1/12, 0, 0]
-            ], dtype=torch.float32)
-        elif deriv_order == 2 and taylor_order == 6:
-            return torch.tensor([
-                [0, 0, 0, 1/90, 0, 0, 0],
-                [0, 0, 0, -3/20, 0, 0, 0],
-                [0, 0, 0, 3/2, 0, 0, 0],
-                [1/90, -3/20, 3/2, -49/18, 3/2, -3/20, 1/90],
-                [0, 0, 0, 3/2, 0, 0, 0],
-                [0, 0, 0, -3/20, 0, 0, 0],
-                [0, 0, 0, 1/90, 0, 0, 0]
-            ], dtype=torch.float32)
-
-    raise ValueError("Invalid stencil parameters")
-
-def pad_kernel(grid, kernel):#Could go into the deriv conv class
-    kernel_size = kernel.shape[0]
-    bs, nvar, nx, ny = grid.shape[0], grid.shape[1], grid.shape[2], grid.shape[3]
-    return torch.nn.functional.pad(kernel, (0, 0, nx - kernel_size, 0, ny-kernel_size, 0), "constant", 0)
+# def pad_kernel(grid, kernel):#Could go into the deriv conv class
+#     kernel_size = kernel.shape[0]
+#     bs, nvar, nx, ny = grid.shape[0], grid.shape[1], grid.shape[2], grid.shape[3]
+#     return torch.nn.functional.pad(kernel, (0, 0, nx - kernel_size, 0, ny-kernel_size, 0), "constant", 0)
 
 class ConvOperator():
     """
@@ -86,24 +36,27 @@ class ConvOperator():
             Can be 't' for time domain or ('x', 'y') for spatial domain.
         order (int): The order of derivation.
     """
-    def __init__(self, domain=None, order=None, scale=1.0, taylor_order=2, conv='direct', device=torch.device("cuda"), requires_grad=False):
+    def __init__(self, domain=None, order=None, scale=1.0, taylor_order=2, boundary_cond='periodic', conv='direct', device=torch.device("cuda"), requires_grad=False):
         try: 
             self.domain = domain #Axis across with the derivative is taken. 
             self.dims = len(self.domain) #Domain size
             self.order = order #order of derivation
             self.stencil = get_stencil(self.dims, self.order, taylor_order)
 
+
+            self.kernel = self.stencil
+            self.kernel = self.kernel.to(device)
+
             if self.domain == 'x':
                 self.axis = 0
             elif self.domain == 'y':
                 self.axis = 1
+                self.kernel = self.kernel.transpose(0, 1)
             elif self.domain == ('x','y'):
                 self.axis = 0
             else:
                 raise ValueError("Invalid Domain. Must be either x,y or their combination")
             
-            self.kernel = self.stencil
-            self.kernel = self.kernel.to(device)
 
             self.scale = torch.tensor(scale, dtype=torch.float32, device=device, requires_grad=True)
             self.scale.to(device)
@@ -115,13 +68,17 @@ class ConvOperator():
         except:
             pass
 
-
         if conv == 'direct': 
             self.conv = self.convolution
+            self.bc = BoundaryManager(kernel_size=(taylor_order+1, taylor_order+1))#BC only for direct convolution, periodic in all other cases. 
+            self.bc.set_all_boundaries(bc_type=boundary_cond)
+
         elif conv == 'spectral':
             self.conv = self.spectral_convolution
         else:
+            
             raise ValueError("Unknown Convolution Method")
+
 
     def convolution(self, field, kernel=None):
         """
@@ -134,6 +91,8 @@ class ConvOperator():
         Returns:
             torch.Tensor: The result of the 3D derivative convolution.
         """
+
+        field = self.bc.pad_signal(field)
 
         if kernel != None: 
             self.kernel = kernel
@@ -334,3 +293,4 @@ class ConvOperator():
 # plt.show()
 
 # # %%
+# %%

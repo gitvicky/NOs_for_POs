@@ -7,7 +7,7 @@ import sys
 sys.path.append('.') 
 sys.path.append('..')
 from Tests.learnable_matrices import * 
-from Utils.boundary_conditions import BoundaryManager
+from PRE.boundary_conditions import BoundaryManager
 
 def sequential_model(
     configuration: Dict[str, Any],

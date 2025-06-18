@@ -13,9 +13,7 @@ class BoundaryManager:
         'dirichlet',    # Fixed value at boundary
         'neumann',      # Zero gradient at boundary
         'periodic',     # Periodic boundary
-        'symmetric',    # Reflection at boundary (alias for symmetric)
-        'free_slip',    # Zero normal, zero gradient tangential (for vector fields)
-        'outflow'       # Zero gradient (alias for neumann)
+        'symmetric',    # Reflection at boundary 
     ]
     
     def __init__(self, kernel_size):
@@ -103,76 +101,64 @@ class BoundaryManager:
         if self.pad_left > 0:
             bc_type = self.boundary_types['left']
             bc_value = self.boundary_values['left']
-            
+            pad = (self.pad_left, 0, 0, 0)
+
             if bc_type == 'dirichlet':
-                pad = (self.pad_left, 0, 0, 0)
                 result = F.pad(result, pad, mode='constant', value=bc_value)
-            elif bc_type in ['neumann', 'outflow']:
-                pad = (self.pad_left, 0, 0, 0)
+            elif bc_type == 'neumann':
                 result = F.pad(result, pad, mode='replicate')
             elif bc_type == 'periodic':
-                # For periodic, we need to pull from the right side
-                left_padding = result[:, :, :, -self.pad_left:]
-                result = torch.cat([left_padding, result], dim=3)
+                # Use circular padding to pull from the right side
+                result = F.pad(result, pad, mode='circular')
             elif bc_type == 'symmetric':
-                pad = (self.pad_left, 0, 0, 0)
                 result = F.pad(result, pad, mode='reflect')
         
         # Right boundary
         if self.pad_right > 0:
             bc_type = self.boundary_types['right']
             bc_value = self.boundary_values['right']
+            pad = (0, self.pad_right, 0, 0)
             
             if bc_type == 'dirichlet':
-                pad = (0, self.pad_right, 0, 0)
                 result = F.pad(result, pad, mode='constant', value=bc_value)
-            elif bc_type in ['neumann', 'outflow']:
-                pad = (0, self.pad_right, 0, 0)
+            elif bc_type == 'neumann':
                 result = F.pad(result, pad, mode='replicate')
             elif bc_type == 'periodic':
-                # For periodic, we need to pull from the left side
-                right_padding = result[:, :, :, :self.pad_right]
-                result = torch.cat([result, right_padding], dim=3)
+                # Use circular padding to pull from the left side
+                result = F.pad(result, pad, mode='circular')
             elif bc_type == 'symmetric':
-                pad = (0, self.pad_right, 0, 0)
                 result = F.pad(result, pad, mode='reflect')
         
         # Top boundary
         if self.pad_top > 0:
             bc_type = self.boundary_types['top']
             bc_value = self.boundary_values['top']
+            pad = (0, 0, self.pad_top, 0)
             
             if bc_type == 'dirichlet':
-                pad = (0, 0, self.pad_top, 0)
                 result = F.pad(result, pad, mode='constant', value=bc_value)
-            elif bc_type in ['neumann', 'outflow']:
-                pad = (0, 0, self.pad_top, 0)
+            elif bc_type == 'neumann':
                 result = F.pad(result, pad, mode='replicate')
             elif bc_type == 'periodic':
-                # For periodic, we need to pull from the bottom
-                top_padding = result[:, :, -self.pad_top:, :]
-                result = torch.cat([top_padding, result], dim=2)
+                # Use circular padding to pull from the bottom
+                result = F.pad(result, pad, mode='circular')
             elif bc_type == 'symmetric':
-                pad = (0, 0, self.pad_top, 0)
                 result = F.pad(result, pad, mode='reflect')
         
         # Bottom boundary
         if self.pad_bottom > 0:
             bc_type = self.boundary_types['bottom']
             bc_value = self.boundary_values['bottom']
+            pad = (0, 0, 0, self.pad_bottom)
             
             if bc_type == 'dirichlet':
-                pad = (0, 0, 0, self.pad_bottom)
                 result = F.pad(result, pad, mode='constant', value=bc_value)
-            elif bc_type in ['neumann', 'outflow']:
-                pad = (0, 0, 0, self.pad_bottom)
+            elif bc_type == 'neumann':
                 result = F.pad(result, pad, mode='replicate')
             elif bc_type == 'periodic':
-                # For periodic, we need to pull from the top
-                bottom_padding = result[:, :, :self.pad_bottom, :]
-                result = torch.cat([result, bottom_padding], dim=2)
+                # Use circular padding to pull from the top
+                result = F.pad(result, pad, mode='circular')
             elif bc_type == 'symmetric':
-                pad = (0, 0, 0, self.pad_bottom)
                 result = F.pad(result, pad, mode='reflect')
         
         # Restore original shape dimension
