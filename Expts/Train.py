@@ -37,6 +37,9 @@ with Run(mode='online') as run:
     #Saving the current run file and the git hash of the repo
     run.save_file(os.path.abspath(__file__), 'code')
     run.save_file(os.path.abspath(args.config), 'code')
+    
+    if configuration['Model']['operator splitting']:
+        run.save_file(os.path.abspath('Expts/operator_splitting.py'), 'code')
 
     import git
     repo = git.Repo(search_parent_directories=True)
@@ -109,7 +112,7 @@ with Run(mode='online') as run:
     # %%
     #Normalising the data -- using the same normalisations for inputs and outputs
     normalizer_func = Normalisation(configuration['Data']['normalisation'])
-    normalizer = normalizer_func(fields, low=0.1, high=1.0)
+    normalizer = normalizer_func(fields, low=1e-3, high=1.0)
     if configuration['Model']['ops_split normalise']: #Normalise and Denormalise done within the Model. 
         fields_encoded = fields
     else:

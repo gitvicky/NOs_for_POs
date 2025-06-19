@@ -131,11 +131,15 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         diffusion = self.laplace(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1) #Assuming uv is a 2D vector field with shape (batch_size, 2, height, width, 1).
 
 
-        rhs = - convection + self.nu*diffusion + pressure_grad
+        rhs = - convection + self.nu*diffusion - pressure_grad
 
-        self.run.log_metrics({"rhs_momx": rhs[:, 0].detach().mean(),
+        try:
+            self.run.log_metrics({"rhs_momx": rhs[:, 0].detach().mean(),
                               "rhs_momy": rhs[:, 1].detach().mean(),
                              })
+
+        except:
+            pass
 
         return rhs #, pressure #Only modelling for u and v for the time being. 
 
@@ -165,8 +169,7 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         self.divergence_operator = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
         self.gradient_operator = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
 
-        #Using predetermined operators.
-        # self.laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True, scalar=False)
+        # #Using predetermined operators.
         # self.divergence_operator = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
         # self.gradient_operator = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
 
@@ -229,6 +232,7 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         div_uv = self.divergence_operator(uv)
         grad_rho = self.gradient_operator(rho)
         grad_p = self.gradient_operator(p)
+
         convection = self.convection_operator(uv)
 
         rhs_mass = - rho*div_uv - dot(uv, grad_rho)

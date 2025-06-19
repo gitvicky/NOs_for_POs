@@ -5,7 +5,8 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'national-plateau'
+run_name = 'warm-shim'
+data_name = None
 
 class Run:
     def __init__(self, name=None):
@@ -39,7 +40,7 @@ except:
 # %%
 #Loading the yaml file to get the configuration.
 run_id = client.get_run_id_from_name(run_name)
-client.get_artifacts_as_files(run_id, contains='yaml', path=tmp_loc)
+client.get_artifacts_as_files(run_id, category='code', output_dir=tmp_loc)
 configuration = yaml.safe_load(open(next(Path(tmp_loc).glob('*.yaml'))))
 # client.get_run(run_id)
 # %% 
@@ -73,7 +74,10 @@ t1 = default_timer()
 n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test-train-split'])
 configuration['Data']['ntrain'] = n_sims
 from data_loaders import *
-pde = configuration['Physics']['pde']
+if data_name == None: 
+    pde = configuration['Physics']['pde']
+else: 
+    pde = data_name 
 if pde == 'Navier-Stokes':
     fields, x, y, dt = Navier_Stokes_Spectral(configuration)
 if pde == 'Euler Fluid':
@@ -101,7 +105,7 @@ assert fields.shape == expected_shape, \
 
 # %%
 #Normalising the data -- Taking the normalisation from the trained run. 
-client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'norms.npz', path=tmp_loc)
+client.get_artifact_as_file(client.get_run_id_from_name(run_name), name='norms.npz', output_dir=tmp_loc)
 norms = np.load(tmp_loc +'/norms.npz')
 
 normalizer_func = Normalisation(configuration['Data']['normalisation'])
@@ -137,7 +141,7 @@ model = model_initialisation(configuration, normalizer, run=None)
 # epoch_last = checkpoint["epoch"]
 
 #Loading the trained model
-client.get_artifact_as_file(client.get_run_id_from_name(run_name), 'model.pth', path=tmp_loc)
+client.get_artifact_as_file(client.get_run_id_from_name(run_name), name='model.pth', output_dir=tmp_loc)
 model_path = tmp_loc + '/model.pth'
 model.load_state_dict(torch.load(model_path, map_location='cpu'))
 
@@ -157,9 +161,9 @@ test_out = normalizer.decode(test_out.to(device)).cpu()
 pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
 
 
-#Visualising the rollout error 
-from Utils.plots import temporal_rollout_error
-temporal_rollout_error(configuration, test_out, pred_set, tmp_loc, run, save=False)
+# #Visualising the rollout error 
+# from Utils.plots import temporal_rollout_error
+# temporal_rollout_error(configuration, test_out, pred_set, tmp_loc, run, save=False)
 
 
 # %% 
@@ -167,10 +171,10 @@ temporal_rollout_error(configuration, test_out, pred_set, tmp_loc, run, save=Fal
 test_out = test_out.permute(0,1,4,2,3)
 pred_set = pred_set.permute(0,1,4,2,3)
 
-
+# %% 
 #Visualising the results
 from Utils.plots import plots_2d_yaml
-idx = 0
+idx = 3
 plots_2d_yaml(configuration, test_out, pred_set, tmp_loc, run, idx, save=False)
 
 # %% 
