@@ -8,7 +8,12 @@ Physics:
   Nx: 100
   Ny: 100
   Nt: 100
-  dt: 1.5e-6 x 10 #downsampled by 10
+  dx: 0.01
+  dy: 0.01
+  dt: 0.0001 #1.5e-6 x 10 #downsampled by 10
+  x_slice: 1
+  y_slice: 1
+  t_slice: 1
   physics normalisation: True
 
 Model:
@@ -20,6 +25,7 @@ Model:
   n_layers: 6
   act: 'gelu'
   operator splitting: False
+  ops_split normalise: False
 
 Data: 
   name: 'JOREK_filtered.npz'
@@ -28,7 +34,7 @@ Data:
   test-train-split: 0.2
   batch size: 50
   t_in: 1
-  t_out: 100
+  t_out: 50
   step: 1
   normalisation: 'Min-Max'
 
@@ -48,10 +54,12 @@ Train:
   loss: 'LP'
   input_length: 1
   rollout_length: 20
+  input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
+  batch_norm: False
   checkpoint:
     epochs: 100
   restart: False

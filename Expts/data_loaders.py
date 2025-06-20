@@ -209,7 +209,7 @@ def Navier_Stokes_Comp(configuration):
         # z = np.array(z, dtype=np.float32)
         dt = t[1] - t[0]
 
-        fields = stacked_fields([density, vx, vy])
+        fields = stacked_fields([density, vx, vy, pressure])
         dt, x, y = torch.tensor(dt), torch.tensor(x), torch.tensor(y)
 
     #Slicing the data to reduce the size.
@@ -250,11 +250,11 @@ def JOREK_electrostatic(configuration):
 
     #Slicing the data to reduce the size.
     fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
-    x = x[::configuration['Physics']['x_slice']]
-    y = y[::configuration['Physics']['y_slice']]
+    x = x_grid[::configuration['Physics']['x_slice']]
+    y = y_grid[::configuration['Physics']['y_slice']]
     dt = dt*configuration['Physics']['t_slice']
 
-    return fields, x_grid, y_grid, dt
+    return fields, x, y, dt
 
 
 def JOREK_electrostatic_naomi(configuration):
@@ -376,43 +376,139 @@ def FDS_Carpark(configuration):
 
 # The well datasets.
 def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
-    reynolds = configuration['Data']['reynolds']
+    #https://polymathic-ai.org/the_well/datasets/shear_flow/
+    reynolds = configuration['Data']['reynolds'][0]
     schmidt = configuration['Data']['schmidt']
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/shear_flow/data/test'
-    file = f'shear_flow_Reynolds_{reynolds}_Schmidt_{schmidt}.hdf5'
-    data_vars = {}
-    with h5py.File(data_loc + '/' + file, 'r') as f:
-        def extract_data(name, obj):
-            """Recursively extract data from HDF5 file"""
-            if isinstance(obj, h5py.Dataset):
-                # Convert dataset to numpy array and store with key as variable name
-                var_name = name.replace('/', '_')  # Replace '/' with '_' for valid variable names
-                data_vars[var_name] = np.asarray(obj)
-                print(f"Extracted {var_name}: shape {data_vars[var_name].shape}")
-        
-        # Recursively visit all items in the file
-        f.visititems(extract_data)
 
+    u_list = []
+    v_list = []
+    p_list = []
+    for ii in tqdm(range(len(schmidt))):
+        file = f'shear_flow_Reynolds_{reynolds}_Schmidt_{schmidt[ii]}.hdf5'
+        print(file)
+        data_vars = {}
+        
+        with h5py.File(data_loc + '/' + file, 'r') as f:
+            def extract_data(name, obj):
+                """Recursively extract data from HDF5 file"""
+                if isinstance(obj, h5py.Dataset):
+                    # Convert dataset to numpy array and store with key as variable name
+                    var_name = name.replace('/', '_')  # Replace '/' with '_' for valid variable names
+                    data_vars[var_name] = np.asarray(obj)
+                    print(f"Extracted {var_name}: shape {data_vars[var_name].shape}")
+
+            # Move this line INSIDE the with block
+            f.visititems(extract_data)
+
+        # Now process the extracted data (outside the with block is fine)
         x = data_vars.get('dimensions_x')
-        y = data_vars.get('dimensions_x')
+        y = data_vars.get('dimensions_y')  # Note: this looks like a typo - should this be 'dimensions_y'?
         t = data_vars.get('dimensions_time')
         dt = t[1] - t[0]
 
         u = data_vars.get('t1_fields_velocity')[..., 0]
         v = data_vars.get('t1_fields_velocity')[..., 1]
         p = data_vars.get('t0_fields_pressure')
-        reynolds = data_vars.get('scalars_Reynolds')
-        schmidt = data_vars.get('scalars_Schmidt')
+        reynolds_scalar = data_vars.get('scalars_Reynolds')
+        schmidt_scalar = data_vars.get('scalars_Schmidt')
+
+        u_list.append(u)
+        v_list.append(v)       
+        p_list.append(p)
+        
+    u = np.concatenate(u_list, axis=0)
+    v = np.concatenate(v_list, axis=0)
+    p = np.concatenate(p_list, axis=0)
 
     fields = stacked_fields([u,v])
 
     #Slicing the data to reduce the size.
-    fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
+    fields = fields[:configuration['Data']['ntrain'],:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
     x = x[::configuration['Physics']['x_slice']]
     y = x[::configuration['Physics']['y_slice']]
     dt = dt*configuration['Physics']['t_slice']
 
+
     return fields, x, y, dt
+
+
+
+def Euler_Quadrants(configuration, gamma= ['1.365'], gas = ['Dry_air_1000']):
+    #https://polymathic-ai.org/the_well/datasets/euler_multi_quadrants_periodicBC/
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/test'
+
+    rho_list = []
+    E_list = []
+    px_list = []
+    py_list = []
+    P_list = []
+    
+    gamma = gamma[0]  # Assuming gamma is a list with one element
+    for ii in tqdm(range(len(gas))):
+        file = f'euler_multi_quadrants_periodicBC_gamma_{gamma}_{gas[ii]}.hdf5'
+        print(file)
+        data_vars = {}
+        
+        with h5py.File(data_loc + '/' + file, 'r') as f:
+            def extract_data(name, obj):
+                """Recursively extract data from HDF5 file"""
+                if isinstance(obj, h5py.Dataset):
+                    # Convert dataset to numpy array and store with key as variable name
+                    var_name = name.replace('/', '_')  # Replace '/' with '_' for valid variable names
+                    data_vars[var_name] = np.asarray(obj)
+                    print(f"Extracted {var_name}: shape {data_vars[var_name].shape}")
+
+            f.visititems(extract_data)
+
+        # Now process the extracted data (outside the with block is fine)
+        x = data_vars.get('dimensions_x')
+        y = data_vars.get('dimensions_y')  # Note: this looks like a typo - should this be 'dimensions_y'?
+        t = data_vars.get('dimensions_time')
+        dt = t[1] - t[0]
+
+        rho = data_vars.get('t0_fields_density')
+        E = data_vars.get('t0_fields_energy')
+        px = data_vars.get('t1_fields_momentum')[..., 0]
+        py = data_vars.get('t1_fields_momentum')[..., 1]
+        P = data_vars.get('t0_fields_pressure')
+        gamma_scalar = data_vars.get('scalars_gamma')
+
+        rho_list.append(rho)
+        E_list.append(E)
+        px_list.append(px)
+        py_list.append(py)
+        P_list.append(P)
+            
+        del rho, E, px, py, P
+
+
+    rho = np.concatenate(rho_list, axis=0)
+    E = np.concatenate(E_list, axis=0)
+    px = np.concatenate(px_list, axis=0)
+    py = np.concatenate(py_list, axis=0)
+    P = np.concatenate(P_list, axis=0)
+
+    del rho_list, E_list, px_list, py_list, P_list
+
+
+    fields = stacked_fields([rho, E, px, py, P])
+
+    del rho, E, px, py, P
+
+
+    #Slicing the data to reduce the size.
+    fields = fields[:configuration['Data']['ntrain'],:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
+    x = x[::configuration['Physics']['x_slice']]
+    y = x[::configuration['Physics']['y_slice']]
+    dt = dt*configuration['Physics']['t_slice']
+
+
+    return fields, x, y, dt
+
+
+
+
 
 
 # %%

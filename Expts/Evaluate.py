@@ -5,7 +5,7 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'warm-shim'
+run_name = 'moist-niche'
 data_name = None
 
 class Run:
@@ -31,18 +31,17 @@ data_loc = os.path.dirname(os.getcwd()) + '/Data/'
 model_loc = file_loc + '/Weights/' + run_name
 plot_loc = file_loc + '/Plots'
 tmp_loc = os.getcwd() + '/tmp'
-try: 
+
+# Create tmp directory if it doesn't exist, or recreate it if it does
+if os.path.exists(tmp_loc):
     shutil.rmtree(tmp_loc)
-    os.mkdir(tmp_loc)
-except:
-    pass
+os.makedirs(tmp_loc, exist_ok=True)
 
 # %%
 #Loading the yaml file to get the configuration.
 run_id = client.get_run_id_from_name(run_name)
 client.get_artifacts_as_files(run_id, category='code', output_dir=tmp_loc)
 configuration = yaml.safe_load(open(next(Path(tmp_loc).glob('*.yaml'))))
-# client.get_run(run_id)
 # %% 
 #Importing the necessary packages
 import sys
@@ -74,13 +73,14 @@ t1 = default_timer()
 n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test-train-split'])
 configuration['Data']['ntrain'] = n_sims
 from data_loaders import *
-if data_name == None: 
-    pde = configuration['Physics']['pde']
+if data_name != None: 
+        pde = data_name 
 else: 
-    pde = data_name 
+    pde = configuration['Physics']['pde']
+
 if pde == 'Navier-Stokes':
     fields, x, y, dt = Navier_Stokes_Spectral(configuration)
-if pde == 'Euler Fluid':
+if pde == 'Euler-Fluid':
     fields, x, y, dt = Euler_FV(configuration)
 if pde == 'Incomp. Navier-Stokes':
     fields, force, x, y, dt = Navier_Stokes_Incomp(configuration)
@@ -109,7 +109,7 @@ client.get_artifact_as_file(client.get_run_id_from_name(run_name), name='norms.n
 norms = np.load(tmp_loc +'/norms.npz')
 
 normalizer_func = Normalisation(configuration['Data']['normalisation'])
-normalizer = normalizer_func(torch.tensor(0))
+normalizer = normalizer_func(torch.zeros_like(fields))
 normalizer.a, normalizer.b = torch.tensor(norms['a']), torch.tensor(norms['b'])
 
 fields_encoded = normalizer.encode(fields)

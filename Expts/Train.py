@@ -14,6 +14,7 @@ import sys
 sys.path.append("..")
 from Utils.simvue_utils import flatten_dict
 
+# %%
 #Config files.
 def parse_args():
     parser = argparse.ArgumentParser(description='Training script with YAML config')
@@ -39,7 +40,7 @@ with Run(mode='online') as run:
     run.save_file(os.path.abspath(args.config), 'code')
     
     if configuration['Model']['operator splitting']:
-        run.save_file(os.path.abspath('Expts/operator_splitting.py'), 'code')
+        run.save_file(os.path.abspath('operator_splitting.py'), 'code')
 
     import git
     repo = git.Repo(search_parent_directories=True)
@@ -99,6 +100,10 @@ with Run(mode='online') as run:
             fields, x, y, dt = JOREK_electrostatic(configuration)
     if pde == 'FDS':
             fields, x, y, dt = FDS_Carpark(configuration)
+    if pde == 'Shear Flow':
+        fields, x, y, dt = Shear_Flow(configuration)
+    if pde == 'Euler Quadrant':
+        fields, x, y, dt = Euler_Quadrants(configuration)
             
     t = torch.arange(0, configuration['Data']['t_out']*dt, dt)
 

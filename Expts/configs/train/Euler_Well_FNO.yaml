@@ -1,38 +1,41 @@
+#https://polymathic-ai.org/the_well/datasets/euler_multi_quadrants_periodicBC/
   seed: 907
 
   Physics: 
-    pde: 'Navier-Stokes'
-    source: 'Spectral' 
-    field: 'u, v'
-    variables: 2
-    Nx: 100
-    Ny: 100
-    Nt: 100
-    dx: 0.01
-    dy: 0.01
-    dt: 0.01
-    x_slice: 1
-    y_slice: 1
+    pde: 'Euler Quadrant'
+    source: 'The Well' 
+    field: 'rho, E, px, py, P'
+    variables: 5
+    Nx: 512
+    Ny: 512
+    Nt: 101
+    dx: 0.039
+    dy: 0.019
+    dt: 0.015
+    x_slice: 4
+    y_slice: 4
     t_slice: 1
     physics normalisation: False
 
   Model:
     arch: 'FNO'
-    in_vars: 2
-    out_vars: 2
+    in_vars: 5
+    out_vars: 5
     modes: 8
     width: 16
-    n_layers: 3
+    n_layers: 4
     act: 'gelu'
-    operator splitting: True
+    operator splitting: False
     ops_split normalise: False
 
   Data: 
-    name: 'NS_Spectral_combined.npz'
-    loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
-    ntrain: 100
+    gamma: ['1.365'] 
+    schmidt: ['Dry_air_1000'] 
+    name: 'Euler Quadrant'
+    loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets//euler_multi_quadrants_periodicBC/data/test'
+    ntrain: 50
     test-train-split: 0.2
-    batch size: 10
+    batch size: 5
     t_in: 1
     t_out: 50
     step: 1
@@ -68,4 +71,4 @@
   Simvue:
     mode: 'online'
     name: None 
-    folder: '/Neural_PDE/NS_Spectral' 
+    folder: '/Neural_PDE/NS_Shearflow' 

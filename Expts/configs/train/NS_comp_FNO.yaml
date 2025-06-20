@@ -6,7 +6,7 @@ Physics:
   source: 'PDEBench' 
   coeff: 'M0.1_Eta0.1_Zeta0.1'
   field: 'u, v, p, rho'
-  variables: 3
+  variables: 4
   Nx: 128
   Ny: 128
   Nt: 21
@@ -20,14 +20,15 @@ Physics:
 
 Model:
   arch: 'FNO'
-  in_vars: 3
-  out_vars: 3
-  modes: 16
-  width: 32
+  in_vars: 4
+  out_vars: 4
+  modes: 8
+  width: 16
   n_layers: 4
   act: 'gelu'
-  operator splitting: True
-
+  operator splitting: False
+  ops_split normalise: False
+  
 Data: 
   name: '2D_CFD_Rand_M0.1_Eta0.01_Zeta0.01_periodic_128_Train.hdf5' #and others
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/PDEBench/pdebench/2D/CFD/2D_Train_Rand/'
@@ -35,13 +36,13 @@ Data:
   test-train-split: 0.2
   batch size: 10
   t_in: 1
-  t_out: 21
+  t_out: 20
   step: 1
   normalisation: 'Min-Max_variable'
 
 Opt:
   optimizer: 'adam'
-  epochs: 5
+  epochs: 500
   learning rate: 0.005
   beta1: 0.9
   beta2: 0.9
@@ -60,6 +61,7 @@ Train:
     source: 'custom' #'torchdiffeq', 'custom'
     method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
+  batch_norm: False
   checkpoint:
     epochs: 100
   restart: False
