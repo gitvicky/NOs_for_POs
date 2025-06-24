@@ -21,6 +21,7 @@ Model:
   width: 32
   act: 'tanh'
   operator splitting: False
+  ops_split normalise: False
 
 Data: 
   name: 'JOREK_filtered.npz'
