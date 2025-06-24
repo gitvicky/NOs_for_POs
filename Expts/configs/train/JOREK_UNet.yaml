@@ -18,6 +18,8 @@ Physics:
 
 Model:
   arch: 'U-Net'
+  in_vars: 3
+  out_vars: 3
   width: 32
   act: 'tanh'
   operator splitting: False

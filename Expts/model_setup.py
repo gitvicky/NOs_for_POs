@@ -38,7 +38,6 @@ def model_initialisation(configuration, normalizer, run):
             from operator_splitting import Comp_NS_PDEB_OS_rhs
             model = Comp_NS_PDEB_OS_rhs(configuration)
 
-        
     else:
             
         if configuration['Model']['arch'] == 'FNO':

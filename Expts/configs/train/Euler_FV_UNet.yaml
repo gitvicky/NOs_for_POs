@@ -19,9 +19,13 @@ Physics:
 
 Model:
   arch: 'U-Net'
+  in_vars: 4
+  out_vars: 4
   width: 32
   act: 'tanh'
   operator splitting: True
+  ops_split normalise: True
+
 
 Data: 
   name: 'NS_FV_combined.npz'
