@@ -84,6 +84,8 @@ with Run(mode='online') as run:
 
     from data_loaders import *
     pde = configuration['Physics']['pde']
+    if pde == 'Wave':
+        fields, x, y, dt = Wave_Spectral(configuration)
     if pde == 'Navier-Stokes':
         fields, x, y, dt = Navier_Stokes_Spectral(configuration)
     if pde == 'Euler-Fluid':

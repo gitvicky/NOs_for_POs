@@ -77,6 +77,30 @@ class SpatioTemporalDataset(Dataset):
 
 
 # %% 
+
+def Wave_Spectral(configuration):
+    #Testing with NS_Spectral (for now)
+    n_sims = configuration['Data']['ntrain']
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+    data =  np.load(data_loc + '/Spectral_Wave_data_LHS.npz')
+
+    u = data['u'].astype(np.float32)[:n_sims]
+    x = data['x']
+    y = data['y']
+    t = data['t']
+    dt = torch.tensor(t[1] - t[0], dtype=torch.float)
+
+    fields = stacked_fields([u])
+
+    #Slicing the data to reduce the size.
+    fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
+    x = x[::configuration['Physics']['x_slice']]
+    y = x[::configuration['Physics']['y_slice']]
+    dt = dt*configuration['Physics']['t_slice']
+
+    return fields, x, y, dt
+
+
 def Navier_Stokes_Spectral(configuration):
     #Testing with NS_Spectral (for now)
     n_sims = configuration['Data']['ntrain']

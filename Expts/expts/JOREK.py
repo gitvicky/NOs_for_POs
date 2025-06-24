@@ -29,7 +29,7 @@ configuration = {"Case": 'JOREK',
                  "Variables": 3, 
                  "Loss Function": 'LP',
                  "POs": False,
-                 "Rollout": 'RK4'
+                 "Rollout": 'AR'
                  }
 
 
@@ -65,6 +65,7 @@ from tqdm import tqdm
 #Importing the models and utilities. 
 import sys
 sys.path.append("..")
+
 if configuration['Model'] == 'FNO':
     from Neural_PDE.Models.FNO import *
 elif configuration['Model'] == 'ViT':
