@@ -60,7 +60,7 @@ Where:
 - **Hybrid Learning Approach**: Neural operators for complex terms, finite differences for linear terms
 - **Physical Residual Estimation (PRE)**: Classical stencil-based operator approximations
 - **Multiple Neural Operators**: Support for FNO, CNO, U-Net, ConvNets optimized for operator type
-- **Advanced Time Integration**: IMEX schemes, operator splitting methods, Neural-ODE
+- **Advanced Time Integration**: Euler, Midpoint, RK4 along with their adjoint versions
 - **Physics-Informed**: Maintains mathematical structure and stability properties
 - **Multiple PDEs**: Navier-Stokes, Euler, reaction-diffusion, MHD, and more
 
@@ -83,7 +83,6 @@ Where:
 ├── Utils/                          # Utilities
 │   ├── explicit_time.py            # Explicit time stepping
 │   ├── torch_odesolve.py           # Neural-ODE integration
-│   ├── imex_schemes.py             # IMEX time integration
 │   ├── plots.py                    # Visualization tools
 │   └── metrics.py                  # Performance metrics
 └── configs/                        # Configuration files
@@ -380,7 +379,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Fourier Neural Operator](https://github.com/neuraloperator/neuraloperator)
 - [Finite Difference Methods](https://github.com/maroba/findiff)
 - [Physics-Informed Neural Networks](https://github.com/maziarraissi/PINNs)
-- [Operator Splitting](https://github.com/operator-splitting/methods)
+- [Operator Splitting](https://hplgit.github.io/fdm-book/doc/pub/book/sphinx/._book018.html)
 - [Neural ODEs](https://github.com/rtqichen/torchdiffeq)
 
 ## 📧 Contact
