@@ -141,7 +141,7 @@ class Train_Setup():
             l2_full = self.loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1))
             train_l2_full += l2_full.item()
 
-            loss.backward(retain_graph=True) # retain_graph=True is needed for multiple backward passes in the loop for laplace and gradient operations.
+            loss.backward() # retain_graph=True is needed for multiple backward passes in the loop for laplace and gradient operations.
             grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
             if grad_norm > self.grad_clip:
                 print(f"Warning: Gradient norm {grad_norm:.2f} exceeded clip threshold")

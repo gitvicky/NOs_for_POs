@@ -30,9 +30,9 @@ Model:
 Data: 
   name: 'JOREK_filtered.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
-  ntrain: 200
+  ntrain: 20
   test-train-split: 0.2
-  batch size: 50
+  batch size: 10
   t_in: 1
   t_out: 50
   step: 1
@@ -68,4 +68,4 @@ Train:
 Simvue:
   mode: 'online'
   name: None 
-  folder: '/Neural_PDE/ES_JOREK' 
+  folder: '/Neural_PDE/Wave' 
