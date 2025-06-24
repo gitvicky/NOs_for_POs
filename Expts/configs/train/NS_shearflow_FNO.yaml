@@ -25,7 +25,7 @@
     width: 16
     n_layers: 3
     act: 'gelu'
-    operator splitting: False
+    operator splitting: True
     ops_split normalise: False
 
   Data: 

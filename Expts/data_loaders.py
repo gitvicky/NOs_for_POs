@@ -149,7 +149,7 @@ def Navier_Stokes_Incomp(configuration):
     u = data['velocity'][...,0][:n_sims]
     v = data['velocity'][...,1][:n_sims]
     p = data['pressure'][...,0][:n_sims] #/ 3.0
-    force = data['force']
+    force = data['force']   
 
     fields = stacked_fields([u,v])
     x, y = np.arange(0, 1, 128), np.arange(0, 1, 128) 
@@ -175,7 +175,7 @@ def Navier_Stokes_Incomp(configuration):
 #     # return uv, x, y, dt
 
 
-incompressible_files = {'M0.1_Eta0.01_Zeta0.01': '2D_CFD_Rand_M0.1_Eta0.01_Zeta0.01_periodic_128_Train.hdf5',
+compressible_files = {'M0.1_Eta0.01_Zeta0.01': '2D_CFD_Rand_M0.1_Eta0.01_Zeta0.01_periodic_128_Train.hdf5',
                         'M0.1_Eta0.1_Zeta0.1': '2D_CFD_Rand_M0.1_Eta0.1_Zeta0.1_periodic_128_Train.hdf5',
                         'M1.0_Eta0.01_Zeta0.01': '2D_CFD_Rand_M1.0_Eta0.01_Zeta0.01_periodic_128_Train.hdf5',
                         'M1.0_Eta0.1_Zeta0.1': '2D_CFD_Rand_M1.0_Eta0.1_Zeta0.1_periodic_128_Train.hdf5'}
@@ -185,7 +185,7 @@ def Navier_Stokes_Comp(configuration):
     coeffs = configuration['Physics']['coeff']
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/PDEBench/pdebench/2D/CFD/2D_Train_Rand/'
 
-    with h5py.File(data_loc + incompressible_files[coeffs], 'r') as f:
+    with h5py.File(data_loc + compressible_files[coeffs], 'r') as f:
         keys = list(f.keys())
         vx = f['Vx'][:n_sims]
         vy = f['Vy'][:n_sims]
@@ -246,7 +246,7 @@ def JOREK_electrostatic(configuration):
     t_norm = t_grid / t_grid[-1]
     dt = t_norm[1] - t_norm[0]
     dt = torch.tensor(dt, dtype=torch.float)
-
+    print(dt)
 
     #Slicing the data to reduce the size.
     fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]

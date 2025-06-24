@@ -25,6 +25,9 @@ def model_initialisation(configuration, normalizer, run):
         if pde == 'Navier-Stokes':
             from operator_splitting import NS_spectral_OS_rhs
             model = NS_spectral_OS_rhs(configuration, normalizer, run)
+        if pde == 'Shear Flow':
+            from operator_splitting import NS_shearflow_OS_rhs
+            model = NS_shearflow_OS_rhs(configuration, normalizer, run)
         if pde == 'Euler-Fluid':
             from operator_splitting import Euler_FV_OS_rhs
             model = Euler_FV_OS_rhs(configuration, normalizer, run)
@@ -34,8 +37,8 @@ def model_initialisation(configuration, normalizer, run):
         if pde == 'Comp. Navier-Stokes':
             from operator_splitting import Comp_NS_PDEB_OS_rhs
             model = Comp_NS_PDEB_OS_rhs(configuration)
+
         
-    
     else:
             
         if configuration['Model']['arch'] == 'FNO':

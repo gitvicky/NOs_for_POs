@@ -154,7 +154,7 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
 
 class NS_shearflow_OS_rhs(nn.Module):#Navier-Stokes ShearFlow Operator-Splitting right-hand-side. 
     def __init__(self, configuration, normalizer, run):
-        super(NS_spectral_OS_rhs, self).__init__()
+        super(NS_shearflow_OS_rhs, self).__init__()
 
         self.normalizer = normalizer
         if device == 'cuda':
@@ -174,7 +174,7 @@ class NS_shearflow_OS_rhs(nn.Module):#Navier-Stokes ShearFlow Operator-Splitting
         self.pressure_poisson = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'], grid=[gridx, gridy]) 
         self.convection_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'], grid=[gridx, gridy]) 
         self.laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True, scalar=False)
-        nu = float(1/configuration['Data']['reynolds'][0])
+        nu = 1/float(configuration['Data']['reynolds'][0])
         self.nu = torch.tensor(nu, dtype=torch.float32, requires_grad=True).to(device)
 
     def forward(self, vars):
@@ -228,7 +228,6 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         # #Using predetermined operators.
         # self.divergence_operator = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
         # self.gradient_operator = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
-
 
         # #FNO - conservative variables.
         # self.grad_x = FNO_multi2d(in_vars=4, out_vars=4, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
@@ -328,6 +327,55 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
 #                               "rhs_energy": rhs[:,3:4].detach().mean()
 #                              })
 #         return rhs
+
+    def count_params(self):
+        nparams = 0
+
+        for param in self.parameters():
+            nparams += param.numel()
+        return nparams 
+
+
+class Euler_Quadrant_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Operator-Splitting right-hand-side.
+    def __init__(self, configuration, normalizer, run):
+        super(Euler_Quadrant_OS_rhs, self).__init__()
+
+        self.run = run
+        self.normalizer = normalizer
+        if device == 'cuda':
+            self.normalizer.cuda()
+        else:
+            self.normalizer.cpu()
+
+        self.gamma = torch.tensor(float(configuration['Data']['gamma']), dtype=torch.float32, requires_grad=True).to(device)
+        self.eps = torch.tensor(1e-6, dtype=torch.float32, requires_grad=True).to(device)
+
+        #FNO - primitive variables.
+        self.F_x = FNO_multi2d(in_vars=4, out_vars=4, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
+        self.G_y = FNO_multi2d(in_vars=4, out_vars=4, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
+
+#Using conservative variables.
+    def forward(self, vars): 
+
+        M = vars[:, 0:1]  # Mass density
+        Mx = vars[:, 1:2]  # x-momentum density
+        My = vars[:, 2:3]  # y-momentum density
+        E = vars[:, 3:4]  # Energy density
+        P = (self.gamma - 1) * (E - 0.5 * (Mx**2 + My**2) / M)  # Pressure from energy density
+        P = torch.maximum(P, 1e-10)  # Pressure floor
+
+        F_rhs = torch.cat((Mx, Mx**2/M + P,  (Mx*My)/M, (E+P)*(Mx/M)), dim=1)
+        G_rhs = torch.cat((My, (Mx*My)/M, My**2/M + P, (E+P)*(My/M)), dim=1)
+
+        F_x_vals = self.F_x(F_rhs)
+        G_y_vals = self.G_y(G_rhs)
+        rhs = - F_x_vals - G_y_vals # Divergence of F
+
+        self.run.log_metrics({"rhs_mass": rhs[:,0:1].detach().mean(),
+                              "rhs_mom.": rhs[:,1:3].detach().mean(),
+                              "rhs_energy": rhs[:,3:4].detach().mean()
+                             })
+        return rhs
 
     def count_params(self):
         nparams = 0
@@ -438,6 +486,34 @@ class Comp_NS_PDEB_OS_rhs(nn.Module):#PDE Bench Compressible Navier-Stokes Opera
         return nparams 
 
 
+class JOREK_ES_OS_RHS(nn.Module):
+    def __init__(self, configuration):
+        super(JOREK_ES_OS_RHS, self).__init__()
+        #R taken as the x-axis and Z as the y-axis.
+
+        self.grad_R = ConvOperator(domain=('x'), order=1, taylor_order=2 , boundary_cond='periodic', device=device, requires_grad=True)
+        self.grad_Z = ConvOperator(domain=('y'), order=1, taylor_order=2 , boundary_cond='periodic', device=device, requires_grad=True)
+        self.grad_RR = ConvOperator(domain=('x'), order=2, taylor_order=2 , boundary_cond='periodic', device=device, requires_grad=True)
+        self.grad_ZZ = ConvOperator(domain=('y'), order=2, taylor_order=2 , boundary_cond='periodic', device=device, requires_grad=True)
+        self.NO = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
+
+        R = torch.tensor(np.linspace(9.5, 10.5, 100), dtype=torch.float32, requires_grad=True).to(device)
+        Z = torch.tensor(np.linspace(-0.5, 0.5, 100), dtype=torch.float32, requires_grad=True).to(device)
+
+        self.R, self.Z = torch.meshgrid(R, Z, indexing='ij')  # Create a meshgrid for R and Z
+        self.D = torch.tensor(1e-5, dtype=torch.float32, requires_grad=True).to(device)
+        self.mu = torch.tensor(1e-4, dtype=torch.float32, requires_grad=True).to(device)
+        self.T = torch.tensor(1e-3, dtype=torch.float32, requires_grad=True).to(device)
+        
+    def forward(self, vars):
+        rho = vars[:, 0:1]
+        phi = vars[:, 1:2]
+
+        rho_rhs = self.R*self.NO(vars) + 2*rho*self.grad_Z(phi) + self.D*(self.grad_RR(rho) + (1/self.R)*self.grad_R(rho) + self.grad_ZZ(rho))
+
+        return rho_rhs                  
+                                                              
+                                        
 # %% 
 # #Example Usage
 # import yaml

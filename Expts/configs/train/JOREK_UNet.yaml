@@ -17,15 +17,10 @@ Physics:
   physics normalisation: True
 
 Model:
-  arch: 'FNO'
-  in_vars: 3
-  out_vars: 3
-  modes: 16
+  arch: 'U-Net'
   width: 32
-  n_layers: 4
-  act: 'gelu'
+  act: 'tanh'
   operator splitting: False
-  ops_split normalise: False
 
 Data: 
   name: 'JOREK_filtered.npz'
