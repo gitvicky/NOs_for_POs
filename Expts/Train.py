@@ -115,6 +115,8 @@ with Run(mode='online') as run:
     expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['variables'], configuration['Physics']['Nx']//configuration['Physics']['x_slice'], configuration['Physics']['Ny']//configuration['Physics']['y_slice'], configuration['Data']['t_out'])
     assert fields.shape == expected_shape, \
         f"Expected fields shape to be {expected_shape}, but got {fields.shape}"
+    
+    print("Data shape: " + str(fields.shape))
 
     # %%
     #Normalising the data -- using the same normalisations for inputs and outputs

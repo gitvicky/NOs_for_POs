@@ -22,7 +22,7 @@ from timeit import default_timer
 from torchdiffeq import odeint
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-max_grad_clip_norm = 2.0   
+max_grad_clip_norm = 10.0
 # %% 
 #Options for temporal propagation. 
 
@@ -123,8 +123,9 @@ class Train_Setup():
 
             for t in range(0, train_T_out, step):
                 y = yy[..., t:t + step]
-                xx = xx + self.noisy_factor*torch.randn_like(xx) #Adding noise to the input.
-                xx = self.bn(xx) #Batch Normalisation
+                # xx = xx + self.noisy_factor*torch.randn_like(xx) #Adding noise to the input.
+                # xx = self.bn(xx) #Batch Normalisation
+
                 im = self.forward(self.model, xx, dt)
 
                 #Recon Loss
@@ -136,16 +137,17 @@ class Train_Setup():
                     pred = torch.cat((pred, im), -1)
 
                 xx = torch.cat((xx[..., step:], im), dim=-1)
+            
+            loss.backward() # retain_graph=True is needed for multiple backward passes in the loop for laplace and gradient operations.
+            self.optimizer.step()
 
             # train_l2_step += loss.item()
-            l2_full = self.loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1))
-            train_l2_full += l2_full.item()
+            l2_full = self.loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1)).item()
+            train_l2_full += l2_full
 
-            loss.backward() # retain_graph=True is needed for multiple backward passes in the loop for laplace and gradient operations.
             grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
             if grad_norm > self.grad_clip:
                 print(f"Warning: Gradient norm {grad_norm:.2f} exceeded clip threshold")
-            self.optimizer.step()
 
         train_loss = train_l2_full 
 

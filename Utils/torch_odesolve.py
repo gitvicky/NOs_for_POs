@@ -6,7 +6,7 @@ from timeit import default_timer
 from torchdiffeq import odeint, odeint_adjoint
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-max_grad_clip_norm = 2.0   
+max_grad_clip_norm = 10.0   
 
 # %% 
 # ODEFunc to be used with torchdiffeq

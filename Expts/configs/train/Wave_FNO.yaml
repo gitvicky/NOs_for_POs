@@ -30,7 +30,7 @@ Model:
 Data: 
   name: 'JOREK_filtered.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
-  ntrain: 20
+  ntrain: 200
   test-train-split: 0.2
   batch size: 10
   t_in: 1
@@ -53,7 +53,7 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 50
+  rollout_length: 20
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'

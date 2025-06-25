@@ -7,7 +7,7 @@ Evaluating Trained Models using simvue's client API.
 #Specifying the run instance
 run_name = 'moist-niche'
 data_name = None
-
+# %%
 class Run:
     def __init__(self, name=None):
         self.name = name

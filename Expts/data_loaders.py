@@ -25,7 +25,10 @@ class SpatioTemporalDataset(Dataset):
             input_window (int): Number of time steps to use as input
             prediction_steps (int): Number of steps to predict ahead
         """
-        self.data = torch.tensor(data, dtype=torch.float32)
+        if isinstance(data, np.ndarray):
+            self.data = torch.tensor(data, dtype=torch.float32)
+        else:
+            self.data = data.float()
         self.input_window = input_window
         self.prediction_steps = prediction_steps
         
