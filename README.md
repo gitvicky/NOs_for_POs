@@ -92,6 +92,8 @@ Where:
 
 ```bash
 git clone https://github.com/yourusername/NOs_for_POs.git
+git submodule init
+git submodule update
 cd NOs_for_POs
 
 # Install dependencies
