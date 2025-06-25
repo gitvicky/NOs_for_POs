@@ -97,7 +97,7 @@ sys.path.append("..")
 if configuration['Model'] == 'FNO':
     from Neural_PDE.Models.FNO import *
 elif configuration['Model'] == 'ViT':
-    from Neural_PDE.Models.ViT import * 
+    from Neural_PDE.Models.ViT_error import * 
 
 from Neural_PDE.Utils.processing_utils import * 
 from Neural_PDE.Utils.training_utils import * 
