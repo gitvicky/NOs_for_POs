@@ -22,7 +22,7 @@ For example, the Navier-Stokes equation:
 becomes:
 ```
 du/dt = NO_nonlinear(u) + NO_linear(u) + NO_pressure(u)
-       = -NO_convection(u) + ν·NO_diffusion(u) - NO_gradient(p)
+       = -NO_convection(u) + ν·laplace(u) - gradient(p)
 ```
 
 Where:
@@ -60,7 +60,7 @@ Where:
 - **Hybrid Learning Approach**: Neural operators for complex terms, finite differences for linear terms
 - **Physical Residual Estimation (PRE)**: Classical stencil-based operator approximations
 - **Multiple Neural Operators**: Support for FNO, CNO, U-Net, ConvNets optimized for operator type
-- **Advanced Time Integration**: Euler, Midpoint, RK4 along with their adjoint versions
+- **Time Integration**: Euler, Midpoint, RK4 along with their adjoint versions
 - **Physics-Informed**: Maintains mathematical structure and stability properties
 - **Multiple PDEs**: Navier-Stokes, Euler, reaction-diffusion, MHD, and more
 
@@ -153,15 +153,6 @@ Train:
   hybrid_training: true  # FD for linear, Neural for nonlinear
 ```
 
-## 📊 Supported PDEs with Operator Splitting
-
-| PDE | Linear Operators (FD/Neural) | Nonlinear Operators (Neural) | Implementation |
-|-----|-------------------------------|-------------------------------|----------------|
-| **Navier-Stokes** | Diffusion (ν∇²u), Pressure (∇p) | Convection ((u·∇)u) | `NS_LinearNonlinear_OS` |
-| **Euler Equations** | Pressure gradients | Advection, Shock formation | `Euler_LinearNonlinear_OS` |
-| **Reaction-Diffusion** | Diffusion (D∇²c) | Reaction terms (f(c)) | `ReactionDiffusion_OS` |
-| **Burgers** | Diffusion (ν∇²u) | Advection (u∇u) | `Burgers_LinearNonlinear_OS` |
-| **MHD** | Magnetic diffusion | Nonlinear magnetic terms | `MHD_LinearNonlinear_OS` |
 
 ## 🔧 Operator Types and Implementation Strategies
 
