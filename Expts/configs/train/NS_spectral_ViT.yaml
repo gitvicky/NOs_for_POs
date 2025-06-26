@@ -11,18 +11,18 @@ Physics:
   Nt: 100
   dt: 0.01
   rollout: 'Midpoint'
-  physics normalisation: False
+  physics_normalisation: False
 
 Model:
   arch: 'ViT'
-  patch size: 10
-  embed dim: 128
-  in channels: 3
-  out channels: 3
-  time channels: 1
+  patch_size: 10
+  embed_dim: 128
+  in_channels: 3
+  out_channels: 3
+  time_channels: 1
   depth: 2
-  num heads: 2
-  operator splitting: False
+  num_heads: 2
+  operator_splitting: False
 
 
 
@@ -30,8 +30,8 @@ Data:
   name: 'NS_Spectral_combined.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
   ntrain: 100
-  test-train-split: 0.2
-  batch size: 1
+  test_train_split: 0.2
+  batch_size: 1
   t_in: 1
   t_out: 50
   step: 1
@@ -40,13 +40,13 @@ Data:
 Opt:
   optimizer: 'adam'
   epochs: 500
-  learning rate: 0.005
+  learning_rate: 0.005
   beta1: 0.9
   beta2: 0.9
   weight_decay: 1e-4
   scheduler: 'step'  
-  scheduler step : 100
-  scheduler gamma: 0.5
+  scheduler_step: 100
+  scheduler_gamma: 0.5
   grad_clip: 2.0
 
 Train: 
@@ -55,7 +55,7 @@ Train:
   checkpoint:
     epochs: 100
   restart: False
-  restart run name: '' #simvue run name to restart from. 
+  restart_run_name: '' #simvue run name to restart from.
 
 Simvue:
   mode: 'online'

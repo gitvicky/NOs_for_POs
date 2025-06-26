@@ -11,17 +11,18 @@ from Neural_PDE.Models.ViT import *
 from Neural_PDE.Models.UNet import * 
 from Neural_PDE.Models.CNO import * 
 from Neural_PDE.Models.gMLP_Vision import * 
-from Neural_PDE.Models.ConvOperator import *
-
+# from Neural_PDE.Models.ConvOperator import *
 # from neuralop.models import FNO2d
 
+#Function to count_params
+count_parameters = lambda model: sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 def model_initialisation(configuration, normalizer, run):
     pde = configuration['Physics']['pde']
 
-    if configuration['Model']['operator splitting'] == True: 
+    if configuration['Model']['operator_splitting'] == True: 
     
-    #With Operator Splitting.
+    #With operator_splitting.
         if pde == 'Navier-Stokes':
             from operator_splitting import NS_spectral_OS_rhs
             model = NS_spectral_OS_rhs(configuration, normalizer, run)
@@ -41,7 +42,7 @@ def model_initialisation(configuration, normalizer, run):
     else:
             
         if configuration['Model']['arch'] == 'FNO':
-            if configuration['Model']['operator splitting'] == False:
+            if configuration['Model']['operator_splitting'] == False:
                 model = FNO_multi2d(configuration['Model']['in_vars'], 
                                     configuration['Model']['out_vars'], 
                                     configuration['Model']['modes'], 
@@ -52,7 +53,7 @@ def model_initialisation(configuration, normalizer, run):
 
         # IF USING THE NEURALOP LIBRARY:
         # if configuration['Model']['arch'] == 'FNO':
-        #     if configuration['Model']['operator splitting'] == False:
+        #     if configuration['Model']['operator_splitting'] == False:
         #         model = FNO2d(
         #                 n_modes_height=configuration['Model']['modes'],       # Number of Fourier modes to keep along height dimension
         #                 n_modes_width=configuration['Model']['modes'],        # Number of Fourier modes to keep along width dimension
@@ -70,33 +71,34 @@ def model_initialisation(configuration, normalizer, run):
         #         )
             
         elif configuration['Model']['arch'] == 'U-Net':
-            model = UNet2d(configuration['Data']['t_in'], 
-                        configuration['Data']['step'], 
-                        configuration['Model']['width'], 
-                        configuration['Model']['in_vars'],
-                        configuration['Model']['out_vars']
+            model = UNet2d(in_channels=configuration['Data']['t_in'], 
+                        out_channels=configuration['Data']['step'], 
+                        init_features=configuration['Model']['width'], 
+                        # in_vars=configuration['Model']['in_vars'],
+                        # out_vars=configuration['Model']['out_vars']
                         )
-        
+            print('here')
+
         elif configuration['Model']['arch'] == 'ViT':
             model = ViT(
                 image_size=(configuration['Physics']['Nx'], configuration['Physics']['Ny']),
-                patch_size=(configuration['Model']['patch size'], configuration['Model']['patch size']),
-                embed_dim=configuration['Model']['embed dim'],
+                patch_size=(configuration['Model']['patch_size'], configuration['Model']['patch_size']),
+                embed_dim=configuration['Model']['embed_dim'],
                 depth=configuration['Model']['depth'],
-                n_heads=configuration['Model']['num heads'],
+                n_heads=configuration['Model']['num_heads'],
                 channels=configuration['Physics']['variables'],
                 mlp_dim = 256,
                 dim_head = 32
                 )
         
         elif configuration['Model']['arch'] == 'CNO':
-            model = CNO2d(in_dim = configuration['Model']['in channels'],             
-                        out_dim = configuration['Model']['out channels'],
+            model = CNO2d(in_dim = configuration['Model']['in_channels'],             
+                        out_dim = configuration['Model']['out_channels'],
                         size = configuration['Model']['Nx'],
                         N_layers = configuration['Model']['N_layers'],
                         N_res = configuration['Model']['N_res'],
                         N_res_neck = configuration['Model']['N_res_neck'],
-                        channel_multiplier = configuration['Model']['channel multiplier'],
+                        channel_multiplier = configuration['Model']['channel_multiplier'],
                         use_bn = True
                         )      
             
@@ -109,18 +111,15 @@ def model_initialisation(configuration, normalizer, run):
                         Ny = configuration['Model']['Ny'])
             
         
-        elif configuration['Model']['arch'] == 'Conv':
-            model = ConvolutionalModel(
-                in_features=configuration['Model']['in_vars'],
-                out_features=configuration['Model']['out_vars'],
-                hidden_features=configuration['Model']['hidden_vars'],
-                num_layers=configuration['Model']['n_layers'],
-                activation=configuration['Model']['act'],
-                final_activation='none',
-                init_type='random'
-            )
+        # elif configuration['Model']['arch'] == 'Conv':
+        #     model = ConvolutionalModel(
+        #         in_features=configuration['Model']['in_vars'],
+        #         out_features=configuration['Model']['out_vars'],
+        #         hidden_features=configuration['Model']['hidden_vars'],
+        #         num_layers=configuration['Model']['n_layers'],
+        #         activation=configuration['Model']['act'],
+        #         final_activation='none',
+        #         init_type='random'
+        #     )
 
     return model
-
-#Function to count_params
-count_parameters = lambda model: sum(p.numel() for p in model.parameters() if p.requires_grad)

@@ -39,7 +39,7 @@ with Run(mode='online') as run:
     run.save_file(os.path.abspath(__file__), 'code')
     run.save_file(os.path.abspath(args.config), 'code')
     
-    if configuration['Model']['operator splitting']:
+    if configuration['Model']['operator_splitting']:
         run.save_file(os.path.abspath('operator_splitting.py'), 'code')
 
     import git
@@ -122,7 +122,7 @@ with Run(mode='online') as run:
     #Normalising the data -- using the same normalisations for inputs and outputs
     normalizer_func = Normalisation(configuration['Data']['normalisation'])
     normalizer = normalizer_func(fields, low=-1.0, high=1.0)
-    if configuration['Model']['ops_split normalise']: #Normalise and Denormalise done within the Model. 
+    if configuration['Model']['ops_split_normalise']: #Normalise and Denormalise done within the Model. 
         fields_encoded = fields
     else:
         fields_encoded = normalizer.encode(fields)
@@ -138,7 +138,7 @@ with Run(mode='online') as run:
     # if configuration['Train']['rollout'] == 'full':
 
     #     #Setting up train and test
-    #     train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=configuration['Data']['test-train-split'], random_state=42)
+    #     train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=configuration['Data']['test_train_split'], random_state=42)
     #     print("Training Input: " + str(train_in.shape))
     #     print("Training Output: " + str(train_out.shape))
 
@@ -146,7 +146,7 @@ with Run(mode='online') as run:
     #     train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Data']['batch size'], shuffle=True)
     #     test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch size'], shuffle=False)
 
-    train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=configuration['Data']['test-train-split'], random_state=42)
+    train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=configuration['Data']['test_train_split'], random_state=42)
     
     print("Training Input: " + str(train_in.shape))
     print("Training Output: " + str(train_out.shape))
@@ -158,8 +158,8 @@ with Run(mode='online') as run:
     train_dataset = SpatioTemporalDataset(train_data, input_window, prediction_steps)
 
     #Setting up the data loaders
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=configuration['Data']['batch size'], shuffle=True)
-    test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch size'], shuffle=False)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=configuration['Data']['batch_size'], shuffle=True)
+    test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch_size'], shuffle=False)
 
     t2 = default_timer()
     print('preprocessing finished, time used:', t2-t1)
@@ -176,8 +176,8 @@ with Run(mode='online') as run:
     # print("Number of model params : " + str(model.count_params()))
 
     #Setting up the optimizer and scheduler, loss and epochs 
-    optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning rate'], weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler step'], gamma=configuration['Opt']['scheduler gamma'])
+    optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning_rate'], weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler_step'], gamma=configuration['Opt']['scheduler_gamma'])
     
     if configuration['Model']['arch']=='fno':
         loss_func = LpLoss(size_average=False)
@@ -189,7 +189,7 @@ with Run(mode='online') as run:
 
     #Restarting the run from a checkpoint 
     if configuration['Train']['restart'] == True: 
-        client.get_artifact_as_file(client.get_artifact_as_file(configuration['Train']['restart run name']))
+        client.get_artifact_as_file(client.get_artifact_as_file(configuration['Train']['restart_run_name']))
         ckpt_path = '/tmp/checkpoint.pt'
         checkpoint = torch.load(ckpt_path)
         model.load_state_dict(checkpoint["model"])
@@ -274,7 +274,7 @@ with Run(mode='online') as run:
                         })
 
     #Denormalising the test and predictions
-    if configuration['Model']['ops_split normalise'] == False: #Normalise/Denormalise done within the Model for OS. 
+    if configuration['Model']['ops_split_normalise'] == False: #Normalise/Denormalise done within the Model for OS. 
         test_out = normalizer.decode(test_out.to(device)).cpu()
         pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
     else:

@@ -5,7 +5,7 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'moist-niche'
+run_name = 'sluggish-seat'
 data_name = None
 # %%
 class Run:

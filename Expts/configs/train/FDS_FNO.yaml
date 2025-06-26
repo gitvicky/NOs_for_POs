@@ -14,7 +14,7 @@ Physics:
   x_slice: 1
   y_slice: 1
   t_slice: 2
-  physics normalisation: False
+  physics_normalisation: False
 
 Model:
   arch: 'FNO'
@@ -25,16 +25,16 @@ Model:
   width: 32
   n_layers: 6
   act: 'gelu'
-  operator splitting: False
-  ops_split norm: False
+  operator_splitting: False
+  ops_split_normalise: False
 
 
 Data: 
   name: 'FDS_Carpark_temp_time_average.npy'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
   ntrain: 50
-  test-train-split: 0.0
-  batch size: 20
+  test_train_split: 0.0
+  batch_size: 20
   t_in: 1
   t_out: 60
   step: 1
@@ -43,13 +43,13 @@ Data:
 Opt:
   optimizer: 'adam'
   epochs: 500
-  learning rate: 0.005
+  learning_rate: 0.005
   beta1: 0.9
   beta2: 0.9
   weight_decay: 1e-4
   scheduler: 'step'  
-  scheduler step : 100
-  scheduler gamma: 0.5
+  scheduler_step: 100
+  scheduler_gamma: 0.5
   grad_clip: 2.0
 
 Train: 
