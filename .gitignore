@@ -12,6 +12,7 @@ Models/
 *.pt 
 
 #Venv
+.venv/
 venv/
 
 #Saved Plot

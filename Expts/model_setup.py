@@ -6,9 +6,10 @@ Model Setup
 import sys
 sys.path.append("..")
 
-from Neural_PDE.Models.FNO import *
+from Neural_PDE.Models.FNO_classic import *
 from Neural_PDE.Models.ViT import * 
 from Neural_PDE.Models.UNet import * 
+# from Neural_PDE.Models.PDEUnet import *
 from Neural_PDE.Models.CNO import * 
 from Neural_PDE.Models.gMLP_Vision import * 
 # from Neural_PDE.Models.ConvOperator import *
@@ -16,6 +17,8 @@ from Neural_PDE.Models.gMLP_Vision import *
 
 #Function to count_params
 count_parameters = lambda model: sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def model_initialisation(configuration, normalizer, run):
     pde = configuration['Physics']['pde']
@@ -40,15 +43,15 @@ def model_initialisation(configuration, normalizer, run):
             model = Comp_NS_PDEB_OS_rhs(configuration)
 
     else:
-            
+            #FNO Classic
         if configuration['Model']['arch'] == 'FNO':
             if configuration['Model']['operator_splitting'] == False:
-                model = FNO_multi2d(configuration['Model']['in_vars'], 
-                                    configuration['Model']['out_vars'], 
-                                    configuration['Model']['modes'], 
-                                    configuration['Model']['modes'],
-                                    configuration['Model']['width'],
-                                    configuration['Model']['n_layers']
+                model = FNO_multi2d(T_in = configuration['Data']['t_in'],
+                                    step = configuration['Data']['step'],
+                                    modes1 = configuration['Model']['modes'],       # Number of Fourier modes to keep along height dimension
+                                    modes2 = configuration['Model']['modes'],        # Number of Fourier modes to keep along width dimension
+                                    num_vars = configuration['Model']['in_vars'],     #
+                                    width_time = configuration['Model']['width'],    # Width of the FNO (number of channels)
                                     )
 
         # IF USING THE NEURALOP LIBRARY:
@@ -74,11 +77,22 @@ def model_initialisation(configuration, normalizer, run):
             model = UNet2d(in_channels=configuration['Data']['t_in'], 
                         out_channels=configuration['Data']['step'], 
                         init_features=configuration['Model']['width'], 
-                        # in_vars=configuration['Model']['in_vars'],
-                        # out_vars=configuration['Model']['out_vars']
+                        in_vars=configuration['Model']['in_vars'],
+                        out_vars=configuration['Model']['out_vars']
                         )
-            print('here')
-
+            
+        # elif configuration['Model']['arch'] == 'U-Net':
+        #     model = PDEUNet(
+        #             spatial_channels=2,
+        #             field_channels=configuration['Data']['t_in'],
+        #             output_channels=configuration['Data']['step'],
+        #             len_x=configuration['Physics']['Nx'],
+        #             len_y=configuration['Physics']['Ny'],
+        #             base_channels=configuration['Model']['width'],
+        #             include_residual=True,
+        #             device = device
+        #             )
+        
         elif configuration['Model']['arch'] == 'ViT':
             model = ViT(
                 image_size=(configuration['Physics']['Nx'], configuration['Physics']['Ny']),

@@ -158,17 +158,13 @@ class Train_Setup():
 
         # Move model to device
         self.model.to(device)
-
+        
     def one_epoch(self, step, train_T_out, test_T_out, dt=0):
-        """Run one epoch of training and validation."""
+        """Run one epoch of training and validation matching the original train_one_epoch_AR."""
         
-        # Validate time integration requirements
-        if self.roll_out_method != 'AR' and dt == 0:
-            raise ValueError(f"dt must be non-zero for {self.roll_out_method} method")
-        
+        train_l2_step = 0
         train_l2_full = 0
-        num_train_batches = 0
-
+        
         # Training loop
         self.model.train()
         for xx, yy in self.train_loader:
@@ -177,96 +173,182 @@ class Train_Setup():
             xx = xx.to(self.device)
             yy = yy.to(self.device)
             batch_size = xx.shape[0]
-
-            # Apply noise if specified
-            if self.noisy_factor > 0:
-                xx = xx + self.noisy_factor * torch.randn_like(xx)
             
-            # Apply batch normalization
-            xx = self.bn(xx)
-
-            pred_list = []
             
             for t in range(0, train_T_out, step):
-                y_target = yy[..., t:t + step]
+                y = yy[..., t:t + step]
                 
-                # Forward pass - use first timestep for input
-                im = self.forward(self.model, xx[..., 0], dt)
+                im = self.forward(self.model, xx, dt)
+
+                # Compute loss for this step
+                loss += self.loss_func(im.reshape(batch_size, -1), y.reshape(batch_size, -1))
                 
-                # Ensure output has correct shape
-                if im.dim() == xx.dim() - 1:  # Missing time dimension
-                    im = im.unsqueeze(-1)
-                
-                # Compute step loss
-                step_loss = self.loss_func(
-                    im.reshape(batch_size, -1), 
-                    y_target.reshape(batch_size, -1)
-                )
-                loss += step_loss
-                
-                # Store prediction
-                pred_list.append(im)
+                # Collect predictions for full sequence loss
+                if t == 0:
+                    pred = im
+                else:
+                    pred = torch.cat((pred, im), -1)
                 
                 # Update input for next timestep (sliding window)
                 xx = torch.cat((xx[..., step:], im), dim=-1)
             
+            train_l2_step += loss.item()
+            
+            # Compute full sequence loss
+            l2_full = self.loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1))
+            train_l2_full += l2_full.item()
+            
             # Backward pass
             loss.backward()
             
-            # Gradient clipping with proper checking
-            grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
-            if self.debug and grad_norm > self.grad_clip:
-                print(f"Warning: Gradient norm {grad_norm:.4f} was clipped to {self.grad_clip}")
-            
+            # Gradient clipping
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.grad_clip, norm_type=2.0)
             self.optimizer.step()
-
-            # Compute full sequence loss for logging
-            if pred_list:
-                pred_full = torch.cat(pred_list, dim=-1)
-                l2_full = self.loss_func(
-                    pred_full.reshape(batch_size, -1), 
-                    yy[..., :train_T_out].reshape(batch_size, -1)
-                ).item()
-                train_l2_full += l2_full
-                num_train_batches += 1
-
-        # Validation loop
-        test_l2_full = 0
-        num_test_batches = 0
         
+        # Return the step loss (following original convention)
+        train_loss = train_l2_full
+        
+        # Validation Loop
+        test_loss = 0
         self.model.eval()
         with torch.no_grad():
             for xx, yy in self.test_loader:
                 xx, yy = xx.to(self.device), yy.to(self.device)
                 batch_size = xx.shape[0]
-
-                pred_list = []
                 
                 for t in range(0, test_T_out, step):
-                    out = self.forward(self.model, xx[..., 0], dt)
+                    y = yy[..., t:t + step]
                     
-                    # Ensure output has correct shape
-                    if out.dim() == xx.dim() - 1:
-                        out = out.unsqueeze(-1)
+                    # Forward pass
+                    if self.roll_out_method == 'AR':
+                        out = self.model(xx)
+                    else:
+                        out = self.forward(self.model, xx, dt)
                     
-                    pred_list.append(out)
+                    if t == 0:
+                        pred = out
+                    else:
+                        pred = torch.cat((pred, out), -1)
+                    
+                    # Update input for next timestep
                     xx = torch.cat((xx[..., step:], out), dim=-1)
                 
-                # Compute full sequence loss
-                if pred_list:
-                    pred_full = torch.cat(pred_list, dim=-1)
-                    test_loss = self.loss_func(
-                        pred_full.reshape(batch_size, -1), 
-                        yy[..., :test_T_out].reshape(batch_size, -1)
-                    ).item()
-                    test_l2_full += test_loss
-                    num_test_batches += 1
-
-        # Return average losses
-        avg_train_loss = train_l2_full / max(num_train_batches, 1)
-        avg_test_loss = test_l2_full / max(num_test_batches, 1)
+                test_loss += self.loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1)).item()
         
-        return avg_train_loss, avg_test_loss
+        # Note: The division by dataset size should be done outside this function
+        # to match the original implementation
+        return train_loss, test_loss
+
+
+    # def one_epoch(self, step, train_T_out, test_T_out, dt=0):
+    #     """Run one epoch of training and validation."""
+        
+    #     # Validate time integration requirements
+    #     if self.roll_out_method != 'AR' and dt == 0:
+    #         raise ValueError(f"dt must be non-zero for {self.roll_out_method} method")
+        
+    #     train_l2_full = 0
+    #     num_train_batches = 0
+
+    #     # Training loop
+    #     self.model.train()
+    #     for xx, yy in self.train_loader:
+    #         self.optimizer.zero_grad()
+    #         loss = 0
+    #         xx = xx.to(self.device)
+    #         yy = yy.to(self.device)
+    #         batch_size = xx.shape[0]
+
+    #         # # Apply noise if specified
+    #         # if self.noisy_factor > 0:
+    #         #     xx = xx + self.noisy_factor * torch.randn_like(xx)
+            
+    #         # # Apply batch normalization
+    #         # xx = self.bn(xx)
+
+    #         pred_list = []
+            
+    #         for t in range(0, train_T_out, step):
+    #             y_target = yy[..., t:t + step]
+                
+    #             # Forward pass - use first timestep for input
+    #             im = self.forward(self.model, xx, dt)
+                
+    #             # # Ensure output has correct shape
+    #             # if im.dim() == xx.dim() - 1:  # Missing time dimension
+    #             #     im = im.unsqueeze(-1)
+
+
+    #             # Compute step loss
+    #             step_loss = self.loss_func(
+    #                 im.reshape(batch_size, -1), 
+    #                 y_target.reshape(batch_size, -1)
+    #             )
+    #             loss += step_loss
+                
+    #             # Store prediction
+    #             pred_list.append(im.detach())
+                
+    #             # Update input for next timestep (sliding window)
+    #             xx = torch.cat((xx[..., step:], im), dim=-1)
+            
+    #         # Backward pass
+    #         loss.backward()
+            
+    #         # Gradient clipping with proper checking
+    #         grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
+    #         if self.debug and grad_norm > self.grad_clip:
+    #             print(f"Warning: Gradient norm {grad_norm:.4f} was clipped to {self.grad_clip}")
+            
+    #         self.optimizer.step()
+
+    #         # Compute full sequence loss for logging
+    #         if pred_list:
+    #             pred_full = torch.cat(pred_list, dim=-1)
+    #             l2_full = self.loss_func(
+    #                 pred_full.reshape(batch_size, -1), 
+    #                 yy[..., :train_T_out].reshape(batch_size, -1).detach()
+    #             ).item()
+    #             train_l2_full += l2_full
+    #             num_train_batches += 1
+
+    #     # Validation loop
+    #     test_l2_full = 0
+    #     num_test_batches = 0
+        
+    #     self.model.eval()
+    #     with torch.no_grad():
+    #         for xx, yy in self.test_loader:
+    #             xx, yy = xx.to(self.device), yy.to(self.device)
+    #             batch_size = xx.shape[0]
+
+    #             pred_list = []
+                
+    #             for t in range(0, test_T_out, step):
+    #                 out = self.forward(self.model, xx, dt)
+                    
+    #                 # # Ensure output has correct shape
+    #                 # if out.dim() == xx.dim() - 1:
+    #                 #     out = out.unsqueeze(-1)
+                    
+    #                 pred_list.append(out)
+    #                 xx = torch.cat((xx[..., step:], out), dim=-1)
+                
+    #             # Compute full sequence loss
+    #             if pred_list:
+    #                 pred_full = torch.cat(pred_list, dim=-1)
+    #                 test_loss = self.loss_func(
+    #                     pred_full.reshape(batch_size, -1), 
+    #                     yy[..., :test_T_out].reshape(batch_size, -1)
+    #                 ).item()
+    #                 test_l2_full += test_loss
+    #                 num_test_batches += 1
+
+    #     # Return average losses
+    #     avg_train_loss = train_l2_full / max(num_train_batches, 1)
+    #     avg_test_loss = test_l2_full / max(num_test_batches, 1)
+        
+    #     return avg_train_loss, avg_test_loss
 
     def train(self, run, step, train_T_out, test_T_out, dt=0):
         """Main training loop."""
@@ -395,11 +477,11 @@ class Eval_Setup():
                 pred_list = []
                 
                 for t in range(0, T_out, step):
-                    out = self.forward(self.model, xx[..., 0], dt)
+                    out = self.forward(self.model, xx, dt)
                     
-                    # Ensure output has correct shape
-                    if out.dim() == xx.dim() - 1:
-                        out = out.unsqueeze(-1)
+                    # # Ensure output has correct shape
+                    # if out.dim() == xx.dim() - 1:
+                    #     out = out.unsqueeze(-1)
                     
                     pred_list.append(out)
                     xx = torch.cat((xx[..., step:], out), dim=-1)

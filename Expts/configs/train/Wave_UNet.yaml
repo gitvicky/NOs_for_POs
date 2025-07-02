@@ -30,9 +30,9 @@ Model:
 Data: 
   name: 'Wave_spectral_LHS.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
-  ntrain: 200
+  ntrain: 1000
   test_train_split: 0.2
-  batch_size: 40
+  batch_size: 50
   t_in: 1
   t_out: 50
   step: 1
@@ -41,7 +41,7 @@ Data:
 Opt:
   optimizer: 'adam'
   epochs: 500
-  learning_rate: 0.001
+  learning_rate: 0.005
   beta1: 0.9
   beta2: 0.9
   weight_decay: 1e-4

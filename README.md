@@ -97,11 +97,12 @@ git submodule init
 git submodule update
 
 # Install dependencies
-pip install tqdm
 pip install torch torchvision
-pip install torchdiffeq  # For Neural-ODE integration
-pip install matplotlib numpy scipy h5py
 pip install simvue  # For experiment tracking (optional)
+pip install torchdiffeq  # For Neural-ODE integration
+pip install scikit-learn
+pip install einops
+pip install tqdm matplotlib h5py pyyaml h5py
 ```
 
 ## 🎯 Quick Start

@@ -26,11 +26,18 @@ with open(args.config, 'r') as f:
     configuration = yaml.safe_load(f)
 
 run_config = flatten_dict(configuration)
+
+
 # %% 
 from simvue import Run, Client
 with Run(mode='online') as run:
 
     run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Tests'], metadata=run_config)
+
+    # #if run is being disabled
+    # import argparse
+    # run = argparse.Namespace()
+    # run.name = "test"
 
     #setting up the client API 
     client = Client()
@@ -50,6 +57,7 @@ with Run(mode='online') as run:
     #Importing the necessary packages
     import sys
     import numpy as np
+    import math
     from tqdm import tqdm 
     import torch
     import torch.nn.functional as F
@@ -119,7 +127,7 @@ with Run(mode='online') as run:
     print("Data shape: " + str(fields.shape))
 
     # %%
-    #Normalising the data -- using the same normalisations for inputs and outputs
+    # Normalising the data -- using the same normalisations for inputs and outputs
     normalizer_func = Normalisation(configuration['Data']['normalisation'])
     normalizer = normalizer_func(fields, low=-1.0, high=1.0)
     if configuration['Model']['ops_split_normalise']: #Normalise and Denormalise done within the Model. 
@@ -137,19 +145,15 @@ with Run(mode='online') as run:
     # #Setting up the train-test pipelines. Options are for a full rollout (and then backprop) or a single step rollout (and then backprop).
     # if configuration['Train']['rollout'] == 'full':
 
-    #     #Setting up train and test
-    #     train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=configuration['Data']['test_train_split'], random_state=42)
-    #     print("Training Input: " + str(train_in.shape))
-    #     print("Training Output: " + str(train_out.shape))
+    # #Setting up train and test
+    # train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=configuration['Data']['test_train_split'], random_state=42)
 
-    #     #Setting up the data loaders
-    #     train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Data']['batch size'], shuffle=True)
-    #     test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch size'], shuffle=False)
+    # #Setting up the data loaders
+    # train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(train_in, train_out), batch_size=configuration['Data']['batch_size'], shuffle=True)
+    # test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch_size'], shuffle=False)
 
+    #If using a single step rollout, then we need to create a windowed dataset.
     train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=configuration['Data']['test_train_split'], random_state=42)
-    
-    print("Training Input: " + str(train_in.shape))
-    print("Training Output: " + str(train_out.shape))
 
     train_data = torch.cat((train_in, train_out), dim=-1)#Merging for creating the windowed dataset.
 
@@ -161,6 +165,8 @@ with Run(mode='online') as run:
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=configuration['Data']['batch_size'], shuffle=True)
     test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch_size'], shuffle=False)
 
+    print("Training Input: " + str(train_in.shape))
+    print("Training Output: " + str(train_out.shape))
     t2 = default_timer()
     print('preprocessing finished, time used:', t2-t1)
 
@@ -172,8 +178,8 @@ with Run(mode='online') as run:
     model = model_initialisation(configuration, normalizer, run)
     model.to(device)
 
-    # run.update_metadata({'Number of Params': int(model.count_params())})
-    # print("Number of model params : " + str(model.count_params()))
+    run.update_metadata({'Number of Params': int(model.count_params())})
+    print("Number of model params : " + str(model.count_params()))
 
     #Setting up the optimizer and scheduler, loss and epochs 
     optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning_rate'], weight_decay=1e-4)
@@ -206,7 +212,8 @@ with Run(mode='online') as run:
         # train = torch_odesolve.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Train']['odesolve']['method'],  configuration['Train']['odesolve']['adjoint'])
         train = torch_odesolve.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Train']['odesolve']['method'],  configuration['Train']['odesolve']['adjoint'])
 
-
+    from Neural_PDE.Utils.training_utils import train_one_epoch_AR
+    
     # %% 
     ####################################
     #Training
@@ -217,6 +224,8 @@ with Run(mode='online') as run:
         model.train()
         t1 = default_timer()
         train_loss, test_loss = train.one_epoch(configuration['Data']['step'], configuration['Train']['rollout_length']-1, configuration['Data']['t_out']-1, dt=dt)
+        # train_loss, test_loss = train_one_epoch_AR(model, train_loader, test_loader, loss_func, optimizer, configuration['Data']['step'], configuration['Data']['t_out']-1)
+
         t2 = default_timer()
 
         train_loss = train_loss / len(train_loader)
@@ -225,20 +234,30 @@ with Run(mode='online') as run:
         print(f"Epoch {ep}, Time Taken: {round(t2-t1,3)}, Train Loss: {round(train_loss, 5)}, Test Loss: {round(test_loss,5)}")
         current_lr = optimizer.param_groups[0]['lr']
         run.log_metrics({'Train Loss': train_loss, 'Test Loss': test_loss, 'Learning Rate': current_lr}, step=ep)
-
-        # run.create_alert(
-        #     name='Unstable',
-        #     source='metrics',
-        #     rule='is above',  
-        #     metric='Train Loss',
-        #     frequency=1,
-        #     window=1,
-        #     threshold=1e5,
-        #     trigger_abort=True
-        #     )
-                    
         scheduler.step()
 
+        #Alerting potential instability in training.
+        run.create_metric_threshold_alert(
+            name='Unstable',
+            metric='Train Loss',
+            threshold=1e5,
+            rule='is above',  
+            frequency=1,
+            window=1,
+            trigger_abort=True
+            )
+        
+        #Killing the run if the training becomes unstable. 
+        if math.isnan(train_loss) or math.isinf(train_loss):
+            print("Training loss is NaN or Inf, stopping training.")
+            run.create_user_alert(
+                name='Training terminated',
+                description='Training loss became NaN or Inf, stopping training.',
+                notification='none',
+                trigger_abort=True,
+                attach_to_run=True
+            )
+            
         #Checkpointing. 
         if ep % configuration['Train']['checkpoint']['epochs'] == 0:
             checkpoint = {}
@@ -266,6 +285,8 @@ with Run(mode='online') as run:
         eval = torch_odesolve.Eval_Setup( model, test_in, test_out, normalizer='False', method=configuration['Train']['odesolve']['method']
 )
     pred_encoded, error = eval.inference(configuration['Data']['step'], configuration['Data']['t_out']-1, dt=dt)
+    # pred_encoded, error, mae = validation_AR(model, test_in, test_out, configuration['Data']['step'], configuration['Data']['t_out']-1)
+
 
     print('(MSE) Testing Error: %.3e' % (error))
 

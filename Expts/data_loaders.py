@@ -15,13 +15,14 @@ def stacked_fields(variables):
     stack = torch.stack(stack, dim=1)
     return stack
 
+
 class SpatioTemporalDataset(Dataset):
     def __init__(self, data, input_window=64, prediction_steps=1):
         """
         Initialize the dataset for spatiotemporal sequence prediction.
         
         Args:
-            data (numpy.ndarray): Input data of shape (batch_size, variables, x_dim, y_dim, time_steps)
+            data (numpy.ndarray or torch.Tensor): Input data of shape (batch_size, variables, x_dim, y_dim, time_steps)
             input_window (int): Number of time steps to use as input
             prediction_steps (int): Number of steps to predict ahead
         """
@@ -29,11 +30,18 @@ class SpatioTemporalDataset(Dataset):
             self.data = torch.tensor(data, dtype=torch.float32)
         else:
             self.data = data.float()
+        
         self.input_window = input_window
         self.prediction_steps = prediction_steps
         
         # Store data dimensions
         self.batch_size, self.variables, self.x_dim, self.y_dim, self.time_steps = self.data.shape
+        
+        # Validate parameters
+        total_required_length = self.input_window + self.prediction_steps
+        if total_required_length > self.time_steps:
+            raise ValueError(f"input_window ({input_window}) + prediction_steps ({prediction_steps}) = "
+                           f"{total_required_length} exceeds time_steps ({self.time_steps})")
         
         # Calculate valid start indices for sliding windows
         self.indices = self._create_indices()
@@ -625,3 +633,4 @@ def Euler_Quadrants(configuration, gamma= ['1.365'], gas = ['Dry_air_1000']):
 # # %%
 
 # %%
+
