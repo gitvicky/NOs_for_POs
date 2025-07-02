@@ -116,7 +116,6 @@ with Run(mode='online') as run:
         fields, x, y, dt = Euler_Quadrants(configuration)
             
     t = torch.arange(0, configuration['Data']['t_out']*dt, dt)
-
     fields = fields[...,:configuration['Data']['t_out']]
 
     #Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
@@ -130,6 +129,7 @@ with Run(mode='online') as run:
     # Normalising the data -- using the same normalisations for inputs and outputs
     normalizer_func = Normalisation(configuration['Data']['normalisation'])
     normalizer = normalizer_func(fields, low=-1.0, high=1.0)
+    print(normalizer.a, normalizer.b)
     if configuration['Model']['ops_split_normalise']: #Normalise and Denormalise done within the Model. 
         fields_encoded = fields
     else:

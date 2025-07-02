@@ -12,7 +12,6 @@ Currently supports:
     2. Euler Timestep 
     3. MidPoint
     4. Runge-Kutta 4 
-
 """
 
 import numpy as np 
@@ -24,7 +23,7 @@ from torchdiffeq import odeint
 import warnings
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-max_grad_clip_norm = 2.0
+max_grad_clip_norm = 1.0
 
 # %% 
 # Options for temporal propagation. 
@@ -219,11 +218,7 @@ class Train_Setup():
                 for t in range(0, test_T_out, step):
                     y = yy[..., t:t + step]
                     
-                    # Forward pass
-                    if self.roll_out_method == 'AR':
-                        out = self.model(xx)
-                    else:
-                        out = self.forward(self.model, xx, dt)
+                    out = self.forward(self.model, xx, dt)
                     
                     if t == 0:
                         pred = out

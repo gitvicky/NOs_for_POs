@@ -16,7 +16,6 @@ Physics:
   t_slice: 1
   physics_normalisation: False
 
-
 Model:
   arch: 'U-Net'
   in_vars: 1
@@ -25,7 +24,6 @@ Model:
   act: 'tanh'
   operator_splitting: False
   ops_split_normalise: False
-
 
 Data: 
   name: 'Wave_spectral_LHS.npz'

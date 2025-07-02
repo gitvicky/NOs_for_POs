@@ -5,7 +5,7 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'sluggish-seat'
+run_name = 'achromatic-string'
 data_name = None
 # %%
 class Run:
@@ -66,18 +66,20 @@ from Neural_PDE.Utils.processing_utils import *
 from Neural_PDE.Utils.training_utils import * 
 
 # %% 
-# Data Preparation. - Only preparing the evaluation dataset : 20% of the data.
+# Data Preparation. - Only preparing the evaluation dataset. 
 ####################################
 
 t1 = default_timer()
-n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test-train-split'])
+n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test_train_split'])
 configuration['Data']['ntrain'] = n_sims
 from data_loaders import *
 if data_name != None: 
         pde = data_name 
 else: 
     pde = configuration['Physics']['pde']
-
+    
+if pde == 'Wave':
+    fields, x, y, dt = Wave_Spectral(configuration)
 if pde == 'Navier-Stokes':
     fields, x, y, dt = Navier_Stokes_Spectral(configuration)
 if pde == 'Euler-Fluid':
@@ -94,6 +96,10 @@ if pde == 'Electromagnetic MHD':
         fields, x, y, dt = JOREK_electrostatic(configuration)
 if pde == 'Shear Flow':
     fields, x, y, dt = Shear_Flow(configuration)
+if pde == 'Euler Quadrant':
+    fields, x, y, dt = Euler_Quadrants(configuration)
+
+
 
 t = torch.arange(0, fields.shape[-1], dt)
 fields = fields[...,:configuration['Data']['t_out']]
@@ -111,18 +117,18 @@ norms = np.load(tmp_loc +'/norms.npz')
 normalizer_func = Normalisation(configuration['Data']['normalisation'])
 normalizer = normalizer_func(torch.zeros_like(fields))
 normalizer.a, normalizer.b = torch.tensor(norms['a']), torch.tensor(norms['b'])
-
+# normalizer.a, normalizer.b = torch.tensor(1.3769), torch.tensor(-0.3768)
 fields_encoded = normalizer.encode(fields)
 # fields_encoded = fields
 
 # %% 
-test_in = fields_encoded[...,:configuration['Data']['t_in']] + torch.randn_like(fields_encoded[...,:configuration['Data']['t_in']])
+test_in = fields_encoded[...,:configuration['Data']['t_in']] # + torch.randn_like(fields_encoded[...,:configuration['Data']['t_in']])
 test_out = fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']]
 
 print("Test Input: " + str(test_in.shape))
 print("Test Output: " + str(test_out.shape))
 
-test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch size'], shuffle=False)
+test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch_size'], shuffle=False)
 
 t2 = default_timer()
 print('preprocessing finished, time used:', t2-t1)
@@ -159,7 +165,6 @@ print('(MSE) Testing Error: %.3e' % (error))
 #Denormalising the test and predictions
 test_out = normalizer.decode(test_out.to(device)).cpu()
 pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
-
 
 # #Visualising the rollout error 
 # from Utils.plots import temporal_rollout_error
