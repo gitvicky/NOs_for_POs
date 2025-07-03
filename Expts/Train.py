@@ -194,13 +194,22 @@ with Run(mode='online') as run:
 
     #Restarting the run from a checkpoint 
     if configuration['Train']['restart'] == True: 
-        client.get_artifact_as_file(client.get_artifact_as_file(configuration['Train']['restart_run_name']))
-        ckpt_path = '/tmp/checkpoint.pt'
+        import shutil
+        tmp_loc = os.getcwd() + '/tmp'
+        # Create tmp directory if it doesn't exist, or recreate it if it does
+        if os.path.exists(tmp_loc):
+            shutil.rmtree(tmp_loc)
+        os.makedirs(tmp_loc, exist_ok=True)
+        run_id = client.get_run_id_from_name(configuration['Train']['restart_run_name'])
+        client.get_artifact_as_file(run_id, name = 'checkpoint_500.pt', output_dir=tmp_loc)
+        ckpt_path = tmp_loc + '/checkpoint_500.pt'
         checkpoint = torch.load(ckpt_path)
         model.load_state_dict(checkpoint["model"])
         optimizer.load_state_dict(checkpoint["optimizer"])
         scheduler.load_state_dict(checkpoint["scheduler"])
         epoch_init = checkpoint["epoch"]
+        epochs = epoch_init + epochs
+        run.update_metadata({'Epochs': epochs})
 
     # Setting up the Training pipeline
     if configuration['Train']['odesolve']['source'] == 'custom':
@@ -295,7 +304,7 @@ with Run(mode='online') as run:
     
     from Utils.metrics import MSE, NRMSE
     run.update_metadata({
-                        'NRMSE (norm)': float(NRMSE(pred_encoded, test_out)['average'])
+                        'NRMSE (norm)': float(NRMSE(pred_encoded.detach().cpu(), test_out.detach().cpu())['average'])
                         })  
 
 
