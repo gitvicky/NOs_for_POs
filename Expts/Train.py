@@ -129,7 +129,6 @@ with Run(mode='online') as run:
     # Normalising the data -- using the same normalisations for inputs and outputs
     normalizer_func = Normalisation(configuration['Data']['normalisation'])
     normalizer = normalizer_func(fields, low=-1.0, high=1.0)
-    print(normalizer.a, normalizer.b)
     if configuration['Model']['ops_split_normalise']: #Normalise and Denormalise done within the Model. 
         fields_encoded = fields
     else:
@@ -293,6 +292,12 @@ with Run(mode='online') as run:
     run.update_metadata({'Training Time': float(train_time),
                         'MSE Test Error': float(error)
                         })
+    
+    from Utils.metrics import MSE, NRMSE
+    run.update_metadata({
+                        'NRMSE (norm)': float(NRMSE(pred_encoded, test_out)['average'])
+                        })  
+
 
     #Denormalising the test and predictions
     if configuration['Model']['ops_split_normalise'] == False: #Normalise/Denormalise done within the Model for OS. 
@@ -306,9 +311,8 @@ with Run(mode='online') as run:
     test_out = test_out.permute(0,1,4,2,3)
     pred_set = pred_set.permute(0,1,4,2,3)
 
-    from Utils.metrics import MSE, NRMSE
-    run.update_metadata({'MSE (Physical)': float(MSE(pred_set, test_out)['average']),
-                        'NRMSE (Physical)': float(NRMSE(pred_set, test_out)['average'])
+    run.update_metadata({'MSE (physical)': float(MSE(pred_set, test_out)['average']),
+                        'NRMSE (physical)': float(NRMSE(pred_set, test_out)['average'])
                         })  
     # %% 
     #Plotting the results 

@@ -1,4 +1,5 @@
 import numpy as np
+import torch 
 
 def convert_to_numpy(tensor):
     """
@@ -150,77 +151,111 @@ def NMSE(prediction, target, normalization='variance'):
         'average': avg_nmse
     }
 
-def NRMSE(prediction, target, normalization='min_max'):
+# def NRMSE(prediction, target, normalization='min_max'):
+#     """
+#     Calculate Normalized Root Mean Squared Error (NRMSE) for batched data.
+    
+#     Args:
+#         prediction: NumPy array or PyTorch tensor of shape [batch_size, ...]
+#         target: NumPy array or PyTorch tensor of shape [batch_size, ...]
+#         normalization: Method for normalization (default: 'min_max')
+#                       Options: 'min_max', 'mean', 'std', 'range'
+        
+#     Returns:
+#         Dictionary containing per-sample NRMSE values and batch average
+#     """
+#     # Convert to numpy if tensors
+#     prediction = convert_to_numpy(prediction)
+#     target = convert_to_numpy(target)
+    
+#     # Check shapes match
+#     if prediction.shape != target.shape:
+#         raise ValueError(f"Prediction shape {prediction.shape} does not match target shape {target.shape}")
+    
+#     batch_size = prediction.shape[0]
+    
+#     # Get RMSE values
+#     rmse_result = RMSE(prediction, target)
+#     rmse_values = rmse_result['per_sample']
+    
+#     # Reshape to [batch_size, -1]
+#     target_flat = target.reshape(batch_size, -1)
+    
+#     # Initialize normalization factors array
+#     norm_factors = np.ones_like(rmse_values)
+    
+#     if normalization == 'min_max':
+#         # Normalize by range of target values for each sample
+#         target_min = np.min(target_flat, axis=1)
+#         target_max = np.max(target_flat, axis=1)
+#         target_range = target_max - target_min
+#         # Avoid division by zero
+#         valid_range = target_range > 0
+#         norm_factors[valid_range] = target_range[valid_range]
+#     elif normalization == 'mean':
+#         # Normalize by mean of target values
+#         target_mean = np.mean(target_flat, axis=1)
+#         # Avoid division by zero
+#         valid_mean = np.abs(target_mean) > 0
+#         norm_factors[valid_mean] = np.abs(target_mean[valid_mean])
+#     elif normalization == 'std':
+#         # Normalize by standard deviation of target values
+#         target_std = np.std(target_flat, axis=1)
+#         # Avoid division by zero
+#         valid_std = target_std > 0
+#         norm_factors[valid_std] = target_std[valid_std]
+#     elif normalization == 'range':
+#         # Fixed normalization by target data range
+#         norm_factors = np.ones_like(rmse_values)
+#     else:
+#         raise ValueError(f"Unknown normalization method: {normalization}")
+    
+#     # Calculate NRMSE
+#     nrmse_values = rmse_values / norm_factors
+    
+#     # Handle any remaining infinity or NaN values
+#     nrmse_values = np.nan_to_num(nrmse_values, nan=np.nan, posinf=np.nan, neginf=np.nan)
+    
+#     # Calculate average NRMSE, ignoring NaN values
+#     avg_nrmse = np.nanmean(nrmse_values)
+    
+#     return {
+#         'per_sample': nrmse_values,
+#         'average': avg_nrmse
+#     }
+
+
+def NRMSE(pred, target):
     """
-    Calculate Normalized Root Mean Squared Error (NRMSE) for batched data.
+    Taken from: https://arxiv.org/abs/2505.24717
+    Compute normalized Root Mean Square Error (nRMSE).
+    
+    nRMSE = (1/M) * Σ sqrt(MSE(û_out, u_out) / MSE(0, u_out))
     
     Args:
-        prediction: NumPy array or PyTorch tensor of shape [batch_size, ...]
-        target: NumPy array or PyTorch tensor of shape [batch_size, ...]
-        normalization: Method for normalization (default: 'min_max')
-                      Options: 'min_max', 'mean', 'std', 'range'
-        
+        u_hat_out: Predicted outputs, shape (M, N) where M is number of samples, N is output dimension
+        u_out: True outputs, shape (M, N)
+    
     Returns:
-        Dictionary containing per-sample NRMSE values and batch average
+        nRMSE value as a scalar tensor
     """
-    # Convert to numpy if tensors
-    prediction = convert_to_numpy(prediction)
-    target = convert_to_numpy(target)
+    batch_size = pred.shape[0]  # Number of samples
     
-    # Check shapes match
-    if prediction.shape != target.shape:
-        raise ValueError(f"Prediction shape {prediction.shape} does not match target shape {target.shape}")
+    # Compute MSE between predictions and true values for each sample
+    mse_pred = torch.mean((pred.reshape(batch_size, -1) -  target.reshape(batch_size, -1)) ** 2, dim=1)  # Shape: (M,)
     
-    batch_size = prediction.shape[0]
+    # Compute MSE between zero and true values for each sample
+    mse_zero = torch.mean(target.reshape(batch_size, -1) ** 2, dim=1)  # Shape: (M,)
     
-    # Get RMSE values
-    rmse_result = RMSE(prediction, target)
-    rmse_values = rmse_result['per_sample']
+    # Compute nRMSE for each sample
+    nrmse_per_sample = torch.sqrt(mse_pred / (mse_zero + 1e-8))  # Add small epsilon to avoid division by zero
     
-    # Reshape to [batch_size, -1]
-    target_flat = target.reshape(batch_size, -1)
-    
-    # Initialize normalization factors array
-    norm_factors = np.ones_like(rmse_values)
-    
-    if normalization == 'min_max':
-        # Normalize by range of target values for each sample
-        target_min = np.min(target_flat, axis=1)
-        target_max = np.max(target_flat, axis=1)
-        target_range = target_max - target_min
-        # Avoid division by zero
-        valid_range = target_range > 0
-        norm_factors[valid_range] = target_range[valid_range]
-    elif normalization == 'mean':
-        # Normalize by mean of target values
-        target_mean = np.mean(target_flat, axis=1)
-        # Avoid division by zero
-        valid_mean = np.abs(target_mean) > 0
-        norm_factors[valid_mean] = np.abs(target_mean[valid_mean])
-    elif normalization == 'std':
-        # Normalize by standard deviation of target values
-        target_std = np.std(target_flat, axis=1)
-        # Avoid division by zero
-        valid_std = target_std > 0
-        norm_factors[valid_std] = target_std[valid_std]
-    elif normalization == 'range':
-        # Fixed normalization by target data range
-        norm_factors = np.ones_like(rmse_values)
-    else:
-        raise ValueError(f"Unknown normalization method: {normalization}")
-    
-    # Calculate NRMSE
-    nrmse_values = rmse_values / norm_factors
-    
-    # Handle any remaining infinity or NaN values
-    nrmse_values = np.nan_to_num(nrmse_values, nan=np.nan, posinf=np.nan, neginf=np.nan)
-    
-    # Calculate average NRMSE, ignoring NaN values
-    avg_nrmse = np.nanmean(nrmse_values)
+    # Average across all samples
+    nrmse_value = torch.mean(nrmse_per_sample)
     
     return {
-        'per_sample': nrmse_values,
-        'average': avg_nrmse
+        'per_sample': nrmse_per_sample,
+        'average': nrmse_value
     }
 
 

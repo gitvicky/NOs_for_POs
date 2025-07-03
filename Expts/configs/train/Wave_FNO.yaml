@@ -20,8 +20,8 @@ Model:
   arch: 'FNO'
   in_vars: 1
   out_vars: 1
-  modes: 16
-  width: 32
+  modes: 8
+  width: 16
   n_layers: 4
   act: 'gelu'
   operator_splitting: False
@@ -53,7 +53,7 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 50
+  rollout_length: 20
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
