@@ -17,11 +17,14 @@ Physics:
   physics_normalisation: False
 
 Model:
-  arch: 'U-Net'
-  in_vars: 1
-  out_vars: 1
-  width: 32
-  act: 'tanh'
+  arch: 'ViT'
+  patch_size: 16
+  embed_dim: 128
+  in_channels: 1
+  out_channels: 1
+  time_channels: 1
+  depth: 2
+  num_heads: 2
   operator_splitting: False
   ops_split_normalise: False
 
@@ -61,7 +64,7 @@ Train:
   checkpoint:
     epochs: 100
   restart: False
-  # restart_run_name: 'regular-fencing' #simvue run name
+  restart_run_name: '' #simvue run name
 
 Simvue:
   mode: 'online'

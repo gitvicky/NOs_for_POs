@@ -5,7 +5,7 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'achromatic-string'
+run_name = 'coral-leadership'
 data_name = None
 # %%
 class Run:

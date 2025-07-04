@@ -23,6 +23,7 @@ Model:
   depth: 2
   num_heads: 2
   operator_splitting: False
+  ops_split_normalise: False
 
 
 

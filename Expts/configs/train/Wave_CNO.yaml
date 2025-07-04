@@ -17,11 +17,14 @@ Physics:
   physics_normalisation: False
 
 Model:
-  arch: 'U-Net'
-  in_vars: 1
-  out_vars: 1
-  width: 32
-  act: 'tanh'
+  arch: 'CNO'
+  Nx: 64
+  N_layers: 3
+  N_res: 2
+  N_res_neck: 2
+  in_channels: 1
+  out_channels: 1
+  channel_multiplier: 16
   operator_splitting: False
   ops_split_normalise: False
 
@@ -61,7 +64,7 @@ Train:
   checkpoint:
     epochs: 100
   restart: False
-  # restart_run_name: 'regular-fencing' #simvue run name
+  restart_run_name: '' #simvue run name
 
 Simvue:
   mode: 'online'

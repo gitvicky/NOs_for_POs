@@ -14,6 +14,7 @@ from Neural_PDE.Models.CNO import *
 from Neural_PDE.Models.gMLP_Vision import * 
 # from Neural_PDE.Models.ConvOperator import *
 # from neuralop.models import FNO2d
+from Neural_PDE.Models.LNO import * 
 
 #Function to count_params
 count_parameters = lambda model: sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -124,16 +125,14 @@ def model_initialisation(configuration, normalizer, run):
                         Nx = configuration['Model']['Nx'],
                         Ny = configuration['Model']['Ny'])
             
-        
-        # elif configuration['Model']['arch'] == 'Conv':
-        #     model = ConvolutionalModel(
-        #         in_features=configuration['Model']['in_vars'],
-        #         out_features=configuration['Model']['out_vars'],
-        #         hidden_features=configuration['Model']['hidden_vars'],
-        #         num_layers=configuration['Model']['n_layers'],
-        #         activation=configuration['Model']['act'],
-        #         final_activation='none',
-        #         init_type='random'
-        #     )
+            
+        elif configuration['Model']['arch'] == 'LNO':
+                model = LNO_multi2d(T_in = configuration['Data']['t_in'],
+                                    step = configuration['Data']['step'],
+                                    modes1 = configuration['Model']['modes'],       # Number of Fourier modes to keep along height dimension
+                                    modes2 = configuration['Model']['modes'],        # Number of Fourier modes to keep along width dimension
+                                    num_vars = configuration['Model']['in_vars'],     #
+                                    width_time = configuration['Model']['width'],    # Width of the FNO (number of channels)
+                                    )
 
     return model
