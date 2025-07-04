@@ -9,15 +9,11 @@ sys.path.append("..")
 from Neural_PDE.Models.FNO_classic import *
 from Neural_PDE.Models.ViT import * 
 from Neural_PDE.Models.UNet import * 
-# from Neural_PDE.Models.PDEUnet import *
 from Neural_PDE.Models.CNO import * 
 from Neural_PDE.Models.gMLP_Vision import * 
-# from Neural_PDE.Models.ConvOperator import *
+from Neural_PDE.Models.ConvOperator import *
 from Neural_PDE.Models.LNO import * 
-
-# from neuralop.models import FNO2d
-from neuralop.models import UNO
-
+from Neural_PDE.Models.Neural_Ops_lib import *
 
 #Function to count_params
 count_parameters = lambda model: sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -58,59 +54,8 @@ def model_initialisation(configuration, normalizer, run):
                                     width_time = configuration['Model']['width'],    # Width of the FNO (number of channels)
                                     )
 
-        # IF USING THE NEURALOP LIBRARY:
-        # if configuration['Model']['arch'] == 'FNO':
-        #     if configuration['Model']['operator_splitting'] == False:
-        #         model = FNO2d(
-        #                 n_modes_height=configuration['Model']['modes'],       # Number of Fourier modes to keep along height dimension
-        #                 n_modes_width=configuration['Model']['modes'],        # Number of Fourier modes to keep along width dimension
-        #                 hidden_channels=configuration['Model']['width'],      # Width of the FNO (number of channels)
-        #                 in_channels=configuration['Model']['in_vars'],           # Number of input channels
-        #                 out_channels=configuration['Model']['in_vars'],          # Number of output channels
-        #                 lifting_channels=configuration['Model']['width'],    # Channels in the lifting block (lifting_channel_ratio * hidden_channels)
-        #                 projection_channels=256, # Channels in the projection block
-        #                 n_layers=4,              # Number of Fourier layers
-        #                 # factorization=None,      # No tensor factorization
-        #                 # stabilizer=None,         # No stabilizer
-        #                 # fno_block_precision="full", # Precision mode for spectral convolution
-        #                 # domain_padding=0.1,      # Pad the domain by 10%
-        #                 # domain_padding_mode="symmetric" # Symmetric padding
-        #         )
 
-        if configuration['Model']['arch'] == 'UNO':
-            model =  UNO(
-                        in_channels=configuration['Model']['in_vars'],           # Number of input channels
-                        out_channels=configuration['Model']['in_vars'],          # Number of output channels
-                        hidden_channels=configuration['Model']['width'],         # Width of the FNO (number of channels)
-                        lifting_channels=configuration['Model']['width'],    # Channels in the lifting block (lifting_channel_ratio * hidden_channels)
-                        projection_channels=256,
-                        positional_embedding="grid",
-                        n_layers=configuration['Model']['n_layers'],
-                        # uno_out_channels=None,
-                        # uno_n_modes=None,
-                        # uno_scalings=None,
-                        # horizontal_skips_map=None,
-                        # incremental_n_modes=None,
-                        # channel_mlp_dropout=0,
-                        # channel_mlp_expansion=0.5,
-                        # non_linearity=F.gelu,
-                        # norm=None,
-                        # preactivation=False,
-                        # fno_skip="linear",
-                        # horizontal_skip="linear",
-                        # channel_mlp_skip="soft-gating",
-                        # separable=False,
-                        # factorization=None,
-                        # rank=1.0,
-                        # fixed_rank_modes=False,
-                        # integral_operator=SpectralConv,
-                        # operator_block=FNOBlocks,
-                        # implementation="factorized",
-                        # decomposition_kwargs=dict(),
-                        # domain_padding=None,
-                        # domain_padding_mode="one-sided",
-                        # verbose=False,
-            )
+            
         elif configuration['Model']['arch'] == 'U-Net':
             model = UNet2d(in_channels=configuration['Data']['t_in'], 
                         out_channels=configuration['Data']['step'], 
