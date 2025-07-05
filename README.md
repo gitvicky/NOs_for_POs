@@ -101,7 +101,7 @@ pip install torch torchvision
 pip install simvue  # For experiment tracking (optional)
 pip install torchdiffeq  # For Neural-ODE integration
 pip install scikit-learn
-pip install einops
+pip install einops neuraloperator
 pip install tqdm matplotlib h5py pyyaml h5py
 ```
 

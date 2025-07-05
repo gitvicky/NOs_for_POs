@@ -53,7 +53,21 @@ def model_initialisation(configuration, normalizer, run):
                                     num_vars = configuration['Model']['in_vars'],     #
                                     width_time = configuration['Model']['width'],    # Width of the FNO (number of channels)
                                     )
-
+        
+        elif configuration['Model']['arch'] == 'TFNO':
+            model = TFNO_multi2d(in_channels=configuration['Data']['t_in'], 
+                                out_channels=configuration['Data']['step'], 
+                                hidden_channels=configuration['Model']['width'], 
+                                n_modes_height=configuration['Model']['modes'], 
+                                n_modes_width=configuration['Model']['modes'],
+                                rank=configuration['Model']['rank']
+                                )
+        
+        elif configuration['Model']['arch'] == 'UNO':
+            model = UNO_multi2d(in_channels=configuration['Data']['t_in'], 
+                                out_channels=configuration['Data']['step'], 
+                                hidden_channels=configuration['Model']['width']
+                                )
 
             
         elif configuration['Model']['arch'] == 'U-Net':
