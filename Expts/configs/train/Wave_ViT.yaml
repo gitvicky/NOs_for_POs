@@ -20,8 +20,8 @@ Model:
   arch: 'ViT'
   patch_size: 16
   embed_dim: 128
-  in_channels: 1
-  out_channels: 1
+  in_vars: 1
+  out_vars: 1
   time_channels: 1
   depth: 2
   num_heads: 2

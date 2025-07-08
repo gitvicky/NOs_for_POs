@@ -177,7 +177,7 @@ class Train_Setup():
             for t in range(0, train_T_out, step):
                 y = yy[..., t:t + step]
                 
-                im = self.forward(self.model, xx, dt)
+                im = self.forward(self.model, xx, dt)# Ensure output has time dimension
 
                 # Compute loss for this step
                 loss += self.loss_func(im.reshape(batch_size, -1), y.reshape(batch_size, -1))

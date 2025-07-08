@@ -17,12 +17,11 @@ Physics:
   physics_normalisation: False
 
 Model:
-  arch: 'FNO'
+  arch: 'UNO'
   in_vars: 1
   out_vars: 1
-  modes: 16
-  width: 32
-  n_layers: 4
+  width: 16
+  n_layers: 5
   act: 'gelu'
   operator_splitting: False
   ops_split_normalise: False

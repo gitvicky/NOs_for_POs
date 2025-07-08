@@ -5,9 +5,7 @@ import torch.nn as nn
 
 import sys
 sys.path.append("..")
-from Neural_PDE.Models.FNO import FNO_multi2d
-from Neural_PDE.Models.ConvOperator import ConvolutionalModel
-from Neural_PDE.Models.UNet import UNet2d
+from model_setup import * 
 from PRE.VectorConvOps_Spatial import *
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -32,102 +30,21 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         gridx = torch.tensor(np.linspace(0, int(Nx*dx), int(Nx)), dtype=torch.float)
         gridy = torch.tensor(np.linspace(0, int(Ny*dy), int(Ny)), dtype=torch.float)
 
-        # #FNO
-        self.pressure_poisson = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'], grid=[gridx, gridy]) 
-        self.convection_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'], grid=[gridx, gridy]) 
-        # self.diffusion_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'], grid=[gridx, gridy]) 
-        
-        # # self.gradient = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+        config = configuration
+        config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
+        self.pressure_poisson = model_selection(config)
+        self.convection_operator = model_selection(config)
+
         self.laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True, scalar=False)
-        # self.laplacian = ConvOperator(domain=('x','y'), order=2)
         self.nu = torch.tensor(0.001, dtype=torch.float32, requires_grad=True).to(device)
 
-        # #Vector physical operators
-        # self.gradient = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
-        # self.laplace = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
-
-        # #Convolutions with BCs
-        # self.pressure_poisson = ConvolutionalModel(
-        #         in_features=2,
-        #         out_features=2,
-        #         hidden_features=configuration['Model']['hidden_vars'],
-        #         num_layers=configuration['Model']['n_layers'],
-        #         activation=configuration['Model']['act'],
-        #         final_activation='none',
-        #         init_type='random')
-        
-        # self.convection_operator = ConvolutionalModel(
-        #         in_features=2,
-        #         out_features=2,
-        #         hidden_features=configuration['Model']['hidden_vars'],
-        #         num_layers=configuration['Model']['n_layers'],
-        #         activation=configuration['Model']['act'],
-        #         final_activation='none',
-        #         init_type='random')
-
-        # self.diffusion_operator = ConvolutionalModel(
-        #         in_features=2,
-        #         out_features=2,
-        #         hidden_features=configuration['Model']['hidden_vars'],
-        #         num_layers=configuration['Model']['n_layers'],
-        #         activation=configuration['Model']['act'],
-        #         final_activation='none',
-                # init_type='random')
-
-#   #UNets 
-#         self.pressure_poisson = UNet2d(in_channels=configuration['Data']['t_in'], 
-#                         out_channels=configuration['Data']['step'], 
-#                         init_features=configuration['Model']['width'], 
-#                         in_vars=configuration['Model']['in_vars'],
-#                         out_vars=configuration['Model']['out_vars']
-#                         )
-#         self.convection_operator = UNet2d(in_channels=configuration['Data']['t_in'], 
-#                         out_channels=configuration['Data']['step'], 
-#                         init_features=configuration['Model']['width'], 
-#                         in_vars=configuration['Model']['in_vars'],
-#                         out_vars=configuration['Model']['out_vars']
-#                         )
-
-#         self.diffusion_operator = UNet2d(in_channels=configuration['Data']['t_in'], 
-#                         out_channels=configuration['Data']['step'], 
-#                         init_features=configuration['Model']['width'], 
-#                         in_vars=configuration['Model']['in_vars'],
-#                         out_vars=configuration['Model']['out_vars']
-#                         )
-        
     def forward(self, vars):
 
-        # u = vars[:, 0:1]
-        # v = vars[:, 1:2]
         uv = vars[:, 0:2]
-        # uv = self.normalizer.encode(uv)
 
-        # p = vars[:, 2:3]
-
-        # #Mixed Operators
-        # convection = self.NO_convection(uv)
-        # diffusion = self.NO_diffusion(uv) 
-        # pressure = self.NO_pressure_poisson(vars) #Poisson Solve
-        # pressure_grad = self.gradient(pressure[...,0]).unsqueeze(-1) #PRE for gradient. 
-        # rhs = - convection + self.nu*diffusion + pressure_grad
-
-        # # Vector physical operators
-        # p = self.NO_pressure_poisson(uv) #Poisson Solve
-        # rhs = -dot(uv, self.gradient(u)) - dot(uv, self.gradient(v)) + self.nu * self.laplace(uv) + self.gradient(p)            
-
-        # pressure_grad = self.normalizer.decode(self.pressure_poisson(uv))
-        # convection = self.normalizer.decode(self.convection_operator(uv))
-        # diffusion = self.normalizer.decode(self.diffusion_operator(uv))
-
-
-        ## Using only convection operator -- yet to be tested. 
-        # convection = self.convection_operator(uv)
-        # pressure_grad = self.laplacian.integrate(Divergence(convection))
-        # diffusion = self.laplace(uv)
 
         pressure_grad = self.pressure_poisson(uv)
         convection = self.convection_operator(uv)
-        # diffusion = self.diffusion_operator(uv)
         diffusion = self.laplace(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1) #Assuming uv is a 2D vector field with shape (batch_size, 2, height, width, 1).
 
 

@@ -17,12 +17,13 @@ Physics:
   physics_normalisation: False
 
 Model:
-  arch: 'FNO'
+  arch: 'TFNO'
   in_vars: 1
   out_vars: 1
-  modes: 16
-  width: 32
+  modes: 8
+  width: 16
   n_layers: 4
+  rank: 0.05
   act: 'gelu'
   operator_splitting: False
   ops_split_normalise: False

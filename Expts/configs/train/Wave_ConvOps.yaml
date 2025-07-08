@@ -17,13 +17,17 @@ Physics:
   physics_normalisation: False
 
 Model:
-  arch: 'FNO'
+  arch: 'ConvOperator'
   in_vars: 1
   out_vars: 1
-  modes: 16
-  width: 32
   n_layers: 4
+  width: [8, 16, 8] #n_layers-1
+  kernel_size: 3 #Convolution
   act: 'gelu'
+  init_type: 'random'
+  boundary_type: 'periodic' # 'periodic', 'dirichlet', 'neumann'
+  activation: 'gelu'
+  dropout: 0.0
   operator_splitting: False
   ops_split_normalise: False
 
