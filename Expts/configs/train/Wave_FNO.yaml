@@ -20,8 +20,8 @@ Model:
   arch: 'FNO'
   in_vars: 1
   out_vars: 1
-  modes: 16
-  width: 32
+  modes: 8
+  width: 16
   n_layers: 4
   act: 'gelu'
   operator_splitting: False
@@ -56,9 +56,9 @@ Train:
   rollout_length: 50
   input_noise: 0.0
   odesolve: 
-    source: 'custom' #'torchdiffeq', 'custom'
-    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
-    adjoint: False #Only for torchdiffeq
+    source: 'torchdiffeq' #'torchdiffeq', 'custom'
+    method: 'rk4' # 'AR', 'euler', 'midpoint', rk4'
+    adjoint: True #Only for torchdiffeq
   batch_norm: False
   checkpoint:
     epochs: 100

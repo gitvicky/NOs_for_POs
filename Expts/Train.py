@@ -217,10 +217,8 @@ with Run(mode='online') as run:
         train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  ode_solver=configuration['Train']['odesolve']['source'], roll_out=configuration['Train']['odesolve']['method'], noise=configuration['Train']['input_noise'], batch_norm=configuration['Train']['batch_norm'])
     elif configuration['Train']['odesolve']['source'] == 'torchdiffeq':
         from Utils import torch_odesolve  
-        # train = torch_odesolve.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Train']['odesolve']['method'],  configuration['Train']['odesolve']['adjoint'])
         train = torch_odesolve.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Train']['odesolve']['method'],  configuration['Train']['odesolve']['adjoint'])
 
-    from Neural_PDE.Utils.training_utils import train_one_epoch_AR
     
     # %% 
     ####################################
@@ -232,7 +230,6 @@ with Run(mode='online') as run:
         model.train()
         t1 = default_timer()
         train_loss, test_loss = train.one_epoch(configuration['Data']['step'], configuration['Train']['rollout_length']-1, configuration['Data']['t_out']-1, dt=dt)
-        # train_loss, test_loss = train_one_epoch_AR(model, train_loader, test_loader, loss_func, optimizer, configuration['Data']['step'], configuration['Data']['t_out']-1)
 
         t2 = default_timer()
 
@@ -293,7 +290,6 @@ with Run(mode='online') as run:
         eval = torch_odesolve.Eval_Setup( model, test_in, test_out, normalizer='False', method=configuration['Train']['odesolve']['method']
 )
     pred_encoded, error = eval.inference(configuration['Data']['step'], configuration['Data']['t_out']-1, dt=dt)
-    # pred_encoded, error, mae = validation_AR(model, test_in, test_out, configuration['Data']['step'], configuration['Data']['t_out']-1)
 
 
     print('(MSE) Testing Error: %.3e' % (error))
