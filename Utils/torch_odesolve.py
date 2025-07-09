@@ -536,6 +536,8 @@ class Train_Setup():
             yy = yy.to(self.device)
             batch_size = xx.shape[0]
 
+            # xx = torch.complex(xx, torch.zeros_like(xx))
+
             # Create time points for entire trajectory
             t_span = torch.linspace(0, dt * train_T_out, train_T_out + 1).to(self.device)
             

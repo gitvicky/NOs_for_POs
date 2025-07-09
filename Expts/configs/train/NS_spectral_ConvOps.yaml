@@ -18,17 +18,19 @@ Physics:
   physics_normalisation: False
 
 Model:
-  arch: 'Conv'
+  arch: 'ConvOperator'
   in_vars: 2
   out_vars: 2
-  hidden_vars: [8, 16, 8]
   n_layers: 4
+  width: [8, 16, 8] #n_layers-1
   kernel_size: 3 #Convolution
   act: 'gelu'
-  init: 'random'
+  init_type: 'random'
+  boundary_type: 'periodic' # 'periodic', 'dirichlet', 'neumann'
+  activation: 'gelu'
   dropout: 0.0
   operator_splitting: False
-  ops_split_norm: True
+  ops_split_normalise: False
 
 Data: 
   name: 'NS_Spectral_combined.npz'
@@ -54,13 +56,13 @@ Opt:
   grad_clip: 2.0
 
 Train: 
-  loss: 'MSELoss'
+  loss: 'MSE'
   input_length: 1
   rollout_length: 20
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:

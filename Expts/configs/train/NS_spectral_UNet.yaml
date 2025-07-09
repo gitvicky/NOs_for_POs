@@ -25,8 +25,8 @@ Model:
   out_vars: 2 
   width: 32
   act: 'tanh'
-  operator_splitting: True
-  ops_split_normalise: True
+  operator_splitting: False
+  ops_split_normalise: False
 
 Data: 
   name: 'NS_Spectral_combined.npz'
@@ -52,13 +52,13 @@ Opt:
   grad_clip: 2.0
 
 Train: 
-  loss: 'MSELoss'
+  loss: 'MSE'
   input_length: 1
   rollout_length: 20
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:

@@ -49,13 +49,13 @@ Opt:
   grad_clip: 2.0
 
 Train: 
-  loss: 'LP'
+  loss: 'MSE'
   input_length: 1
   rollout_length: 50
   input_noise: 0.0
   odesolve: 
-    source: 'torchdiffeq' #'torchdiffeq', 'custom'
-    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    source: 'custom' #'torchdiffeq', 'custom'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: True #Only for torchdiffeq
   batch_norm: False
   checkpoint:

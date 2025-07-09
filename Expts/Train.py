@@ -83,6 +83,7 @@ with Run(mode='online') as run:
     from Neural_PDE.Utils.processing_utils import * 
     from Neural_PDE.Utils.training_utils import * 
 
+
     # %% 
     ####################################
     # Data Preparation.
@@ -174,8 +175,28 @@ with Run(mode='online') as run:
     # Setting up the Model and Optimizers 
     ####################################
 
+    # def convert_model_to_complex(model):
+    #     """Convert all model parameters to complex type"""
+        
+    #     def convert_tensor_to_complex(tensor):
+    #         """Convert a real tensor to complex by adding zero imaginary part"""
+    #         if torch.is_complex(tensor):
+    #             return tensor  # Already complex
+    #         # Create complex tensor with zero imaginary part
+    #         return torch.complex(tensor, torch.zeros_like(tensor))
+        
+    #     # Convert all parameters
+    #     with torch.no_grad():
+    #         for name, param in model.named_parameters():
+    #             if not torch.is_complex(param):
+    #                 # Convert parameter data to complex
+    #                 param.data = convert_tensor_to_complex(param.data)
+        
+    #     return model
+
     model = model_initialisation(configuration, normalizer, run)
     model.to(device)
+    # model = convert_model_to_complex(model)  # Convert model parameters to complex type
 
     run.update_metadata({'Number of Params': int(model.count_params())})
     print("Number of model params : " + str(model.count_params()))
@@ -184,8 +205,8 @@ with Run(mode='online') as run:
     optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning_rate'], weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler_step'], gamma=configuration['Opt']['scheduler_gamma'])
     
-    if configuration['Model']['arch']=='fno':
-        loss_func = LpLoss(size_average=False)
+    if configuration['Train']['loss']=='LP':
+        loss_func = LpLoss()
     else:
         loss_func = torch.nn.MSELoss()
 

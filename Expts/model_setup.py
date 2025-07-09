@@ -9,6 +9,7 @@ sys.path.append("..")
 # from Neural_PDE.Models.FNO_classic import *
 from Neural_PDE.Models.ViT import * 
 from Neural_PDE.Models.UNet import * 
+from Neural_PDE.Models.UNet_Classic import *
 from Neural_PDE.Models.CNO import * 
 from Neural_PDE.Models.gMLP_Vision import * 
 from Neural_PDE.Models.ConvOperator import *
@@ -64,17 +65,24 @@ def model_selection(configuration):
                             out_channels=configuration['Model']['out_vars'], 
                             hidden_channels=configuration['Model']['width']
                             )
-
-        
-    elif configuration['Model']['arch'] == 'U-Net':
-        model = UNet2d(in_channels=configuration['Data']['t_in'], 
-                    out_channels=configuration['Data']['step'], 
-                    init_features=configuration['Model']['width'], 
-                    in_vars=configuration['Model']['in_vars'],
-                    out_vars=configuration['Model']['out_vars']
-                    )
         
     # elif configuration['Model']['arch'] == 'U-Net':
+    #     model = UNet2d(in_channels=configuration['Data']['t_in'], 
+    #                 out_channels=configuration['Data']['step'], 
+    #                 init_features=configuration['Model']['width'], 
+    #                 in_vars=configuration['Model']['in_vars'],
+    #                 out_vars=configuration['Model']['out_vars']
+    #                 )
+        
+    elif configuration['Model']['arch'] == 'U-Net':
+        model = UNetClassic(
+                dim_in=configuration['Model']['in_vars'],
+                dim_out=configuration['Model']['out_vars'],
+                n_spatial_dims=2,
+                spatial_resolution=[configuration['Physics']['Nx'], configuration['Physics']['Ny']],
+                init_features=configuration['Model']['width'],
+                )
+
     #     model = PDEUNet(
     #             spatial_channels=2,
     #             field_channels=configuration['Data']['t_in'],
