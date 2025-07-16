@@ -198,7 +198,7 @@ class Train_Setup():
             train_l2_full += l2_full.item()
             
             # Backward pass
-            loss.backward()
+            loss.backward(retain_graph=True)
             
             # Gradient clipping
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.grad_clip, norm_type=2.0)

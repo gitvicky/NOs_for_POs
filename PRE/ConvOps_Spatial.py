@@ -102,7 +102,7 @@ class ConvOperator():
     
 
     def spectral_convolution(self, field, kernel=None, inverse=False):
-        """
+        r"""
         Performs spectral convolution using the convolution theorem 
 
         f * g = \hat{f} . \hat{g}
@@ -124,7 +124,7 @@ class ConvOperator():
 
     def differentiate(self, field, kernel=None, correlation=False, slice_pad=True):
 
-        """
+        r"""
         Performs Convolution using the convolution theorem. Manual Implementation. 
         
         f * g = \hat{f} . \hat{g}

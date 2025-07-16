@@ -20,17 +20,17 @@
     arch: 'FNO'
     in_vars: 2
     out_vars: 2
-    modes: 8
-    width: 16
+    modes: 16
+    width: 32
     n_layers: 3
     act: 'gelu'
-    operator_splitting: False
+    operator_splitting: True 
     ops_split_normalise: False
 
   Data: 
     name: 'NS_Spectral_combined.npz'
     loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
-    ntrain: 100
+    ntrain: 500
     test_train_split: 0.2
     batch_size: 10
     t_in: 1
@@ -57,13 +57,13 @@
     input_noise: 0.0
     odesolve: 
       source: 'custom' #'torchdiffeq', 'custom'
-      method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+      method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
       adjoint: False #Only for torchdiffeq
     batch_norm: False
     checkpoint:
       epochs: 100
-    restart: False
-    restart_run_name: '' #simvue run name 
+    restart: True
+    restart_run_name: 'human-web' #simvue run name 
 
   Simvue:
     mode: 'online'

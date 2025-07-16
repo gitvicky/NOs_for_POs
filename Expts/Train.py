@@ -32,7 +32,7 @@ run_config = flatten_dict(configuration)
 from simvue import Run, Client
 with Run(mode='online') as run:
 
-    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Tests'], metadata=run_config)
+    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Mark1'], metadata=run_config)
 
     # #if run is being disabled
     # import argparse
@@ -82,7 +82,6 @@ with Run(mode='online') as run:
     from model_setup import *
     from Neural_PDE.Utils.processing_utils import * 
     from Neural_PDE.Utils.training_utils import * 
-
 
     # %% 
     ####################################
@@ -222,10 +221,10 @@ with Run(mode='online') as run:
             shutil.rmtree(tmp_loc)
         os.makedirs(tmp_loc, exist_ok=True)
         run_id = client.get_run_id_from_name(configuration['Train']['restart_run_name'])
-        client.get_artifact_as_file(run_id, name = 'checkpoint_500.pt', output_dir=tmp_loc)
-        ckpt_path = tmp_loc + '/checkpoint_500.pt'
+        client.get_artifact_as_file(run_id, name = 'checkpoint_200.pt', output_dir=tmp_loc)
+        ckpt_path = tmp_loc + '/checkpoint_200.pt'
         checkpoint = torch.load(ckpt_path)
-        model.load_state_dict(checkpoint["model"])
+        model.load_state_dict(checkpoint["model"], strict=False)
         optimizer.load_state_dict(checkpoint["optimizer"])
         scheduler.load_state_dict(checkpoint["scheduler"])
         epoch_init = checkpoint["epoch"]
@@ -239,7 +238,6 @@ with Run(mode='online') as run:
     elif configuration['Train']['odesolve']['source'] == 'torchdiffeq':
         from Utils import torch_odesolve  
         train = torch_odesolve.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Train']['odesolve']['method'],  configuration['Train']['odesolve']['adjoint'])
-
     
     # %% 
     ####################################

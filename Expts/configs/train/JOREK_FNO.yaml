@@ -20,8 +20,8 @@ Model:
   arch: 'FNO'
   in_vars: 3
   out_vars: 3
-  modes: 8
-  width: 16
+  modes: 16
+  width: 32
   n_layers: 3
   act: 'gelu'
   operator_splitting: False
@@ -30,7 +30,7 @@ Model:
 Data: 
   name: 'JOREK_filtered.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
-  ntrain: 200
+  ntrain: 500
   test_train_split: 0.2
   batch_size: 10
   t_in: 1
@@ -57,7 +57,7 @@ Train:
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:

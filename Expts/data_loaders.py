@@ -15,7 +15,6 @@ def stacked_fields(variables):
     stack = torch.stack(stack, dim=1)
     return stack
 
-
 class SpatioTemporalDataset(Dataset):
     def __init__(self, data, input_window=64, prediction_steps=1):
         """
@@ -266,7 +265,7 @@ def JOREK_electrostatic(configuration):
 
     rho = np.load(data)['rho'].astype(np.float32)[:n_sims] / 1e20
     phi = np.load(data)['Phi'].astype(np.float32)[:n_sims] / 1e5
-    T = np.load(data)['T'].astype(np.float32)[:200][:n_sims] / 1e6
+    T = np.load(data)['T'].astype(np.float32)[:n_sims] / 1e6
 
     rho = np.nan_to_num(rho)
     phi = np.nan_to_num(phi)
@@ -414,8 +413,8 @@ def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
     #https://polymathic-ai.org/the_well/datasets/shear_flow/
     reynolds = configuration['Data']['reynolds'][0]
     schmidt = configuration['Data']['schmidt']
-    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/shear_flow/data/test'
-
+    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/shear_flow/data/train'
+    data_loc = configuration['Data']['loc']
     u_list = []
     v_list = []
     p_list = []
@@ -456,7 +455,7 @@ def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
     v = np.concatenate(v_list, axis=0)
     p = np.concatenate(p_list, axis=0)
 
-    fields = stacked_fields([u,v])
+    print(fields.shape)
 
     #Slicing the data to reduce the size.
     fields = fields[:configuration['Data']['ntrain'],:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
@@ -468,11 +467,10 @@ def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
     return fields, x, y, dt
 
 
-
 def Euler_Quadrants(configuration, gamma= ['1.365'], gas = ['Dry_air_1000']):
     #https://polymathic-ai.org/the_well/datasets/euler_multi_quadrants_periodicBC/
-    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/test'
-
+    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/test'
+    data_loc = configuration['Data']['loc']
     rho_list = []
     E_list = []
     px_list = []
@@ -528,6 +526,7 @@ def Euler_Quadrants(configuration, gamma= ['1.365'], gas = ['Dry_air_1000']):
 
 
     fields = stacked_fields([rho, E, px, py, P])
+    print(fields.shape)
 
     del rho, E, px, py, P
 

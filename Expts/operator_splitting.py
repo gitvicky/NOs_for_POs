@@ -35,13 +35,12 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         self.pressure_poisson = model_selection(config)
         self.convection_operator = model_selection(config)
 
-        self.laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True, scalar=False)
-        self.nu = torch.tensor(0.001, dtype=torch.float32, requires_grad=True).to(device)
+        self.laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False, scalar=False)
+        self.nu = torch.tensor(0.001, dtype=torch.float32, requires_grad=False).to(device)
 
     def forward(self, vars):
 
         uv = vars[:, 0:2]
-
 
         pressure_grad = self.pressure_poisson(uv)
         convection = self.convection_operator(uv)
