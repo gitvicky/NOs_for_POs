@@ -13,14 +13,14 @@ Physics:
   dt: 0.005 #1.5e-6 real time
   x_slice: 1
   y_slice: 1
-  t_slice: 1
+  t_slice: 2
   physics_normalisation: True
 
 Model:
   arch: 'U-Net'
   in_vars: 3
   out_vars: 3
-  width: 32
+  width: 16
   act: 'tanh'
   operator_splitting: False
   ops_split_normalise: False
@@ -28,9 +28,9 @@ Model:
 Data: 
   name: 'JOREK_filtered.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
-  ntrain: 200
+  ntrain: 500
   test_train_split: 0.2
-  batch_size: 10
+  batch_size: 50
   t_in: 1
   t_out: 50
   step: 1
@@ -51,11 +51,11 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 50
+  rollout_length: 20
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:

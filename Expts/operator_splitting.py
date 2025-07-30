@@ -67,7 +67,6 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         return nparams 
     
 
-
 class NS_shearflow_OS_rhs(nn.Module):#Navier-Stokes ShearFlow Operator-Splitting right-hand-side. 
     def __init__(self, configuration, normalizer, run):
         super(NS_shearflow_OS_rhs, self).__init__()
@@ -136,14 +135,23 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         self.gamma = torch.tensor(5/3, dtype=torch.float32, requires_grad=True).to(device)
         self.eps = torch.tensor(1e-6, dtype=torch.float32, requires_grad=True).to(device)
 
-        #FNO - primitive variables.
-        self.convection_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
-        self.divergence_operator = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
-        self.gradient_operator = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+        #Model Selection 
+        config = configuration
+        config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
+        self.convection_operator = model_selection(config)
+        # config['Model']['in_vars'], config['Model']['out_vars'] = 2, 1
+        # self.divergence_operator = model_selection(config)
+        # config['Model']['in_vars'], config['Model']['out_vars'] = 1, 2
+        # self.gradient_operator = model_selection(config)
 
-        # #Using predetermined operators.
-        # self.divergence_operator = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
-        # self.gradient_operator = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True)
+        # #Using FNO
+        # self.convection_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
+        # self.divergence_operator = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+        # self.gradient_operator = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
+
+        #Using predetermined operators.
+        self.divergence_operator = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
+        self.gradient_operator = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
 
         # #FNO - conservative variables.
         # self.grad_x = FNO_multi2d(in_vars=4, out_vars=4, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
@@ -181,9 +189,9 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
     def forward(self, vars): 
 
         rho = vars[:, 0:1]
+        # u, v = vars[:, 1:2], vars[:, 2:3]
         uv  = vars[:, 1:3]
         p   = vars[:, 3:4]
-
 
         # vars_enc = self.normalizer.encode(vars)
         # rho_enc = vars_enc[:, 0:1]
@@ -200,9 +208,9 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         # grad_rho = self.gradient_operator(rho[...,0]).unsqueeze(-1) #Assuming rho is a scalar field with shape (batch_size, 1, height, width, 1).
         # grad_p = self.gradient_operator(p[...,0]).unsqueeze(-1) #Assuming p is a scalar field with shape (batch_size, 1, height, width, 1).
         
-        div_uv = self.divergence_operator(uv)
-        grad_rho = self.gradient_operator(rho)
-        grad_p = self.gradient_operator(p)
+        div_uv = self.divergence_operator(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1)
+        grad_rho = self.gradient_operator(rho[...,0]).unsqueeze(-1)
+        grad_p = self.gradient_operator(p[...,0]).unsqueeze(-1)
 
         convection = self.convection_operator(uv)
 

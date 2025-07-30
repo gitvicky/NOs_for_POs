@@ -7,7 +7,7 @@ import sys
 sys.path.append("..")
 
 # from Neural_PDE.Models.FNO_classic import *
-from Neural_PDE.Models.ViT import * 
+# from Neural_PDE.Models.ViT import * 
 from Neural_PDE.Models.UNet import * 
 from Neural_PDE.Models.UNet_Classic import *
 from Neural_PDE.Models.CNO import * 

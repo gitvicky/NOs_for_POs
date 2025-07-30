@@ -5,8 +5,9 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'coral-leadership'
+run_name = 'diagonal-originator'
 data_name = None
+t_extrapolation = None
 # %%
 class Run:
     def __init__(self, name=None):
@@ -100,7 +101,6 @@ if pde == 'Euler Quadrant':
     fields, x, y, dt = Euler_Quadrants(configuration)
 
 
-
 t = torch.arange(0, fields.shape[-1], dt)
 fields = fields[...,:configuration['Data']['t_out']]
 
@@ -109,6 +109,8 @@ expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['var
 assert fields.shape == expected_shape, \
     f"Expected fields shape to be {expected_shape}, but got {fields.shape}"
 
+#Printing the current dictionary
+print(yaml.dump(configuration, default_flow_style=False, indent=2))
 # %%
 #Normalising the data -- Taking the normalisation from the trained run. 
 client.get_artifact_as_file(client.get_run_id_from_name(run_name), name='norms.npz', output_dir=tmp_loc)
@@ -160,7 +162,7 @@ from Utils import explicit_time
 eval = explicit_time.Eval_Setup(model, test_in, test_out, normalizer='False', ode_solver = configuration['Train']['odesolve']['source'], roll_out= configuration['Train']['odesolve']['method'])
 pred_encoded, error = eval.inference(configuration['Data']['step'], configuration['Data']['t_out']-1, dt=dt)
 
-print('(MSE) Testing Error: %.3e' % (error))
+print(f'MSE (norm) : {float(error):.4e}')
 
 #Denormalising the test and predictions
 test_out = normalizer.decode(test_out.to(device)).cpu()
@@ -177,9 +179,12 @@ test_out = test_out.permute(0,1,4,2,3)
 pred_set = pred_set.permute(0,1,4,2,3)
 
 # %% 
+#Getting the Metrics
+from Utils.metrics import MSE, NRMSE
+print(f'NRMSE (physical) : {float(NRMSE(pred_set, test_out)["average"]):.4e}')
+# %% 
 #Visualising the results
 from Utils.plots import plots_2d_yaml
 idx = 3
-plots_2d_yaml(configuration, test_out, pred_set, tmp_loc, run, idx, save=False)
-
+plots_2d_yaml(configuration, test_out, pred_set, tmp_loc, run, idx, save=True)
 # %% 

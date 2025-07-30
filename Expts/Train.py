@@ -221,8 +221,8 @@ with Run(mode='online') as run:
             shutil.rmtree(tmp_loc)
         os.makedirs(tmp_loc, exist_ok=True)
         run_id = client.get_run_id_from_name(configuration['Train']['restart_run_name'])
-        client.get_artifact_as_file(run_id, name = 'checkpoint_200.pt', output_dir=tmp_loc)
-        ckpt_path = tmp_loc + '/checkpoint_200.pt'
+        client.get_artifact_as_file(run_id, name = 'checkpoint_100.pt', output_dir=tmp_loc)
+        ckpt_path = tmp_loc + '/checkpoint_100.pt'
         checkpoint = torch.load(ckpt_path)
         model.load_state_dict(checkpoint["model"], strict=False)
         optimizer.load_state_dict(checkpoint["optimizer"])
@@ -344,5 +344,9 @@ with Run(mode='online') as run:
     idx = 0 
     plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run, idx, save=True)
     # %%
+    #Saving the slurm output file. 
+    slurm_id = os.environ['SLURM_JOB_ID']
+    run.save_file(os.path.abspath('slurm-'+str(slurm_id)+'.out'), 'output')
+
     run.close()
     # %%
