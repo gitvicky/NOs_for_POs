@@ -1,41 +1,41 @@
 seed: 907
 
 Physics: 
-  pde: 'Euler-Fluid'
-  source: 'Finite Volume' 
-  field: 'rho, u, v, p'
-  variables: 4
+  pde: 'Constrained MHD'
+  source: 'Finite-Volume' 
+  field: 'rho, u, v, P, Bx, By'
+  variables: 6
   Nx: 128
   Ny: 128
-  Nt: 101
+  Nt: 200
   dx: 0.0078125
   dy: 0.0078125
-  dt: 0.02
-  x_slice: 1
-  y_slice: 1
+  dt: 0.0001 
+  x_slice: 2
+  y_slice: 2
   t_slice: 2
   physics_normalisation: False
-  conservative: True
 
 Model:
   arch: 'FNO'
-  in_vars: 4
-  out_vars: 4
+  in_vars: 6
+  out_vars: 6
   modes: 8
   width: 16
   n_layers: 4
   act: 'gelu'
-  operator_splitting: True
+  operator_splitting: False
   ops_split_normalise: False
 
+
 Data: 
-  name: 'NS_FV_combined.npz'
+  name: 'Constrained_MHD_combined.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
   ntrain: 500
   test_train_split: 0.2
-  batch_size: 20
+  batch_size: 50
   t_in: 1
-  t_out: 50
+  t_out: 100
   step: 1
   normalisation: 'Min-Max_variable'
 
@@ -47,14 +47,14 @@ Opt:
   beta2: 0.9
   weight_decay: 1e-4
   scheduler: 'step'  
-  scheduler_step : 100
+  scheduler_step: 100
   scheduler_gamma: 0.5
   grad_clip: 2.0
 
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 20
+  rollout_length: 40
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
@@ -64,9 +64,9 @@ Train:
   checkpoint:
     epochs: 100
   restart: False
-  restart_run_name: '' #simvue run name 
+  restart_run_name: '' #simvue run name
 
 Simvue:
   mode: 'online'
   name: None 
-  folder: '/Neural_PDE/Euler' 
+  folder: '/Neural_PDE/Constrained_MHD' 

@@ -146,8 +146,7 @@ def Euler_FV(configuration):
     v = data['v'].astype(np.float32)[:n_sims]
     p = data['p'].astype(np.float32)[:n_sims] 
 
-
-    dx = data['dx']
+    dx = data['dx'].astype(np.float32)
     x = np.linspace(0, 1, 128)
 
     dt = data['dt']
@@ -254,7 +253,32 @@ def Navier_Stokes_Comp(configuration):
 
     return fields, x, y, dt
 
+def Constrained_MHD(configuration):
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+    n_sims = configuration['Data']['ntrain']
+    data =  np.load(data_loc + '/Constrained_MHD_combined.npz')
 
+    rho = data['rho'].astype(np.float32)[:n_sims]
+    u = data['u'].astype(np.float32)[:n_sims]
+    v = data['v'].astype(np.float32)[:n_sims]
+    p = data['p'].astype(np.float32)[:n_sims]
+    Bx = data['Bx'].astype(np.float32)[:n_sims]
+    By  = data['By'].astype(np.float32)[:n_sims]
+
+    x = data['x'].astype(np.float32)
+    y = data['x'].astype(np.float32)
+    dt = data['dt'].astype(np.float32)[0]
+    dt = torch.tensor(dt, dtype=torch.float)
+
+    fields = stacked_fields([rho, u, v, p, Bx, By])
+
+    #Slicing the data to reduce the size.
+    fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
+    x = x[::configuration['Physics']['x_slice']]
+    y = y[::configuration['Physics']['y_slice']]
+    dt = dt*configuration['Physics']['t_slice']
+
+    return fields, x, y, dt
 
 def JOREK_electrostatic(configuration):
     n_sims = configuration['Data']['ntrain']

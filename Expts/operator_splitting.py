@@ -120,7 +120,6 @@ class NS_shearflow_OS_rhs(nn.Module):#Navier-Stokes ShearFlow Operator-Splitting
         return nparams 
 
 
-
 class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Operator-Splitting right-hand-side.
     def __init__(self, configuration, normalizer, run):
         super(Euler_FV_OS_rhs, self).__init__()
@@ -135,122 +134,107 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         self.gamma = torch.tensor(5/3, dtype=torch.float32, requires_grad=True).to(device)
         self.eps = torch.tensor(1e-6, dtype=torch.float32, requires_grad=True).to(device)
 
+        # Multiple stabilization parameters
+        self.rho_min = torch.tensor(1e-4, dtype=torch.float32, requires_grad=False).to(device)  # Density floor
+        self.rho_max = torch.tensor(1.0).to(device)
+        
+        # Smoothing parameter for soft minimum
+        self.alpha_smooth = torch.tensor(0.01, dtype=torch.float32, requires_grad=False).to(device)
+
+    # #Primitive Variables
+        # #Model Selection 
+        # config = configuration
+        # config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
+        # self.convection_operator = model_selection(config)
+
+        # #Setting up NOs for linear operators. 
+        # # config['Model']['in_vars'], config['Model']['out_vars'] = 2, 1
+        # # self.divergence_operator = model_selection(config)
+        # # config['Model']['in_vars'], config['Model']['out_vars'] = 1, 2
+        # # self.gradient_operator = model_selection(config)
+
+        # #Using predetermined operators.
+        # self.divergence_operator = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
+        # self.gradient_operator = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
+
+    #Using Conservative Variables 
+
         #Model Selection 
         config = configuration
-        config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
-        self.convection_operator = model_selection(config)
-        # config['Model']['in_vars'], config['Model']['out_vars'] = 2, 1
-        # self.divergence_operator = model_selection(config)
-        # config['Model']['in_vars'], config['Model']['out_vars'] = 1, 2
-        # self.gradient_operator = model_selection(config)
-
-        # #Using FNO
-        # self.convection_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers']) 
-        # self.divergence_operator = FNO_multi2d(in_vars=2, out_vars=1, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
-        # self.gradient_operator = FNO_multi2d(in_vars=1, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
-
-        #Using predetermined operators.
-        self.divergence_operator = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
-        self.gradient_operator = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
-
-        # #FNO - conservative variables.
-        # self.grad_x = FNO_multi2d(in_vars=4, out_vars=4, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])  
-        # self.grad_y = FNO_multi2d(in_vars=4, out_vars=4, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
-        
-        #  #Convolutions with BCs
-        # self.divergence_operator = ConvolutionalModel(
-        #         in_features=2,
-        #         out_features=1,
-        #         hidden_features=4,
-        #         num_layers=2,
-        #         activation='tanh',
-        #         final_activation='none',
-        #         init_type='random')
-        
-        # self.convection_operator = ConvolutionalModel(
-        #         in_features=2,
-        #         out_features=2,
-        #         hidden_features=4,
-        #         num_layers=2,
-        #         activation='tanh',
-        #         final_activation='none',
-        #         init_type='random')
-
-        # self.gradient_operator = ConvolutionalModel(
-        #         in_features=1,
-        #         out_features=2,
-        #         hidden_features=4,
-        #         num_layers=2,
-        #         activation='tanh',
-        #         final_activation='none',
-        #         init_type='random')
-
-#Using primitive variables.
-    def forward(self, vars): 
-
-        rho = vars[:, 0:1]
-        # u, v = vars[:, 1:2], vars[:, 2:3]
-        uv  = vars[:, 1:3]
-        p   = vars[:, 3:4]
-
-        # vars_enc = self.normalizer.encode(vars)
-        # rho_enc = vars_enc[:, 0:1]
-        # uv_enc  = vars_enc[:, 1:3]
-        # p_enc   = vars_enc[:, 3:4]
-
-        # div_uv = self.normalizer.decode(self.divergence_operator(uv_enc), var_idx = [1])
-        # grad_rho = self.normalizer.decode(self.gradient_operator(rho_enc), var_idx = [0,0])
-        # grad_p = self.normalizer.decode(self.gradient_operator(p_enc), var_idx = [3,3])
-        # convection = self.normalizer.decode(self.convection_operator(uv_enc), var_idx = [1,2])
-        
-
-        # div_uv = self.divergence_operator(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1) #Assuming uv is a 2D vector field with shape (batch_size, 2, height, width, 1).
-        # grad_rho = self.gradient_operator(rho[...,0]).unsqueeze(-1) #Assuming rho is a scalar field with shape (batch_size, 1, height, width, 1).
-        # grad_p = self.gradient_operator(p[...,0]).unsqueeze(-1) #Assuming p is a scalar field with shape (batch_size, 1, height, width, 1).
-        
-        div_uv = self.divergence_operator(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1)
-        grad_rho = self.gradient_operator(rho[...,0]).unsqueeze(-1)
-        grad_p = self.gradient_operator(p[...,0]).unsqueeze(-1)
-
-        convection = self.convection_operator(uv)
-
-        rhs_mass = - rho*div_uv - dot(uv, grad_rho)
-        
-        rhs_mom = -convection - (1/(rho+1e-6))*grad_p   #regularisation to avoid division by zero.     
-        # rhs_mom =  -rho*convection - grad_p #Reformulated to avoid division by rho
-        
-        rhs_energy = -self.gamma*p*div_uv - dot(uv, grad_p)
-        
-
-        self.run.log_metrics({"rhs_mass": rhs_mass.detach().mean(),
-                              "rhs_mom.": rhs_mom.detach().mean(),
-                              "rhs_energy": rhs_energy.detach().mean()
-                             })
-
-        rhs = torch.cat((rhs_mass, rhs_mom, rhs_energy), dim=1)
-        return rhs
+        config['Model']['in_vars'], config['Model']['out_vars'] = 4, 4
+        self.grad_x = model_selection(config)
+        self.grad_y = model_selection(config)
 
 
-# #Using conservative variables.
+    def stabilise_density(self, rho):
+        return torch.where(
+            rho >= self.rho_min,
+            rho,
+            self.rho_min + F.elu(torch.abs(rho - self.rho_min), alpha=self.alpha_smooth)
+        )
+    
+# #Using primitive variables.
 #     def forward(self, vars): 
 
-#         M = vars[:, 0:1]  # Mass density
-#         Mx = vars[:, 1:2]  # x-momentum density
-#         My = vars[:, 2:3]  # y-momentum density
-#         E = vars[:, 3:4]  # Energy density
-#         P = (self.gamma - 1) * (E - 0.5 * (Mx**2 + My**2) / M)  # Pressure from energy density
+#         rho = vars[:, 0:1]
+#         uv  = vars[:, 1:3]
+#         p   = vars[:, 3:4]
 
-#         F_rhs = torch.cat((Mx, Mx**2/M + P,  (Mx*My)/M, (E+P)*(Mx/M)), dim=1)
-#         G_rhs = torch.cat((My, (Mx*My)/M, My**2/M + P, (E+P)*(My/M)), dim=1)
-#         F_x = self.grad_x(F_rhs)
-#         G_y = self.grad_y(G_rhs)
-#         rhs = -  F_x - G_y # Divergence of F
+#         # # Stabilise density
+#         # rho = self.stabilise_density(rho)
 
-#         self.run.log_metrics({"rhs_mass": rhs[:,0:1].detach().mean(),
-#                               "rhs_mom.": rhs[:,1:3].detach().mean(),
-#                               "rhs_energy": rhs[:,3:4].detach().mean()
+#         # div_uv = self.divergence_operator(uv)
+#         # grad_rho = self.gradient_operator(rho)
+#         # grad_p = self.gradient_operator(p)
+
+#         div_uv = self.divergence_operator(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1)
+#         grad_rho = self.gradient_operator(rho[...,0]).unsqueeze(-1)
+#         grad_p = self.gradient_operator(p[...,0]).unsqueeze(-1)
+        
+
+#         convection = self.convection_operator(uv)
+
+#         rhs_mass = - rho*div_uv - dot(uv, grad_rho)        
+#         rhs_mom = -convection - (rho)*grad_p #reformulated to avoid division by zero 
+#         # rhs_mom = -convection - (1/rho)*grad_p   #regularisation to avoid division by zero.     
+#         rhs_energy = -self.gamma*p*div_uv - dot(uv, grad_p)
+
+#         # print(torch.sum(rho< 1e-4))
+
+        
+#         self.run.log_metrics({"rhs_mass": rhs_mass.detach().mean(),
+#                               "rhs_mom.": rhs_mom.detach().mean(),
+#                               "rhs_energy": rhs_energy.detach().mean()
 #                              })
+
+#         rhs = torch.cat((rhs_mass, rhs_mom, rhs_energy), dim=1)
 #         return rhs
+
+
+#Using conservative variables.
+    def forward(self, vars): 
+
+        M = vars[:, 0:1]  # Mass density
+        Mx = vars[:, 1:2]  # x-momentum density
+        My = vars[:, 2:3]  # y-momentum density
+        E = vars[:, 3:4]  # Energy density
+        P = (self.gamma - 1) * (E - 0.5 * (Mx**2 + My**2) )#/ M)  # Pressure from energy density
+
+        # F_rhs = torch.cat((Mx, Mx**2/M + P,  (Mx*My)/M, (E+P)*(Mx/M)), dim=1)
+        # G_rhs = torch.cat((My, (Mx*My)/M, My**2/M + P, (E+P)*(My/M)), dim=1)
+
+        F_rhs = torch.cat((Mx, Mx**2 + P,  (Mx*My), (E+P)*(Mx)), dim=1)
+        G_rhs = torch.cat((My, (Mx*My), My**2 + P, (E+P)*(My)), dim=1)
+
+        F_x = self.grad_x(F_rhs)
+        G_y = self.grad_y(G_rhs)
+        rhs = -  F_x - G_y # Divergence of F
+
+        self.run.log_metrics({"rhs_mass": rhs[:,0:1].detach().mean(),
+                              "rhs_mom.": rhs[:,1:3].detach().mean(),
+                              "rhs_energy": rhs[:,3:4].detach().mean()
+                             })
+        return rhs
 
     def count_params(self):
         nparams = 0
@@ -401,7 +385,6 @@ class Comp_NS_PDEB_OS_rhs(nn.Module):#PDE Bench Compressible Navier-Stokes Opera
 
         return rhs
 
-
     def count_params(self):
         nparams = 0
 
@@ -409,7 +392,60 @@ class Comp_NS_PDEB_OS_rhs(nn.Module):#PDE Bench Compressible Navier-Stokes Opera
             nparams += param.numel()
         return nparams 
 
+class Ideal_MHD_OS_RHS(nn.Module):
+    def __init__(self, configuration, normalizer, run):
+        super(Ideal_MHD_OS_RHS, self).__init__()
 
+        self.normalizer = normalizer
+        if device == 'cuda':
+            self.normalizer.cuda()
+        else:
+            self.normalizer.cpu()
+        self.run = run
+        
+        #Discretisation
+        dx, dy = configuration['Physics']['dx'] * configuration['Physics']['x_slice'], configuration['Physics']['dy'] * configuration['Physics']['y_slice']
+        Nx, Ny = configuration['Physics']['Nx'] / configuration['Physics']['x_slice'], configuration['Physics']['Ny'] / configuration['Physics']['y_slice']
+        gridx = torch.tensor(np.linspace(0, int(Nx*dx), int(Nx)), dtype=torch.float)
+        gridy = torch.tensor(np.linspace(0, int(Ny*dy), int(Ny)), dtype=torch.float)
+
+        self.mu0 = torch.tensor(4*torch.pi*1e-7, dtype=torch.float32, requires_grad=False).to(device)
+        self.gamma = torch.tensor(5/3, dtype=torch.float32, requires_grad=False).to(device)
+
+        #Linear Operators
+        self.divergence_operator = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
+        self.gradient_operator = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
+      
+        #Nonlinear Operators
+        config = configuration
+        config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
+        self.convection_operator = model_selection(config)  
+        config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
+        self.b_cross_b = model_selection(config)  
+        config['Model']['in_vars'], config['Model']['out_vars'] = 5, 1
+        self.energy_operator = model_selection(config)
+        config['Model']['in_vars'], config['Model']['out_vars'] = 4, 2
+        self.induction_operator = model_selection(config)
+
+    def forward(self, vars):
+        rho, uv, P, B = vars[:,0:1], vars[:, 1:3], vars[:, 3:4], vars[:,4:6]
+        div_rho_uv = self.divergence_operator(rho[...,0]*uv[:,0:1,...,0], rho[...,0]*uv[:,1:2,...,0]).unsqueeze(-1)
+
+        rhs_rho = - div_rho_uv
+        rhs_uv = (1/rho)*(1/self.mu0)*self.b_cross_b(vars[:,1:4]) - self.gradient_operator(P[...,0]).unsqueeze(-1) - self.convection_operator(uv)
+        rhs_P = self.energy_operator(vars[:, 1:])
+        rhs_B = self.induction_operator(torch.cat((uv, B)), dim=1)
+
+        rhs = torch.cat((rhs_rho, rhs_uv, rhs_P, rhs_B), dim=1)
+        return rhs
+    
+    def count_params(self):
+        nparams = 0
+
+        for param in self.parameters():
+            nparams += param.numel()
+        return nparams 
+    
 class JOREK_ES_OS_RHS(nn.Module):
     def __init__(self, configuration):
         super(JOREK_ES_OS_RHS, self).__init__()
@@ -419,7 +455,10 @@ class JOREK_ES_OS_RHS(nn.Module):
         self.grad_Z = ConvOperator(domain=('y'), order=1, taylor_order=2 , boundary_cond='periodic', device=device, requires_grad=True)
         self.grad_RR = ConvOperator(domain=('x'), order=2, taylor_order=2 , boundary_cond='periodic', device=device, requires_grad=True)
         self.grad_ZZ = ConvOperator(domain=('y'), order=2, taylor_order=2 , boundary_cond='periodic', device=device, requires_grad=True)
-        self.NO = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
+
+        config = configuration
+        config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
+        self.poisson_bracket = model_selection(config)
 
         R = torch.tensor(np.linspace(9.5, 10.5, 100), dtype=torch.float32, requires_grad=True).to(device)
         Z = torch.tensor(np.linspace(-0.5, 0.5, 100), dtype=torch.float32, requires_grad=True).to(device)
@@ -428,16 +467,26 @@ class JOREK_ES_OS_RHS(nn.Module):
         self.D = torch.tensor(1e-5, dtype=torch.float32, requires_grad=True).to(device)
         self.mu = torch.tensor(1e-4, dtype=torch.float32, requires_grad=True).to(device)
         self.T = torch.tensor(1e-3, dtype=torch.float32, requires_grad=True).to(device)
+        self.gamma = torch.tensor(5/3, dtype=torch.float32, requires_grad=True).to(device)
+
         
     def forward(self, vars):
         rho = vars[:, 0:1]
         phi = vars[:, 1:2]
+        T = vars[:, 2:3]
 
-        rho_rhs = self.R*self.NO(vars) + 2*rho*self.grad_Z(phi) + self.D*(self.grad_RR(rho) + (1/self.R)*self.grad_R(rho) + self.grad_ZZ(rho))
-
-        return rho_rhs                  
+        rho_rhs = self.R*self.poisson_bracket(rho, phi) + 2*rho*self.grad_Z(phi) + self.D*(self.grad_RR(rho) + (1/self.R)*self.grad_R(rho) + self.grad_ZZ(rho))
+        T_rhs = self.R*self.poisson_bracket(T, phi) + ((self.R*T)/rho) *self.poisson_bracket(rho, phi) + 2*self.gamma*T*self.grad_Z(phi) + (self.kappa/rho)*self.D*(self.grad_RR(T) + (1/self.R)*self.grad_R(T) + self.grad_ZZ(T)) - (T/rho)*rho_rhs
+        rhs = torch.cat((rho_rhs, T_rhs), dim=1)
+        return rhs 
                                                               
-                                        
+   
+    def count_params(self):
+        nparams = 0
+
+        for param in self.parameters():
+            nparams += param.numel()
+        return nparams                                      
 # %% 
 # #Example Usage
 # import yaml

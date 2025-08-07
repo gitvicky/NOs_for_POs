@@ -102,6 +102,8 @@ with Run(mode='online') as run:
         fields, force, x, y, dt = Navier_Stokes_Incomp(configuration)
     if pde == 'Comp. Navier-Stokes':
         fields, x, y, dt = Navier_Stokes_Comp(configuration)
+    if pde == 'Constrained MHD':
+        fields, x, y, dt = Constrained_MHD(configuration)
     if pde == 'Electrostatic MHD':
         if configuration['Physics']['source'] == 'JOREK': 
             fields, x, y, dt = JOREK_electrostatic(configuration)
@@ -128,7 +130,7 @@ with Run(mode='online') as run:
     # %%
     # Normalising the data -- using the same normalisations for inputs and outputs
     normalizer_func = Normalisation(configuration['Data']['normalisation'])
-    normalizer = normalizer_func(fields, low=-1.0, high=1.0)
+    normalizer = normalizer_func(fields, low=-0.0, high=1.0)
     if configuration['Model']['ops_split_normalise']: #Normalise and Denormalise done within the Model. 
         fields_encoded = fields
     else:
