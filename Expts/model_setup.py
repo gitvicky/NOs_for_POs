@@ -172,7 +172,10 @@ def model_initialisation(configuration, normalizer, run):
             model = Incomp_PDEB_NS_OS_rhs(configuration, normalizer, run)
         elif pde == 'Comp. Navier-Stokes':
             from operator_splitting import Comp_NS_PDEB_OS_rhs
-            model = Comp_NS_PDEB_OS_rhs(configuration)
+            model = Comp_NS_PDEB_OS_rhs(configuration, normalizer, run)
+        elif pde == 'Constrained MHD':
+            from operator_splitting import Ideal_MHD_OS_rhs
+            model = Ideal_MHD_OS_rhs(configuration, normalizer, run)
 
         else:
             raise ValueError(f"Unknown PDE: {pde} in operator splitting. ")

@@ -32,9 +32,9 @@
     loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
     ntrain: 500
     test_train_split: 0.2
-    batch_size: 20
+    batch_size: 40
     t_in: 1
-    t_out: 50
+    t_out: 30
     step: 1
     normalisation: 'Min-Max'
 
@@ -57,7 +57,7 @@
     input_noise: 0.0
     odesolve: 
       source: 'custom' #'torchdiffeq', 'custom'
-      method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+      method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
       adjoint: False #Only for torchdiffeq
     batch_norm: False
     checkpoint:

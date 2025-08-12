@@ -392,9 +392,9 @@ class Comp_NS_PDEB_OS_rhs(nn.Module):#PDE Bench Compressible Navier-Stokes Opera
             nparams += param.numel()
         return nparams 
 
-class Ideal_MHD_OS_RHS(nn.Module):
+class Ideal_MHD_OS_rhs(nn.Module):
     def __init__(self, configuration, normalizer, run):
-        super(Ideal_MHD_OS_RHS, self).__init__()
+        super(Ideal_MHD_OS_rhs, self).__init__()
 
         self.normalizer = normalizer
         if device == 'cuda':
@@ -430,12 +430,11 @@ class Ideal_MHD_OS_RHS(nn.Module):
     def forward(self, vars):
         rho, uv, P, B = vars[:,0:1], vars[:, 1:3], vars[:, 3:4], vars[:,4:6]
         div_rho_uv = self.divergence_operator(rho[...,0]*uv[:,0:1,...,0], rho[...,0]*uv[:,1:2,...,0]).unsqueeze(-1)
-
         rhs_rho = - div_rho_uv
-        rhs_uv = (1/rho)*(1/self.mu0)*self.b_cross_b(vars[:,1:4]) - self.gradient_operator(P[...,0]).unsqueeze(-1) - self.convection_operator(uv)
+        # rhs_uv = (1/rho)*(1/self.mu0)*self.b_cross_b(vars[:,1:4]) - self.gradient_operator(P[...,0]).unsqueeze(-1) - self.convection_operator(uv)
+        rhs_uv = self.b_cross_b(B) - self.gradient_operator(P[...,0]).unsqueeze(-1) - self.convection_operator(uv)
         rhs_P = self.energy_operator(vars[:, 1:])
-        rhs_B = self.induction_operator(torch.cat((uv, B)), dim=1)
-
+        rhs_B = self.induction_operator(torch.cat((uv, B), dim=1))
         rhs = torch.cat((rhs_rho, rhs_uv, rhs_P, rhs_B), dim=1)
         return rhs
     
@@ -487,6 +486,7 @@ class JOREK_ES_OS_RHS(nn.Module):
         for param in self.parameters():
             nparams += param.numel()
         return nparams                                      
+    
 # %% 
 # #Example Usage
 # import yaml

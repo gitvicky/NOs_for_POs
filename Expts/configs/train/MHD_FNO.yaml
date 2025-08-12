@@ -20,11 +20,11 @@ Model:
   arch: 'FNO'
   in_vars: 6
   out_vars: 6
-  modes: 8
-  width: 16
-  n_layers: 4
+  modes: 6
+  width: 12
+  n_layers: 2
   act: 'gelu'
-  operator_splitting: False
+  operator_splitting: True
   ops_split_normalise: False
 
 

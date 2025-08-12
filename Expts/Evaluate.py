@@ -6,8 +6,8 @@ Evaluating Trained Models using simvue's client API.
 # %%
 #Specifying the run instance
 run_name = 'diagonal-originator'
-data_name = None
-t_extrapolation = None
+test_data_name = None
+t_extrapolation = 100
 # %%
 class Run:
     def __init__(self, name=None):
@@ -43,6 +43,18 @@ os.makedirs(tmp_loc, exist_ok=True)
 run_id = client.get_run_id_from_name(run_name)
 client.get_artifacts_as_files(run_id, category='code', output_dir=tmp_loc)
 configuration = yaml.safe_load(open(next(Path(tmp_loc).glob('*.yaml'))))
+
+# %% 
+#Setting the experiment parameters 
+if t_extrapolation != None:
+    configuration['Data']['t_out'] = t_extrapolation
+
+if test_data_name !=None:
+    pde=test_data_name
+else:
+    pde = configuration['Physics']['pde'] 
+
+print(configuration['Data']['t_out'])
 # %% 
 #Importing the necessary packages
 import sys
@@ -74,11 +86,7 @@ t1 = default_timer()
 n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test_train_split'])
 configuration['Data']['ntrain'] = n_sims
 from data_loaders import *
-if data_name != None: 
-        pde = data_name 
-else: 
-    pde = configuration['Physics']['pde']
-    
+
 if pde == 'Wave':
     fields, x, y, dt = Wave_Spectral(configuration)
 if pde == 'Navier-Stokes':
@@ -99,7 +107,6 @@ if pde == 'Shear Flow':
     fields, x, y, dt = Shear_Flow(configuration)
 if pde == 'Euler Quadrant':
     fields, x, y, dt = Euler_Quadrants(configuration)
-
 
 t = torch.arange(0, fields.shape[-1], dt)
 fields = fields[...,:configuration['Data']['t_out']]
@@ -124,6 +131,7 @@ fields_encoded = normalizer.encode(fields)
 # fields_encoded = fields
 
 # %% 
+
 test_in = fields_encoded[...,:configuration['Data']['t_in']] # + torch.randn_like(fields_encoded[...,:configuration['Data']['t_in']])
 test_out = fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']]
 

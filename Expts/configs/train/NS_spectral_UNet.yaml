@@ -31,7 +31,7 @@ Model:
 Data: 
   name: 'NS_Spectral_combined.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
-  ntrain: 100
+  ntrain: 500
   test_train_split: 0.2
   batch_size: 30
   t_in: 1
