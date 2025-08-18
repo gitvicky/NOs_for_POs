@@ -6,6 +6,7 @@ Training Pipeline.
 # %%
 
 #Setting up simvue 
+import shutil
 import os
 import yaml 
 import argparse
@@ -30,9 +31,9 @@ run_config = flatten_dict(configuration)
 
 # %% 
 from simvue import Run, Client
-with Run(mode='online') as run:
+with Run(mode='offline') as run:
 
-    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Mark1'], metadata=run_config)
+    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Mark1', 'Pitagora'], metadata=run_config)
 
     # #if run is being disabled
     # import argparse
@@ -40,7 +41,7 @@ with Run(mode='online') as run:
     # run.name = "test"
 
     #setting up the client API 
-    client = Client()
+    # client = Client()
 
     #Saving the current run file and the git hash of the repo
     run.save_file(os.path.abspath(__file__), 'code')
@@ -71,6 +72,11 @@ with Run(mode='online') as run:
     model_loc = file_loc + '/Weights/' + run.name
     os.mkdir(model_loc)
     plot_loc = file_loc + '/Plots'
+
+    #Saving in model_loc Train.py, .yaml, OS.py
+    shutil.copy(os.path.abspath(__file__), model_loc)
+    shutil.copy(os.path.abspath(args.config), model_loc)
+    shutil.copy(os.path.abspath('operator_splitting.py'), model_loc)
 
     #Setting up the seeds and devices
     torch.manual_seed(0)
@@ -344,11 +350,13 @@ with Run(mode='online') as run:
     #Plotting the results 
     from Utils.plots import plots_2d_yaml
     idx = 0 
-    plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run, idx, save=True)
+    # plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run, idx, save=True)
+    plots_2d_yaml(configuration, test_out, pred_set, model_loc, run, idx, save=True)
+
     # %%
     #Saving the slurm output file. 
     slurm_id = os.environ['SLURM_JOB_ID']
     run.save_file(os.path.abspath('slurm-'+str(slurm_id)+'.out'), 'output')
 
-    run.close()
+    # run.close()
     # %%

@@ -114,9 +114,9 @@ def Wave_Spectral(configuration):
 def Navier_Stokes_Spectral(configuration):
     #Testing with NS_Spectral (for now)
     n_sims = configuration['Data']['ntrain']
-    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
-    # data =  np.load(data_loc + '/NS_Spectral_combined.npz')
-    data =  np.load(data_loc + '/NS_Spectral_combined_t_extrapolate.npz')
+    data_loc = '/pitagora/home/userexternal/vgopakum/NOs_for_POs/Data'
+    data =  np.load(data_loc + '/NS_Spectral_combined.npz')
+    # data =  np.load(data_loc + '/NS_Spectral_combined_t_extrapolate.npz')
 
     u = data['u'].astype(np.float32)[:n_sims]
     v = data['v'].astype(np.float32)[:n_sims]
@@ -139,7 +139,7 @@ def Navier_Stokes_Spectral(configuration):
 def Euler_FV(configuration):
     #Finite Volume Simulation Data from Philip Mocz for Compressible Navier-Stokes 
     n_sims = configuration['Data']['ntrain']
-    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+    data_loc = '/pitagora/home/userexternal/vgopakum/NOs_for_POs/Data'
     data =  np.load(data_loc + '/NS_FV_combined.npz')
     
     rho = data['rho'].astype(np.float32)[:n_sims]

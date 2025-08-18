@@ -13,7 +13,7 @@ Physics:
   dt: 0.02
   x_slice: 1
   y_slice: 1
-  t_slice: 2
+  t_slice: 1
   physics_normalisation: False
   conservative: True
 
@@ -21,8 +21,8 @@ Model:
   arch: 'FNO'
   in_vars: 4
   out_vars: 4
-  modes: 16
-  width: 32
+  modes: 8
+  width: 16
   n_layers: 4
   act: 'gelu'
   operator_splitting: False
@@ -33,7 +33,7 @@ Data:
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
   ntrain: 500
   test_train_split: 0.2
-  batch_size: 20
+  batch_size: 40
   t_in: 1
   t_out: 50
   step: 1
@@ -67,6 +67,6 @@ Train:
   restart_run_name: '' #simvue run name 
 
 Simvue:
-  mode: 'online'
+  mode: 'offline'
   name: None 
   folder: '/Neural_PDE/Euler' 
