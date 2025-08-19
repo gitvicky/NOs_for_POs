@@ -255,7 +255,7 @@ def Navier_Stokes_Comp(configuration):
     return fields, x, y, dt
 
 def Constrained_MHD(configuration):
-    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+    data_loc = '/pitagora/home/userexternal/vgopakum/NOs_for_POs/Data'
     n_sims = configuration['Data']['ntrain']
     data =  np.load(data_loc + '/Constrained_MHD_combined.npz')
 

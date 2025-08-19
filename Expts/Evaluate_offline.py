@@ -5,9 +5,9 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'saucy-duplex'
-test_data_name = None
-t_extrapolation = 50
+run_name = 'charitable-riesling'
+test_data_name = 'Euler Quadrant'
+t_extrapolation = 100
 # %%
 class Run:
     def __init__(self, name=None):
@@ -99,6 +99,8 @@ if pde == 'Incomp. Navier-Stokes':
     fields, force, x, y, dt = Navier_Stokes_Incomp(configuration)
 if pde == 'Comp. Navier-Stokes':
     fields, x, y, dt = Navier_Stokes_Comp(configuration, coeff=configuration['Physics']['coeff'])
+if pde == 'Constrained MHD':
+        fields, x, y, dt = Constrained_MHD(configuration)
 if pde == 'Electrostatic MHD':
     if configuration['Physics']['source'] == 'JOREK': 
         fields, x, y, dt = JOREK_electrostatic(configuration)

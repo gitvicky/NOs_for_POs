@@ -20,11 +20,11 @@ Model:
   arch: 'FNO'
   in_vars: 6
   out_vars: 6
-  modes: 6
-  width: 12
-  n_layers: 2
+  modes: 12
+  width: 24
+  n_layers: 4
   act: 'gelu'
-  operator_splitting: True
+  operator_splitting: False
   ops_split_normalise: False
 
 
@@ -33,9 +33,9 @@ Data:
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
   ntrain: 500
   test_train_split: 0.2
-  batch_size: 50
+  batch_size: 100
   t_in: 1
-  t_out: 100
+  t_out: 50
   step: 1
   normalisation: 'Min-Max_variable'
 
@@ -54,11 +54,11 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 40
+  rollout_length: 30
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:

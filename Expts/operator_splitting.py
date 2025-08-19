@@ -230,10 +230,14 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         G_y = self.grad_y(G_rhs)
         rhs = -  F_x - G_y # Divergence of F
 
-        self.run.log_metrics({"rhs_mass": rhs[:,0:1].detach().mean(),
-                              "rhs_mom.": rhs[:,1:3].detach().mean(),
-                              "rhs_energy": rhs[:,3:4].detach().mean()
-                             })
+        try:
+            self.run.log_metrics({"rhs_mass": rhs[:,0:1].detach().mean(),
+                                "rhs_mom.": rhs[:,1:3].detach().mean(),
+                                "rhs_energy": rhs[:,3:4].detach().mean()
+                                })
+        except: 
+            pass
+        
         return rhs
 
     def count_params(self):
