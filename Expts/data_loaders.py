@@ -115,8 +115,8 @@ def Navier_Stokes_Spectral(configuration):
     #Testing with NS_Spectral (for now)
     n_sims = configuration['Data']['ntrain']
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
-    # data =  np.load(data_loc + '/NS_Spectral_combined.npz')
-    data =  np.load(data_loc + '/NS_Spectral_combined_t_extrapolate.npz')
+    data =  np.load(data_loc + '/NS_Spectral_combined.npz')
+    # data =  np.load(data_loc + '/NS_Spectral_combined_t_extrapolate.npz')
 
     u = data['u'].astype(np.float32)[:n_sims]
     v = data['v'].astype(np.float32)[:n_sims]
@@ -438,8 +438,8 @@ def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
     #https://polymathic-ai.org/the_well/datasets/shear_flow/
     reynolds = configuration['Data']['reynolds'][0]
     schmidt = configuration['Data']['schmidt']
-    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/shear_flow/data/train'
-    data_loc = configuration['Data']['loc']
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/shear_flow/data/train'
+    # data_loc = configuration['Data']['loc']
     u_list = []
     v_list = []
     p_list = []
@@ -480,7 +480,7 @@ def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
     v = np.concatenate(v_list, axis=0)
     p = np.concatenate(p_list, axis=0)
 
-    print(fields.shape)
+    fields = stacked_fields([u,v])
 
     #Slicing the data to reduce the size.
     fields = fields[:configuration['Data']['ntrain'],:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
@@ -494,8 +494,9 @@ def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
 
 def Euler_Quadrants(configuration, gamma= ['1.365'], gas = ['Dry_air_1000']):
     #https://polymathic-ai.org/the_well/datasets/euler_multi_quadrants_periodicBC/
-    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/test'
-    data_loc = configuration['Data']['loc']
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/test'
+    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/train'
+    # data_loc = configuration['Data']['loc']
     rho_list = []
     E_list = []
     px_list = []
@@ -550,7 +551,7 @@ def Euler_Quadrants(configuration, gamma= ['1.365'], gas = ['Dry_air_1000']):
     del rho_list, E_list, px_list, py_list, P_list
 
 
-    fields = stacked_fields([rho, E, px, py, P])
+    fields = stacked_fields([rho, px, py, E])
     print(fields.shape)
 
     del rho, E, px, py, P
@@ -562,10 +563,7 @@ def Euler_Quadrants(configuration, gamma= ['1.365'], gas = ['Dry_air_1000']):
     y = x[::configuration['Physics']['y_slice']]
     dt = dt*configuration['Physics']['t_slice']
 
-
     return fields, x, y, dt
-
-
 
 
 
