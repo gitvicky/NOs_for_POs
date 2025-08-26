@@ -114,7 +114,7 @@ def Wave_Spectral(configuration):
 def Navier_Stokes_Spectral(configuration):
     #Testing with NS_Spectral (for now)
     n_sims = configuration['Data']['ntrain']
-    data_loc = '/pitagora/home/userexternal/vgopakum/NOs_for_POs/Data'
+    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data'
     data =  np.load(data_loc + '/NS_Spectral_combined.npz')
     # data =  np.load(data_loc + '/NS_Spectral_combined_t_extrapolate.npz')
 
@@ -139,7 +139,7 @@ def Navier_Stokes_Spectral(configuration):
 def Euler_FV(configuration):
     #Finite Volume Simulation Data from Philip Mocz for Compressible Navier-Stokes 
     n_sims = configuration['Data']['ntrain']
-    data_loc = '/pitagora/home/userexternal/vgopakum/NOs_for_POs/Data'
+    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data'
     data =  np.load(data_loc + '/NS_FV_combined.npz')
     
     rho = data['rho'].astype(np.float32)[:n_sims]
@@ -255,7 +255,7 @@ def Navier_Stokes_Comp(configuration):
     return fields, x, y, dt
 
 def Constrained_MHD(configuration):
-    data_loc = '/pitagora/home/userexternal/vgopakum/NOs_for_POs/Data'
+    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data'
     n_sims = configuration['Data']['ntrain']
     data =  np.load(data_loc + '/Constrained_MHD_combined.npz')
 

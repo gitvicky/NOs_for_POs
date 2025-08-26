@@ -5,9 +5,9 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'charitable-riesling'
-test_data_name = 'Euler Quadrant'
-t_extrapolation = 100
+run_name = 'isometric-chenille'
+test_data_name = None #'Shear Flow'
+t_extrapolation = 50
 # %%
 class Run:
     def __init__(self, name=None):
@@ -37,7 +37,6 @@ tmp_loc = os.getcwd() + '/tmp'
 if os.path.exists(tmp_loc):
     shutil.rmtree(tmp_loc)
 os.makedirs(tmp_loc, exist_ok=True)
-
 
 # %%
 #Loading the yaml file to get the configuration.
