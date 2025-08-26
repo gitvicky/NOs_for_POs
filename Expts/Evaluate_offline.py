@@ -6,7 +6,7 @@ Evaluating Trained Models using simvue's client API.
 # %%
 #Specifying the run instance
 run_name = 'dichotomic-loop'
-test_data_name = 'Shear Flow'
+test_data_name = None
 t_extrapolation = 50
 # %%
 class Run:
@@ -89,7 +89,6 @@ if pde == None:
     n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test_train_split'])
     configuration['Data']['ntrain'] = n_sims
 
-
 from data_loaders import *
 
 if pde == 'Wave':
@@ -112,14 +111,28 @@ if pde == 'Electromagnetic MHD':
         fields, x, y, dt = JOREK_electrostatic(configuration)
 
 if pde == 'Shear Flow':
-    configuration['Data']['reynolds'] =  ['1e4'] 
-    configuration['Data']['schmidt'] =  ['1e-1', '1e1', '5e-1'] #train
-    configuration['Data']['source'] = 'The Well' 
-    configuration['Data']['ntrain'] = 96
-    Nx, Ny, Nt = 256, 512, 200
-    x_slice, y_slice, t_slice = 2,2,2
-    configuration['Physics']['Nx'], configuration['Physics']['Ny'], configuration['Physics']['Nt'] = Nx, Ny, Nt
-    configuration['Physics']['x_slice'], configuration['Physics']['y_slice'], configuration['Physics']['t_slice'] = x_slice, y_slice, t_slice
+
+    configuration['Physics']['pde'] = 'Shear Flow'
+    configuration['Physics']['source'] = 'The Well'
+    configuration['Physics']['field'] = 'u, v'
+    configuration['Physics']['variables'] = 2
+    configuration['Physics']['Nx'] = 256
+    configuration['Physics']['Ny'] = 512
+    configuration['Physics']['Nt'] = 200
+    configuration['Physics']['dx'] = 0.039
+    configuration['Physics']['dy'] = 0.019
+    configuration['Physics']['dt'] = 0.01
+    configuration['Physics']['x_slice'] = 2
+    configuration['Physics']['y_slice'] = 2
+    configuration['Physics']['t_slice'] = 2
+    configuration['Physics']['physics_normalisation'] = False
+
+    configuration['Data']['reynolds'] = ['1e4']
+    # configuration['Data']['schmidt'] = ['1e0', '1e-1', '1e1', '2e0', '2e-1', '5e0', '5e-1'] #test
+    configuration['Data']['schmidt'] = ['1e-1', '1e1', '5e-1'] #train
+    configuration['Data']['name'] = 'Shear Flow'
+    configuration['Data']['ntrain'] = 12
+    configuration['Data']['batch_size'] = 4
     fields, x, y, dt = Shear_Flow(configuration)
 
 if pde == 'Euler Quadrant':
@@ -149,8 +162,9 @@ norms = np.load(model_loc +'/norms.npz')
 normalizer_func = Normalisation(configuration['Data']['normalisation'])
 normalizer = normalizer_func(torch.zeros_like(fields))
 normalizer.a, normalizer.b = torch.tensor(norms['a']), torch.tensor(norms['b'])
+
+# normalizer = normalizer_func(fields)
 fields_encoded = normalizer.encode(fields)
-# fields_encoded = fields
 
 # %% 
 test_in = fields_encoded[...,:configuration['Data']['t_in']] # + torch.randn_like(fields_encoded[...,:configuration['Data']['t_in']])

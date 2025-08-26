@@ -21,8 +21,8 @@
     arch: 'FNO'
     in_vars: 4
     out_vars: 4
-    modes: 8
-    width: 16
+    modes: 12
+    width: 24
     n_layers: 4
     act: 'gelu'
     operator_splitting: False
@@ -32,8 +32,8 @@
     gamma: ['1.365'] 
     schmidt: ['Dry_air_1000'] 
     name: 'Euler Quadrant'
-    loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/test'
-    ntrain: 50
+    loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/train'
+    ntrain: 500
     test_train_split: 0.2
     batch_size: 5
     t_in: 1

@@ -85,12 +85,15 @@ class NS_shearflow_OS_rhs(nn.Module):#Navier-Stokes ShearFlow Operator-Splitting
         gridx = torch.tensor(np.linspace(0, int(Nx*dx), int(Nx)), dtype=torch.float)
         gridy = torch.tensor(np.linspace(0, int(Ny*dy), int(Ny)), dtype=torch.float)
 
-        # #FNO
-        self.pressure_poisson = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'], grid=[gridx, gridy]) 
-        self.convection_operator = FNO_multi2d(in_vars=2, out_vars=2, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'], grid=[gridx, gridy]) 
+        #POs
+        config = configuration
+        config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
+        self.pressure_poisson = model_selection(config)
+        self.convection_operator = model_selection(config)
+
         self.laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True, scalar=False)
         nu = 1/float(configuration['Data']['reynolds'][0])
-        self.nu = torch.tensor(nu, dtype=torch.float32, requires_grad=True).to(device)
+        self.nu = torch.tensor(nu, dtype=torch.float32, requires_grad=False).to(device)
 
     def forward(self, vars):
 
@@ -235,8 +238,9 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
                                 "rhs_mom.": rhs[:,1:3].detach().mean(),
                                 "rhs_energy": rhs[:,3:4].detach().mean()
                                 })
-        except:
+        except: 
             pass
+        
         return rhs
 
     def count_params(self):
@@ -261,9 +265,10 @@ class Euler_Quadrant_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume
         self.gamma = torch.tensor(float(configuration['Data']['gamma']), dtype=torch.float32, requires_grad=True).to(device)
         self.eps = torch.tensor(1e-6, dtype=torch.float32, requires_grad=True).to(device)
 
-        #FNO - primitive variables.
-        self.F_x = FNO_multi2d(in_vars=4, out_vars=4, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
-        self.G_y = FNO_multi2d(in_vars=4, out_vars=4, modes1=configuration['Model']['modes'], modes2=configuration['Model']['modes'], width=configuration['Model']['width'],n_layers=configuration['Model']['n_layers'])
+        config = configuration
+        config['Model']['in_vars'], config['Model']['out_vars'] = 4, 4
+        self.F_x = model_selection(config)
+        self.G_y = model_selection(config)
 
 #Using conservative variables.
     def forward(self, vars): 
@@ -272,11 +277,15 @@ class Euler_Quadrant_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume
         Mx = vars[:, 1:2]  # x-momentum density
         My = vars[:, 2:3]  # y-momentum density
         E = vars[:, 3:4]  # Energy density
-        P = (self.gamma - 1) * (E - 0.5 * (Mx**2 + My**2) / M)  # Pressure from energy density
-        P = torch.maximum(P, 1e-10)  # Pressure floor
+        P = (self.gamma - 1) * (E - 0.5 * (Mx**2 + My**2) ) # / M)  # Pressure from energy density
+        # P = torch.maximum(P, 1e-10)  # Pressure floor
 
-        F_rhs = torch.cat((Mx, Mx**2/M + P,  (Mx*My)/M, (E+P)*(Mx/M)), dim=1)
-        G_rhs = torch.cat((My, (Mx*My)/M, My**2/M + P, (E+P)*(My/M)), dim=1)
+        # F_rhs = torch.cat((Mx, Mx**2/M + P,  (Mx*My)/M, (E+P)*(Mx/M)), dim=1) #Actual Equations
+        # G_rhs = torch.cat((My, (Mx*My)/M, My**2/M + P, (E+P)*(My/M)), dim=1) #Actual Equations 
+
+        F_rhs = torch.cat((Mx, Mx**2 + P,  (Mx*My), (E+P)*(Mx)), dim=1) #Reformulating without denominators. 
+        G_rhs = torch.cat((My, (Mx*My), My**2 + P, (E+P)*(My)), dim=1)
+
 
         F_x_vals = self.F_x(F_rhs)
         G_y_vals = self.G_y(G_rhs)

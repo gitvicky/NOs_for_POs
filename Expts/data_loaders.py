@@ -115,7 +115,8 @@ def Navier_Stokes_Spectral(configuration):
     #Testing with NS_Spectral (for now)
     n_sims = configuration['Data']['ntrain']
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
-    data =  np.load(data_loc + '/NS_Spectral_combined.npz')
+    # data =  np.load(data_loc + '/NS_Spectral_combined.npz')
+    data = np.load(data_loc + '/NS_Spectral_combined_nu_1e-2_OOD.npz')
     # data =  np.load(data_loc + '/NS_Spectral_combined_t_extrapolate.npz')
 
     u = data['u'].astype(np.float32)[:n_sims]
@@ -438,6 +439,7 @@ def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
     #https://polymathic-ai.org/the_well/datasets/shear_flow/
     reynolds = configuration['Data']['reynolds'][0]
     schmidt = configuration['Data']['schmidt']
+    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/shear_flow/data/test'
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/shear_flow/data/train'
     # data_loc = configuration['Data']['loc']
     u_list = []
@@ -494,8 +496,8 @@ def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
 
 def Euler_Quadrants(configuration, gamma= ['1.365'], gas = ['Dry_air_1000']):
     #https://polymathic-ai.org/the_well/datasets/euler_multi_quadrants_periodicBC/
-    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/test'
-    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/train'
+    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data /test'
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/train'
     # data_loc = configuration['Data']['loc']
     rho_list = []
     E_list = []

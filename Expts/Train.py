@@ -33,7 +33,7 @@ run_config = flatten_dict(configuration)
 from simvue import Run, Client
 with Run(mode='online') as run:
 
-    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Mark1'], metadata=run_config)
+    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Mark2'], metadata=run_config)
 
     # #if run is being disabled
     # import argparse
