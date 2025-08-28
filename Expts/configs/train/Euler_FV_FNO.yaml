@@ -21,23 +21,23 @@ Model:
   arch: 'FNO'
   in_vars: 4
   out_vars: 4
-  modes: 8
-  width: 16
+  modes: 12
+  width: 24
   n_layers: 4
   act: 'gelu'
   operator_splitting: False
   ops_split_normalise: False
 
 Data: 
-  name: 'NS_FV_combined.npz'
-  loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+  name: 'NS_FV_combined_pitagora.npz'
+  loc: '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz_Euler'
   ntrain: 500
   test_train_split: 0.2
   batch_size: 40
   t_in: 1
   t_out: 50
   step: 1
-  normalisation: 'Min-Max_variable'
+  normalisation: 'Min-Max'
 
 Opt:
   optimizer: 'adam'

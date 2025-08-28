@@ -20,21 +20,21 @@
     arch: 'FNO'
     in_vars: 2
     out_vars: 2
-    modes: 16
-    width: 32
-    n_layers: 4
+    modes: 12
+    width: 24
+    n_layers: 2
     act: 'gelu'
-    operator_splitting: False
+    operator_splitting: True
     ops_split_normalise: False
 
   Data: 
-    name: 'NS_Spectral_combined.npz'
-    loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+    name: 'NS_Spectral_combined_pitagora.npz'
+    loc: '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
     ntrain: 500
     test_train_split: 0.2
-    batch_size: 50
+    batch_size: 40
     t_in: 1
-    t_out: 30
+    t_out: 50
     step: 1
     normalisation: 'Min-Max'
 
@@ -53,11 +53,11 @@
   Train: 
     loss: 'LP'
     input_length: 1
-    rollout_length: 20
+    rollout_length: 30
     input_noise: 0.0
     odesolve: 
       source: 'custom' #'torchdiffeq', 'custom'
-      method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+      method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
       adjoint: False #Only for torchdiffeq
     batch_norm: False
     checkpoint:

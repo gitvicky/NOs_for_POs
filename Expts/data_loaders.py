@@ -114,8 +114,8 @@ def Wave_Spectral(configuration):
 def Navier_Stokes_Spectral(configuration):
     #Testing with NS_Spectral (for now)
     n_sims = configuration['Data']['ntrain']
-    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data'
-    data =  np.load(data_loc + '/NS_Spectral_combined.npz')
+    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
+    data =  np.load(data_loc + '/NS_Spectral_combined_pitagora.npz')
     # data =  np.load(data_loc + '/NS_Spectral_combined_t_extrapolate.npz')
 
     u = data['u'].astype(np.float32)[:n_sims]
@@ -127,6 +127,8 @@ def Navier_Stokes_Spectral(configuration):
     dt = torch.tensor(dt, dtype=torch.float)
 
     fields = stacked_fields([u,v])
+    # mask = ~torch.isnan(fields).any(dim=(1,2,3,4))
+    # fields = fields[mask]
 
     #Slicing the data to reduce the size.
     fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
@@ -139,9 +141,10 @@ def Navier_Stokes_Spectral(configuration):
 def Euler_FV(configuration):
     #Finite Volume Simulation Data from Philip Mocz for Compressible Navier-Stokes 
     n_sims = configuration['Data']['ntrain']
-    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data'
-    data =  np.load(data_loc + '/NS_FV_combined.npz')
-    
+    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
+    data =  np.load(data_loc + '/NS_FV_combined_pitagora.npz')
+    # data =  np.load(data_loc + '/NS_FV_combined_pitagora_gamma_2by3.npz')
+
     rho = data['rho'].astype(np.float32)[:n_sims]
     u = data['u'].astype(np.float32)[:n_sims]
     v = data['v'].astype(np.float32)[:n_sims]
@@ -436,13 +439,17 @@ def FDS_Carpark(configuration):
 # The well datasets.
 def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
     #https://polymathic-ai.org/the_well/datasets/shear_flow/
+    # configuration['Data']['reynolds'][0] = '5e5'
     reynolds = configuration['Data']['reynolds'][0]
     schmidt = configuration['Data']['schmidt']
-    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/shear_flow/data/train'
-    data_loc = configuration['Data']['loc']
+    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/shear_flow/data/train/train/'
+    # data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/shear_flow/data/test'
+    # data_loc = configuration['Data']['loc']
     u_list = []
     v_list = []
     p_list = []
+    s_list = []
+
     for ii in tqdm(range(len(schmidt))):
         file = f'shear_flow_Reynolds_{reynolds}_Schmidt_{schmidt[ii]}.hdf5'
         print(file)
@@ -457,30 +464,32 @@ def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
                     data_vars[var_name] = np.asarray(obj)
                     print(f"Extracted {var_name}: shape {data_vars[var_name].shape}")
 
-            # Move this line INSIDE the with block
             f.visititems(extract_data)
 
-        # Now process the extracted data (outside the with block is fine)
         x = data_vars.get('dimensions_x')
-        y = data_vars.get('dimensions_y')  # Note: this looks like a typo - should this be 'dimensions_y'?
+        y = data_vars.get('dimensions_y') 
         t = data_vars.get('dimensions_time')
         dt = t[1] - t[0]
 
         u = data_vars.get('t1_fields_velocity')[..., 0]
         v = data_vars.get('t1_fields_velocity')[..., 1]
         p = data_vars.get('t0_fields_pressure')
+        s = data_vars.get('t0_fields_tracer')
+
         reynolds_scalar = data_vars.get('scalars_Reynolds')
         schmidt_scalar = data_vars.get('scalars_Schmidt')
 
         u_list.append(u)
         v_list.append(v)       
         p_list.append(p)
+        s_list.append(s)
         
     u = np.concatenate(u_list, axis=0)
     v = np.concatenate(v_list, axis=0)
     p = np.concatenate(p_list, axis=0)
+    s = np.concatenate(s_list, axis=0)
 
-    print(fields.shape)
+    fields = stacked_fields([u,v])
 
     #Slicing the data to reduce the size.
     fields = fields[:configuration['Data']['ntrain'],:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
@@ -488,13 +497,12 @@ def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
     y = x[::configuration['Physics']['y_slice']]
     dt = dt*configuration['Physics']['t_slice']
 
-
     return fields, x, y, dt
 
 
 def Euler_Quadrants(configuration, gamma= ['1.365'], gas = ['Dry_air_1000']):
     #https://polymathic-ai.org/the_well/datasets/euler_multi_quadrants_periodicBC/
-    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/test'
+    # data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/euler_multi_quadrants_periodicBC/data/train'
     data_loc = configuration['Data']['loc']
     rho_list = []
     E_list = []

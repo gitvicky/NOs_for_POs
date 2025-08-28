@@ -23,23 +23,23 @@
     out_vars: 2
     modes: 8
     width: 16
-    n_layers: 3
+    n_layers: 4
     act: 'gelu'
-    operator_splitting: False
+    operator_splitting: True
     ops_split_normalise: False
 
   Data: 
-    loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/shear_flow/data/train'
+    loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/shear_flow/data/train/train'
     reynolds: ['1e4'] 
-    # schmidt: ['1e0', '1e-1', '1e1', '2e0', '2e-1', '5e0', '5e-1'] #test
-    schmidt: ['1e-1', '1e1', '5e-1'] #train
+    schmidt: ['1e0', '1e-1', '1e1', '2e0', '2e-1', '5e0', '5e-1']
     name: 'Shear Flow'
-    ntrain: 96
+    ntrain: 224
     test_train_split: 0.2
-    batch_size: 4
+    batch_size: 5
     t_in: 1
     t_out: 50
     step: 1
+
     normalisation: 'Min-Max'
 
   Opt:
@@ -61,7 +61,7 @@
     input_noise: 0.0
     odesolve: 
       source: 'custom' #'torchdiffeq', 'custom'
-      method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+      method: 'rk4' # 'AR', 'euler', 'midpoint', rk4'
       adjoint: False #Only for torchdiffeq
     batch_norm: False
     checkpoint:

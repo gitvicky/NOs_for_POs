@@ -5,9 +5,9 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'isometric-chenille'
+run_name = 'dry-depot'
 test_data_name = None #'Shear Flow'
-t_extrapolation = 50
+t_extrapolation = 100
 # %%
 class Run:
     def __init__(self, name=None):
@@ -114,10 +114,10 @@ if pde == 'Euler Quadrant':
 t = torch.arange(0, fields.shape[-1], dt)
 fields = fields[...,:configuration['Data']['t_out']]
 
-#Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
-expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['variables'], configuration['Physics']['Nx']//configuration['Physics']['x_slice'], configuration['Physics']['Ny']//configuration['Physics']['y_slice'], configuration['Data']['t_out'])
-assert fields.shape == expected_shape, \
-    f"Expected fields shape to be {expected_shape}, but got {fields.shape}"
+# #Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
+# expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['variables'], configuration['Physics']['Nx']//configuration['Physics']['x_slice'], configuration['Physics']['Ny']//configuration['Physics']['y_slice'], configuration['Data']['t_out'])
+# assert fields.shape == expected_shape, \
+#     f"Expected fields shape to be {expected_shape}, but got {fields.shape}"
 
 #Printing the current dictionary
 print(yaml.dump(configuration, default_flow_style=False, indent=2))

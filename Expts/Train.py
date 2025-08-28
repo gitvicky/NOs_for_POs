@@ -34,6 +34,7 @@ from simvue import Run, Client
 with Run(mode='offline') as run:
 
     run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Mark1', 'Pitagora'], metadata=run_config)
+    print("Run Name: " + str(run.name))
 
     # #if run is being disabled
     # import argparse
@@ -319,6 +320,7 @@ with Run(mode='offline') as run:
     pred_encoded, error = eval.inference(configuration['Data']['step'], configuration['Data']['t_out']-1, dt=dt)
 
 
+    print('Training Time: %.3e' % (train_time))
     print('(MSE) Testing Error: %.3e' % (error))
 
     run.update_metadata({'Training Time': float(train_time),
@@ -346,6 +348,8 @@ with Run(mode='offline') as run:
     run.update_metadata({'MSE (physical)': float(MSE(pred_set, test_out)['average']),
                         'NRMSE (physical)': float(NRMSE(pred_set, test_out)['average'])
                         })  
+    
+    print('(NRMSE) Physical Error: %.3e' % float(NRMSE(pred_set, test_out)['average']))
     # %% 
     #Plotting the results 
     from Utils.plots import plots_2d_yaml
