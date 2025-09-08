@@ -156,9 +156,11 @@ def model_selection(configuration):
 def model_initialisation(configuration, normalizer, run):
     pde = configuration['Physics']['pde']
     if configuration['Model']['operator_splitting'] == True: 
-    
     #With operator_splitting.
-        if pde == 'Navier-Stokes':
+        if pde == 'ConvDiff':
+            from operator_splitting import Conv_Diff_OS_rhs
+            model = Conv_Diff_OS_rhs(configuration, normalizer, run)
+        elif pde == 'Navier-Stokes':
             from operator_splitting import NS_spectral_OS_rhs
             model = NS_spectral_OS_rhs(configuration, normalizer, run)
         elif pde == 'Shear Flow':
@@ -178,7 +180,7 @@ def model_initialisation(configuration, normalizer, run):
             model = Ideal_MHD_OS_rhs(configuration, normalizer, run)
 
         else:
-            raise ValueError(f"Unknown PDE: {pde} in operator splitting. ")
+            raise ValueError(f"Unknown PDE: {pde} in operator splitting")
         
         return model
     

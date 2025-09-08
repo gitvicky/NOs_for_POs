@@ -99,6 +99,8 @@ with Run(mode='offline') as run:
 
     from data_loaders import *
     pde = configuration['Physics']['pde']
+    if pde == 'ConvDiff':
+        fields, x, y, dt = Conv_Diff_Jax(configuration)
     if pde == 'Wave':
         fields, x, y, dt = Wave_Spectral(configuration)
     if pde == 'Navier-Stokes':
@@ -137,7 +139,7 @@ with Run(mode='offline') as run:
     # %%
     # Normalising the data -- using the same normalisations for inputs and outputs
     normalizer_func = Normalisation(configuration['Data']['normalisation'])
-    normalizer = normalizer_func(fields, low=-0.0, high=1.0)
+    normalizer = normalizer_func(fields, low=0.0, high=1.0)
     if configuration['Model']['ops_split_normalise']: #Normalise and Denormalise done within the Model. 
         fields_encoded = fields
     else:

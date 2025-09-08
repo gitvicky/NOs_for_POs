@@ -111,12 +111,36 @@ def Wave_Spectral(configuration):
     return fields, x, y, dt
 
 
+def Conv_Diff_Jax(configuration):
+
+    n_sims = configuration['Data']['ntrain']
+    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data'
+    data =  np.load(data_loc + '/ConvDiff_D_0.1_cx_1.0_cy_0.5.npz')
+    # data =  np.load(data_loc + '/ConvDiff_D_0.5_cx_0.5_cy_1.0.npz')
+
+    u = data['u'].astype(np.float32)[:n_sims]
+    x = data['x']
+    y = data['y']
+    t = data['t']
+    dt = torch.tensor(t[1] - t[0], dtype=torch.float)
+
+    fields = stacked_fields([u])
+
+    #Slicing the data to reduce the size.
+    fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
+    x = x[::configuration['Physics']['x_slice']]
+    y = x[::configuration['Physics']['y_slice']]
+    dt = dt*configuration['Physics']['t_slice']
+
+    return fields, x, y, dt
+
+
 def Navier_Stokes_Spectral(configuration):
     #Testing with NS_Spectral (for now)
     n_sims = configuration['Data']['ntrain']
     data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
-    data =  np.load(data_loc + '/NS_Spectral_combined_pitagora.npz')
-    # data =  np.load(data_loc + '/NS_Spectral_combined_t_extrapolate.npz')
+    # data =  np.load(data_loc + '/NS_Spectral_combined_pitagora.npz')
+    data =  np.load(data_loc + '/NS_Spectral_combined_pitagora_OOD_nu_1e-2.npz')
 
     u = data['u'].astype(np.float32)[:n_sims]
     v = data['v'].astype(np.float32)[:n_sims]
@@ -127,14 +151,16 @@ def Navier_Stokes_Spectral(configuration):
     dt = torch.tensor(dt, dtype=torch.float)
 
     fields = stacked_fields([u,v])
-    # mask = ~torch.isnan(fields).any(dim=(1,2,3,4))
-    # fields = fields[mask]
+
 
     #Slicing the data to reduce the size.
     fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
     x = x[::configuration['Physics']['x_slice']]
     y = x[::configuration['Physics']['y_slice']]
     dt = dt*configuration['Physics']['t_slice']
+
+    # mask = ~torch.isnan(fields).any(dim=(1,2,3,4))
+    # fields = fields[mask]
 
     return fields, x, y, dt
 
@@ -489,7 +515,7 @@ def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
     p = np.concatenate(p_list, axis=0)
     s = np.concatenate(s_list, axis=0)
 
-    fields = stacked_fields([u,v])
+    fields = stacked_fields([u,v,s])
 
     #Slicing the data to reduce the size.
     fields = fields[:configuration['Data']['ntrain'],:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]

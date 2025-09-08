@@ -5,9 +5,9 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'dry-depot'
-test_data_name = None #'Shear Flow'
-t_extrapolation = 100
+run_name = 'wide-timer'
+test_data_name = None
+t_extrapolation = 50
 # %%
 class Run:
     def __init__(self, name=None):
@@ -55,6 +55,7 @@ if test_data_name !=None:
 else:
     pde = configuration['Physics']['pde'] 
 
+print(run_name)
 print(configuration['Data']['t_out'])
 # %% 
 #Importing the necessary packages
@@ -87,7 +88,8 @@ t1 = default_timer()
 n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test_train_split'])
 configuration['Data']['ntrain'] = n_sims
 from data_loaders import *
-
+if pde == 'ConvDiff':
+    fields, x, y, dt = Conv_Diff_Jax(configuration)
 if pde == 'Wave':
     fields, x, y, dt = Wave_Spectral(configuration)
 if pde == 'Navier-Stokes':
@@ -129,9 +131,12 @@ norms = np.load(model_loc +'/norms.npz')
 normalizer_func = Normalisation(configuration['Data']['normalisation'])
 normalizer = normalizer_func(torch.zeros_like(fields))
 normalizer.a, normalizer.b = torch.tensor(norms['a']), torch.tensor(norms['b'])
-fields_encoded = normalizer.encode(fields)
-# fields_encoded = fields
 
+if configuration['Model']['ops_split_normalise']: #Normalise and Denormalise done within the Model. 
+    fields_encoded = fields
+else:
+    fields_encoded = normalizer.encode(fields)
+    
 # %% 
 test_in = fields_encoded[...,:configuration['Data']['t_in']] # + torch.randn_like(fields_encoded[...,:configuration['Data']['t_in']])
 test_out = fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']]
@@ -174,8 +179,12 @@ pred_encoded, error = eval.inference(configuration['Data']['step'], configuratio
 print(f'MSE (norm) : {float(error):.4e}')
 
 #Denormalising the test and predictions
-test_out = normalizer.decode(test_out.to(device)).cpu()
-pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
+if configuration['Model']['ops_split_normalise'] == False: #Normalise/Denormalise done within the Model for OS. 
+    test_out = normalizer.decode(test_out.to(device)).cpu()
+    pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
+else:
+    test_out = test_out.cpu()
+    pred_set = pred_encoded.cpu()
 
 # #Visualising the rollout error 
 # from Utils.plots import temporal_rollout_error

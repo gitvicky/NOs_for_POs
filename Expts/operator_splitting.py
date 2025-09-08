@@ -12,6 +12,60 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 ##Will need to modify the time stepping as well to take in rhs and p and then adjust for the variables. Currently modelling for u and v. 
 
+class Conv_Diff_OS_rhs(nn.Module):
+    def __init__(self, configuration, normalizer, run):
+        super(Conv_Diff_OS_rhs, self).__init__()
+
+        self.normalizer = normalizer
+        if device == 'cuda':
+            self.normalizer.cuda()
+        else:
+            self.normalizer.cpu()
+        self.run = run
+
+        #Discretisation
+        dx, dy = configuration['Physics']['dx'] * configuration['Physics']['x_slice'], configuration['Physics']['dy'] * configuration['Physics']['y_slice']
+        Nx, Ny = configuration['Physics']['Nx'] / configuration['Physics']['x_slice'], configuration['Physics']['Ny'] / configuration['Physics']['y_slice']
+
+        gridx = torch.tensor(np.linspace(0, int(Nx*dx), int(Nx)), dtype=torch.float)
+        gridy = torch.tensor(np.linspace(0, int(Ny*dy), int(Ny)), dtype=torch.float)
+
+        config = configuration
+        config['Model']['in_vars'], config['Model']['out_vars'] = 1, 1
+        self.diffusion_operator = model_selection(config)
+        config['Model']['in_vars'], config['Model']['out_vars'] = 1, 2
+        self.convection_operator = model_selection(config)
+
+        # self.c_x = torch.tensor(1.0, dtype=torch.float32, requires_grad=False).to(device)
+        # self.c_y = torch.tensor(0.5, dtype=torch.float32, requires_grad=False).to(device)
+        # self.D = torch.tensor(0.1, dtype=torch.float32, requires_grad=False).to(device)
+
+        self.c_x = torch.tensor(0.5, dtype=torch.float32, requires_grad=False).to(device)
+        self.c_y = torch.tensor(1.0, dtype=torch.float32, requires_grad=False).to(device)
+        self.D = torch.tensor(0.5, dtype=torch.float32, requires_grad=False).to(device)
+
+    def forward(self, vars):
+        # ∂u/∂t + c_x ∂u/∂x + c_y ∂u/∂y = D (∂²u/∂x² + ∂²u/∂y²)
+        u = self.normalizer.encode(vars)
+        conv = self.convection_operator(u)
+        diff = self.diffusion_operator(u)
+
+        # rhs = self.D*diff- self.c_x*conv[:, 0:1] - self.c_y*conv[:, 1:2]
+        rhs = self.D*self.normalizer.decode(diff) - self.c_x*self.normalizer.decode(conv[:, 0:1]) - self.c_y*self.normalizer.decode(conv[:, 1:2])
+
+        try:
+            self.run.log_metrics({"rhs": rhs.detach().mean()})
+        except:
+            pass
+        return rhs 
+
+    def count_params(self):
+        nparams = 0
+
+        for param in self.parameters():
+            nparams += param.numel()
+        return nparams 
+
 class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand-side. 
     def __init__(self, configuration, normalizer, run):
         super(NS_spectral_OS_rhs, self).__init__()
@@ -32,28 +86,37 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
 
         config = configuration
         config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
-        self.pressure_poisson = model_selection(config)
+        # self.pressure_poisson = model_selection(config)
         self.convection_operator = model_selection(config)
+        self.diffusion_operator = model_selection(config)
 
-        self.laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False, scalar=False)
-        self.nu = torch.tensor(0.001, dtype=torch.float32, requires_grad=False).to(device)
+        # self.laplace = Laplace(scale=1/dx**2, taylor_order=4, boundary_cond='periodic', device=device, requires_grad=False, scalar=False)
+        self.nu = torch.tensor(0.01, dtype=torch.float32, requires_grad=False).to(device)
+        self.nu = self.normalizer.encode(self.nu.unsqueeze(-1)).squeeze()
+        print(self.nu)
 
     def forward(self, vars):
 
         uv = vars[:, 0:2]
 
-        pressure_grad = self.pressure_poisson(uv)
+        # pressure_grad = self.pressure_poisson(uv)
         convection = self.convection_operator(uv)
-        diffusion = self.laplace(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1) #Assuming uv is a 2D vector field with shape (batch_size, 2, height, width, 1).
+        diffusion = self.diffusion_operator(uv)
+        # diffusion = self.laplace(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1) #Assuming uv is a 2D vector field with shape (batch_size, 2, height, width, 1).
 
+        #OpsSplit Norm
+        # uv = self.normalizer.encode(uv)
+        # pressure_grad = self.normalizer.decode(self.pressure_poisson(uv))
+        # convection = self.normalizer.decode(self.convection_operator(uv))
+        # diffusion = self.normalizer.decode(self.laplace(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1))
+        # diffusion = self.normalizer.decode(self.diffusion_operator(uv))
 
-        rhs = - convection + self.nu*diffusion - pressure_grad
+        rhs = - convection + self.nu*diffusion #- pressure_grad
 
         try:
             self.run.log_metrics({"rhs_momx": rhs[:, 0].detach().mean(),
                               "rhs_momy": rhs[:, 1].detach().mean(),
                              })
-
         except:
             pass
 
@@ -90,14 +153,18 @@ class NS_shearflow_OS_rhs(nn.Module):#Navier-Stokes ShearFlow Operator-Splitting
         config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
         self.pressure_poisson = model_selection(config)
         self.convection_operator = model_selection(config)
-
-        self.laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=True, scalar=False)
+        self.laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False, scalar=False)
+        self.gradient = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
+        
         nu = 1/float(configuration['Data']['reynolds'][0])
+        D = nu/float(configuration['Data']['reynolds'][0])
         self.nu = torch.tensor(nu, dtype=torch.float32, requires_grad=False).to(device)
-
+        self.D = torch.tensor(D, dtype=torch.float32, requires_grad=False).to(device)
+    
     def forward(self, vars):
 
         uv = vars[:, 0:2]
+        s = vars[:, 2:3]
 
         pressure_grad = self.pressure_poisson(uv)
         convection = self.convection_operator(uv)
@@ -108,14 +175,18 @@ class NS_shearflow_OS_rhs(nn.Module):#Navier-Stokes ShearFlow Operator-Splitting
         # convection = self.normalizer.decode(self.convection_operator(uv))
         # diffusion = self.normalizer.decode(self.laplace(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1))
 
-        rhs = - convection + self.nu*diffusion - pressure_grad
+        rhs_mom = - convection + self.nu*diffusion - pressure_grad
+        rhs_tracer = self.D * self.laplace(s) - dot(uv, self.gradient(s))
 
         try:
-            self.run.log_metrics({"rhs_momx": rhs[:, 0].detach().mean(),
-                                  "rhs_momy": rhs[:, 1].detach().mean(),
+            self.run.log_metrics({"rhs_momx": rhs_mom[:, 0].detach().mean(),
+                                  "rhs_momy": rhs_mom[:, 1].detach().mean(),
+                                  "rhs_tracer": rhs_tracer.detach().mean()
                                 })
         except:
             pass
+
+        rhs = torch.cat((rhs_mom[:, 0:1], rhs_mom[:, 1:2], rhs_tracer), dim=1)
 
         return rhs #, pressure #Only modelling for u and v for the time being. 
 
@@ -139,7 +210,9 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
             self.normalizer.cpu()
 
         self.gamma = torch.tensor(5/3, dtype=torch.float32, requires_grad=False).to(device)
-        self.gamma = self.normalizer.encode(self.gamma.unsqueeze(-1)).squeeze()
+        self.gamma = self.normalizer.encode(self.gamma.repeat(1,4))
+        print(self.gamma)
+        self.gamma = self.gamma[0, -1]#Taking the normalisation from pressure. 
 
         # self.eps = torch.tensor(1e-6, dtype=torch.float32, requires_grad=True).to(device)
 
@@ -150,29 +223,28 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         # # Smoothing parameter for soft minimum
         # self.alpha_smooth = torch.tensor(0.01, dtype=torch.float32, requires_grad=False).to(device)
 
-    # #Primitive Variables
-        # #Model Selection 
-        # config = configuration
-        # config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
-        # self.convection_operator = model_selection(config)
+    #Primitive Variables
+        #Model Selection 
+        config = configuration
+        config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
+        self.convection_operator = model_selection(config)
 
-        # #Setting up NOs for linear operators. 
-        # # config['Model']['in_vars'], config['Model']['out_vars'] = 2, 1
-        # # self.divergence_operator = model_selection(config)
-        # # config['Model']['in_vars'], config['Model']['out_vars'] = 1, 2
-        # # self.gradient_operator = model_selection(config)
+        # Setting up NOs for linear operators. 
+        config['Model']['in_vars'], config['Model']['out_vars'] = 2, 1
+        self.divergence_operator = model_selection(config)
+        config['Model']['in_vars'], config['Model']['out_vars'] = 1, 2
+        self.gradient_operator = model_selection(config)
 
         # #Using predetermined operators.
         # self.divergence_operator = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
         # self.gradient_operator = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
 
     #Using Conservative Variables 
-
-        #Model Selection 
-        config = configuration
-        config['Model']['in_vars'], config['Model']['out_vars'] = 4, 4
-        self.grad_x = model_selection(config)
-        self.grad_y = model_selection(config)
+        # #Model Selection 
+        # config = configuration
+        # config['Model']['in_vars'], config['Model']['out_vars'] = 4, 4
+        # self.grad_x = model_selection(config)
+        # self.grad_y = model_selection(config)
 
 
     def stabilise_density(self, rho):
@@ -182,72 +254,79 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
             self.rho_min + F.elu(torch.abs(rho - self.rho_min), alpha=self.alpha_smooth)
         )
     
-# #Using primitive variables.
-#     def forward(self, vars): 
-
-#         rho = vars[:, 0:1]
-#         uv  = vars[:, 1:3]
-#         p   = vars[:, 3:4]
-
-#         # # Stabilise density
-#         # rho = self.stabilise_density(rho)
-
-#         # div_uv = self.divergence_operator(uv)
-#         # grad_rho = self.gradient_operator(rho)
-#         # grad_p = self.gradient_operator(p)
-
-#         div_uv = self.divergence_operator(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1)
-#         grad_rho = self.gradient_operator(rho[...,0]).unsqueeze(-1)
-#         grad_p = self.gradient_operator(p[...,0]).unsqueeze(-1)
-        
-
-#         convection = self.convection_operator(uv)
-
-#         rhs_mass = - rho*div_uv - dot(uv, grad_rho)        
-#         rhs_mom = -convection - (rho)*grad_p #reformulated to avoid division by zero 
-#         # rhs_mom = -convection - (1/rho)*grad_p   #regularisation to avoid division by zero.     
-#         rhs_energy = -self.gamma*p*div_uv - dot(uv, grad_p)
-
-#         # print(torch.sum(rho< 1e-4))
-
-        
-#         self.run.log_metrics({"rhs_mass": rhs_mass.detach().mean(),
-#                               "rhs_mom.": rhs_mom.detach().mean(),
-#                               "rhs_energy": rhs_energy.detach().mean()
-#                              })
-
-#         rhs = torch.cat((rhs_mass, rhs_mom, rhs_energy), dim=1)
-#         return rhs
-
-
-#Using conservative variables.
+#Using primitive variables.
     def forward(self, vars): 
 
-        M = vars[:, 0:1]  # Mass density
-        Mx = vars[:, 1:2]  # x-momentum density
-        My = vars[:, 2:3]  # y-momentum density
-        E = vars[:, 3:4]  # Energy density
-        P = (self.gamma - 1) * (E - 0.5 * (Mx**2 + My**2) )#/ M)  # Pressure from energy density
+        rho = vars[:, 0:1]
+        uv  = vars[:, 1:3]
+        p   = vars[:, 3:4]
 
-        # F_rhs = torch.cat((Mx, Mx**2/M + P,  (Mx*My)/M, (E+P)*(Mx/M)), dim=1)
-        # G_rhs = torch.cat((My, (Mx*My)/M, My**2/M + P, (E+P)*(My/M)), dim=1)
+        # # Stabilise density
+        # rho = self.stabilise_density(rho)
 
-        F_rhs = torch.cat((Mx, Mx**2 + P,  (Mx*My), (E+P)*(Mx)), dim=1)
-        G_rhs = torch.cat((My, (Mx*My), My**2 + P, (E+P)*(My)), dim=1)
+        div_uv = self.divergence_operator(uv)
+        grad_rho = self.gradient_operator(rho)
+        grad_p = self.gradient_operator(p)
 
-        F_x = self.grad_x(F_rhs)
-        G_y = self.grad_y(G_rhs)
-        rhs = -  F_x - G_y # Divergence of F
-
-        try:
-            self.run.log_metrics({"rhs_mass": rhs[:,0:1].detach().mean(),
-                                "rhs_mom.": rhs[:,1:3].detach().mean(),
-                                "rhs_energy": rhs[:,3:4].detach().mean()
-                                })
-        except: 
-            pass
+        # div_uv = self.divergence_operator(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1)
+        # grad_rho = self.gradient_operator(rho[...,0]).unsqueeze(-1)
+        # grad_p = self.gradient_operator(p[...,0]).unsqueeze(-1)
         
+
+        convection = self.convection_operator(uv)
+
+        rhs_mass = - rho*div_uv - dot(uv, grad_rho)        
+        rhs_mom = -convection - (rho)*grad_p #reformulated to avoid division by zero 
+        # rhs_mom = -convection - (1/rho)*grad_p   #regularisation to avoid division by zero.     
+        rhs_energy = -self.gamma*p*div_uv - dot(uv, grad_p)
+
+        # print(torch.sum(rho< 1e-4))
+
+        
+        self.run.log_metrics({"rhs_mass": rhs_mass.detach().mean(),
+                              "rhs_mom.": rhs_mom.detach().mean(),
+                              "rhs_energy": rhs_energy.detach().mean()
+                             })
+
+        rhs = torch.cat((rhs_mass, rhs_mom, rhs_energy), dim=1)
         return rhs
+
+
+# #Using conservative variables.
+#     def forward(self, vars): 
+
+
+#         M = vars[:, 0:1]  # Mass density
+#         Mx = vars[:, 1:2]  # x-momentum density
+#         My = vars[:, 2:3]  # y-momentum density
+#         E = vars[:, 3:4]  # Energy density
+        
+#         P = (self.gamma - 1) * (E - 0.5 * (Mx**2 + My**2)) #/ M)  # Pressure from energy density
+
+#         # F_rhs = torch.cat((Mx, Mx**2/M + P,  (Mx*My)/M, (E+P)*(Mx/M)), dim=1)
+#         # G_rhs = torch.cat((My, (Mx*My)/M, My**2/M + P, (E+P)*(My/M)), dim=1)
+
+#         F_rhs = torch.cat((Mx, Mx**2 + P,  (Mx*My), (E+P)*(Mx)), dim=1)
+#         G_rhs = torch.cat((My, (Mx*My), My**2 + P, (E+P)*(My)), dim=1)
+
+#         # F_x = self.grad_x(F_rhs)
+#         # G_y = self.grad_y(G_rhs)
+
+#         #OpsSplit Norm - comment out if not using
+#         F_x = self.normalizer.decode(self.grad_x(self.normalizer.encode(F_rhs)))
+#         G_y = self.normalizer.decode(self.grad_y(self.normalizer.encode(G_rhs)))
+
+#         rhs = -  F_x - G_y # Divergence of F
+
+#         try:
+#             self.run.log_metrics({"rhs_mass": rhs[:,0:1].detach().mean(),
+#                                 "rhs_mom.": rhs[:,1:3].detach().mean(),
+#                                 "rhs_energy": rhs[:,3:4].detach().mean()
+#                                 })
+#         except: 
+#             pass
+        
+#         return rhs
 
     def count_params(self):
         nparams = 0
@@ -269,6 +348,7 @@ class Euler_Quadrant_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume
             self.normalizer.cpu()
 
         self.gamma = torch.tensor(float(configuration['Data']['gamma']), dtype=torch.float32, requires_grad=True).to(device)
+        print(self.gamma)
         self.eps = torch.tensor(1e-6, dtype=torch.float32, requires_grad=True).to(device)
 
         config = configuration
@@ -278,6 +358,9 @@ class Euler_Quadrant_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume
 
 #Using conservative variables.
     def forward(self, vars): 
+
+        #OpsSplit Norm - comment out if not using
+        vars = self.normalizer.encode(vars)
 
         M = vars[:, 0:1]  # Mass density
         Mx = vars[:, 1:2]  # x-momentum density
@@ -292,9 +375,14 @@ class Euler_Quadrant_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume
         F_rhs = torch.cat((Mx, Mx**2 + P,  (Mx*My), (E+P)*(Mx)), dim=1) #Reformulating without denominators. 
         G_rhs = torch.cat((My, (Mx*My), My**2 + P, (E+P)*(My)), dim=1)
 
+        # F_x_vals = self.F_x(F_rhs)
+        # G_y_vals = self.G_y(G_rhs)
 
-        F_x_vals = self.F_x(F_rhs)
-        G_y_vals = self.G_y(G_rhs)
+        #OpsSplit Norm - comment out if not using
+        F_x_vals = self.normalizer.decode(self.F_x(F_rhs))
+        G_y_vals = self.normalizer.decode(self.G_y(G_rhs))
+
+
         rhs = - F_x_vals - G_y_vals # Divergence of F
 
         self.run.log_metrics({"rhs_mass": rhs[:,0:1].detach().mean(),

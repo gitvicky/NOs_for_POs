@@ -1,16 +1,16 @@
 seed: 907
 
 Physics: 
-  pde: 'Euler-Fluid'
-  source: 'Finite Volume' 
-  field: 'rho, u, v, p'
-  variables: 4
-  Nx: 128
-  Ny: 128
+  pde: 'ConvDiff'
+  source: 'JAX' 
+  field: 'u'
+  variables: 1
+  Nx: 64
+  Ny: 64
   Nt: 101
-  dx: 0.0078125
-  dy: 0.0078125
-  dt: 0.02
+  dx: 0.1587
+  dy: 0.1587
+  dt: 0.05
   x_slice: 1
   y_slice: 1
   t_slice: 1
@@ -19,30 +19,30 @@ Physics:
 
 Model:
   arch: 'FNO'
-  in_vars: 4
-  out_vars: 4
-  modes: 32
-  width: 64
-  n_layers: 6
+  in_vars: 1
+  out_vars: 1
+  modes: 12
+  width: 24
+  n_layers: 2
   act: 'gelu'
-  operator_splitting: False
-  ops_split_normalise: False
+  operator_splitting: True
+  ops_split_normalise: True
 
 Data: 
-  name: 'NS_FV_combined_pitagora.npz'
-  loc: '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz_Euler'
-  ntrain: 100
+  name: 'ConvDiff_D_0.1_cx_1.0_cy_0.5.npz'
+  loc: '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data'
+  ntrain: 500
   test_train_split: 0.2
-  batch_size: 10
+  batch_size: 100
   t_in: 1
   t_out: 50
   step: 1
-  normalisation: 'Min-Max_variable'
+  normalisation: 'Min-Max'
 
 Opt:
   optimizer: 'adam'
-  epochs: 250
-  learning_rate: 0.001
+  epochs: 500
+  learning_rate: 0.005
   beta1: 0.9
   beta2: 0.9
   weight_decay: 1e-4
@@ -54,7 +54,7 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 5
+  rollout_length: 20
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
@@ -62,11 +62,11 @@ Train:
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:
-    epochs: 50
+    epochs: 100
   restart: False
   restart_run_name: '' #simvue run name 
 
 Simvue:
   mode: 'offline'
   name: None 
-  folder: '/Neural_PDE/Euler' 
+  folder: '/Neural_PDE/ConvDiff' 
