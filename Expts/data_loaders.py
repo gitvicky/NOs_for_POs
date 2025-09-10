@@ -496,8 +496,8 @@ def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
 
 def Euler_Quadrants(configuration, gamma= ['1.365'], gas = ['Dry_air_1000']):
     #https://polymathic-ai.org/the_well/datasets/euler_multi_quadrants_periodicBC/
-    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data /test'
-    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/train'
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/test'
+    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/train'
     # data_loc = configuration['Data']['loc']
     rho_list = []
     E_list = []

@@ -167,6 +167,9 @@ def model_initialisation(configuration, normalizer, run):
         elif pde == 'Euler-Fluid':
             from operator_splitting import Euler_FV_OS_rhs
             model = Euler_FV_OS_rhs(configuration, normalizer, run)
+        elif pde == 'Euler Quadrant':
+            from operator_splitting import Euler_Quadrant_OS_rhs
+            model = Euler_Quadrant_OS_rhs(configuration, normalizer, run)
         elif pde == 'Incomp. Navier-Stokes':
             from operator_splitting import Incomp_PDEB_NS_OS_rhs
             model = Incomp_PDEB_NS_OS_rhs(configuration, normalizer, run)
