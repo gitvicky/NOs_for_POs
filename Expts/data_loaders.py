@@ -114,7 +114,7 @@ def Wave_Spectral(configuration):
 def Conv_Diff_Jax(configuration):
 
     n_sims = configuration['Data']['ntrain']
-    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data'
+    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/ConvDiff'
     data =  np.load(data_loc + '/ConvDiff_D_0.1_cx_1.0_cy_0.5.npz')
     # data =  np.load(data_loc + '/ConvDiff_D_0.5_cx_0.5_cy_1.0.npz')
 

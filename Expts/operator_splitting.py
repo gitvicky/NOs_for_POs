@@ -36,22 +36,28 @@ class Conv_Diff_OS_rhs(nn.Module):
         config['Model']['in_vars'], config['Model']['out_vars'] = 1, 2
         self.convection_operator = model_selection(config)
 
+        #ID
         # self.c_x = torch.tensor(1.0, dtype=torch.float32, requires_grad=False).to(device)
         # self.c_y = torch.tensor(0.5, dtype=torch.float32, requires_grad=False).to(device)
         # self.D = torch.tensor(0.1, dtype=torch.float32, requires_grad=False).to(device)
 
+        #OOD
         self.c_x = torch.tensor(0.5, dtype=torch.float32, requires_grad=False).to(device)
         self.c_y = torch.tensor(1.0, dtype=torch.float32, requires_grad=False).to(device)
         self.D = torch.tensor(0.5, dtype=torch.float32, requires_grad=False).to(device)
 
+        self.c_x, self.x_y, self.D  = self.normalizer.encode(self.c_x.unsqueeze(-1)).squeeze(), self.normalizer.encode(self.c_y.unsqueeze(-1)).squeeze(), self.normalizer.encode(self.D.unsqueeze(-1)).squeeze()
+        print(self.c_x, self.c_y, self.D)
+
     def forward(self, vars):
         # ∂u/∂t + c_x ∂u/∂x + c_y ∂u/∂y = D (∂²u/∂x² + ∂²u/∂y²)
-        u = self.normalizer.encode(vars)
+        # u = self.normalizer.encode(vars)
+        u = vars
         conv = self.convection_operator(u)
         diff = self.diffusion_operator(u)
 
-        # rhs = self.D*diff- self.c_x*conv[:, 0:1] - self.c_y*conv[:, 1:2]
-        rhs = self.D*self.normalizer.decode(diff) - self.c_x*self.normalizer.decode(conv[:, 0:1]) - self.c_y*self.normalizer.decode(conv[:, 1:2])
+        rhs = self.D*diff - self.c_x*conv[:, 0:1] - self.c_y*conv[:, 1:2]
+        # rhs = self.D*self.normalizer.decode(diff) - self.c_x*self.normalizer.decode(conv[:, 0:1]) - self.c_y*self.normalizer.decode(conv[:, 1:2])
 
         try:
             self.run.log_metrics({"rhs": rhs.detach().mean()})
@@ -209,7 +215,7 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         else:
             self.normalizer.cpu()
 
-        self.gamma = torch.tensor(5/3, dtype=torch.float32, requires_grad=False).to(device)
+        self.gamma = torch.tensor(2/3, dtype=torch.float32, requires_grad=False).to(device)
         self.gamma = self.normalizer.encode(self.gamma.repeat(1,4))
         print(self.gamma)
         self.gamma = self.gamma[0, -1]#Taking the normalisation from pressure. 
@@ -282,12 +288,15 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
 
         # print(torch.sum(rho< 1e-4))
 
+        try: 
         
-        self.run.log_metrics({"rhs_mass": rhs_mass.detach().mean(),
-                              "rhs_mom.": rhs_mom.detach().mean(),
-                              "rhs_energy": rhs_energy.detach().mean()
-                             })
-
+            self.run.log_metrics({"rhs_mass": rhs_mass.detach().mean(),
+                                "rhs_mom.": rhs_mom.detach().mean(),
+                                "rhs_energy": rhs_energy.detach().mean()
+                                })
+        except: 
+            pass
+        
         rhs = torch.cat((rhs_mass, rhs_mom, rhs_energy), dim=1)
         return rhs
 

@@ -5,13 +5,15 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'wide-timer'
+run_name = 'magnetic-plane'
 test_data_name = None
+test_data = 'ID'
 t_extrapolation = 50
 # %%
 class Run:
     def __init__(self, name=None):
         self.name = name
+        self.mode = 'disabled'
 
 run = Run(run_name)
 # %% 
@@ -34,9 +36,9 @@ plot_loc = file_loc + '/Plots'
 tmp_loc = os.getcwd() + '/tmp'
 
 # Create tmp directory if it doesn't exist, or recreate it if it does
-if os.path.exists(tmp_loc):
-    shutil.rmtree(tmp_loc)
-os.makedirs(tmp_loc, exist_ok=True)
+if os.path.exists(tmp_loc) == False:
+    # shutil.rmtree(tmp_loc)
+    os.makedirs(tmp_loc, exist_ok=True)
 
 # %%
 #Loading the yaml file to get the configuration.
@@ -190,6 +192,9 @@ else:
 # from Utils.plots import temporal_rollout_error
 # temporal_rollout_error(configuration, test_out, pred_set, tmp_loc, run, save=False)
 
+#Saving the test and prediction values
+np.save(tmp_loc + '/' + run.name + str(t_extrapolation)+test_data+'_test.npy', test_out.numpy())
+np.save(tmp_loc + '/' + run.name + str(t_extrapolation)+test_data+'_pred.npy', test_out.numpy())
 
 # %% 
 #Shaping back to [BS, vars, Nt, Nx, Ny]
@@ -202,7 +207,9 @@ from Utils.metrics import MSE, NRMSE
 print(f'NRMSE (physical) : {float(NRMSE(pred_set, test_out)["average"]):.4e}')
 # %% 
 #Visualising the results
-from Utils.plots import plots_2d_yaml
+from Utils.plots import plots_2d_yaml, temporal_rollout_error
 idx = 3
 plots_2d_yaml(configuration, test_out, pred_set, tmp_loc, run, idx, save=True)
+temporal_rollout_error(configuration, test_out, pred_set, tmp_loc, run, save=True)
+
 # %% 
