@@ -5,7 +5,10 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'magnetic-plane'
+# run_name = 'wide-timer'
+# run_name = 'happy-walk'
+run_name = 'symmetric-chocolate'
+
 test_data_name = None
 test_data = 'ID'
 t_extrapolation = 50
@@ -194,7 +197,7 @@ else:
 
 #Saving the test and prediction values
 np.save(tmp_loc + '/' + run.name + str(t_extrapolation)+test_data+'_test.npy', test_out.numpy())
-np.save(tmp_loc + '/' + run.name + str(t_extrapolation)+test_data+'_pred.npy', test_out.numpy())
+np.save(tmp_loc + '/' + run.name + str(t_extrapolation)+test_data+'_pred.npy', pred_set.numpy())
 
 # %% 
 #Shaping back to [BS, vars, Nt, Nx, Ny]

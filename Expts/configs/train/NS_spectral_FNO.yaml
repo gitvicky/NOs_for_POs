@@ -22,7 +22,7 @@
     out_vars: 2
     modes: 32
     width: 64
-    n_layers: 4
+    n_layers: 6
     act: 'gelu'
     operator_splitting: True
     ops_split_normalise: False
@@ -57,7 +57,7 @@
     input_noise: 0.0
     odesolve: 
       source: 'custom' #'torchdiffeq', 'custom'
-      method: 'rk4' # 'AR', 'euler', 'midpoint', rk4'
+      method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
       adjoint: False #Only for torchdiffeq
     batch_norm: False
     checkpoint:

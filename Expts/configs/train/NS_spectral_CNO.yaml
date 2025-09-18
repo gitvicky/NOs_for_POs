@@ -4,25 +4,30 @@ seed: 907
 Physics: 
   pde: 'Navier-Stokes'
   source: 'Spectral' 
-  field: 'u, v, p'
-  variables: 3
+  field: 'u, v'
+  variables: 2
   Nx: 100
   Ny: 100
   Nt: 100
+  dx: 0.01
+  dy: 0.01
   dt: 0.01
-  rollout: 'AR'
+  x_slice: 1
+  y_slice: 1
+  t_slice: 1
   physics_normalisation: False
 
 Model:
   arch: 'CNO'
   Nx: 100
-  N_layers: 3
-  N_res: 2
+  N_layers: 4
+  N_res: 4
   N_res_neck: 2
-  in_channels: 3
-  out_channels: 3
-  channel_multiplier: 16
-  operator_splitting: False
+  in_vars: 2
+  out_vars: 2
+  channel_multiplier: 8
+  operator_splitting: True
+  ops_split_normalise: False
 
 
 Data: 
@@ -38,8 +43,8 @@ Data:
 
 Opt:
   optimizer: 'adam'
-  epochs: 500
-  learning_rate: 0.005
+  epochs: 250
+  learning_rate: 0.001
   beta1: 0.9
   beta2: 0.9
   weight_decay: 1e-4
@@ -50,11 +55,18 @@ Opt:
 
 Train: 
   loss: 'LP'
-  rollout: True
+  input_length: 1
+  rollout_length: 5
+  input_noise: 0.0
+  odesolve: 
+    source: 'custom' #'torchdiffeq', 'custom'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    adjoint: False #Only for torchdiffeq
+  batch_norm: False
   checkpoint:
     epochs: 100
   restart: False
-  restart_run_name: '' #simvue run name to restart from. 
+  restart_run_name: '' #simvue run name
 
 Simvue:
   mode: 'online'
