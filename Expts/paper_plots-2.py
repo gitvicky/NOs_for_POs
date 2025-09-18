@@ -44,7 +44,7 @@ def nRMSE(test, pred):
     return torch.sqrt(torch.mean((test - pred).pow(2), axis=(0, 1, 3, 4)) / (torch.mean(test.pow(2), axis=(0, 1, 3, 4)) + 1e-8)).numpy()
 
 def PRE(pre, vars):
-    return torch.abs(torch.mean(pre(vars, boundary=False), axis=(0, 2, 3))).numpy()
+    return torch.mean(pre(vars, boundary=False), axis=(0, 2, 3)).numpy()
 # %% 
 def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_loc, metric='MSE', save=False):
 
