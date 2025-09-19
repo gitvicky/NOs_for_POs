@@ -97,7 +97,7 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         self.diffusion_operator = model_selection(config)
 
         # self.laplace = Laplace(scale=1/dx**2, taylor_order=4, boundary_cond='periodic', device=device, requires_grad=False, scalar=False)
-        self.nu = torch.tensor(0.001, dtype=torch.float32, requires_grad=False).to(device)
+        self.nu = torch.tensor(0.01, dtype=torch.float32, requires_grad=False).to(device)
         self.nu = self.normalizer.encode(self.nu.unsqueeze(-1)).squeeze()
         print(self.nu)
 

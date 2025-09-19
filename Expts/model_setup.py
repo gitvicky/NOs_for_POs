@@ -15,6 +15,7 @@ from Neural_PDE.Models.gMLP_Vision import *
 from Neural_PDE.Models.ConvOperator import *
 from Neural_PDE.Models.LNO import * 
 from Neural_PDE.Models.Neural_Ops_lib import *
+from Neural_PDE.Models.GNO import * 
 
 #Function to count_params
 count_parameters = lambda model: sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -137,6 +138,20 @@ def model_selection(configuration):
                         activation=configuration['Model']['activation'],
                         init_type=configuration['Model']['init_type'],
         )
+    
+    elif configuration['Model']['arch'] == 'GNO':
+            x = torch.linspace(0, configuration['Physics']['Nx']*configuration['Physics']['dt'] , configuration['Physics']['Nx'])
+            y = torch.linspace(0, configuration['Physics']['Ny']*configuration['Physics']['dt'] , configuration['Physics']['Ny'])
+            model = GNO(
+                    in_channels=configuration['Model']['in_vars'], 
+                    out_channels=configuration['Model']['out_vars'], 
+                    hidden_channels=configuration['Model']['width'], 
+                    # mid_width=configuration['Model']['mid_width'], 
+                    r=configuration['Model']['r'], 
+                    n_layers=configuration['Model']['depth'],
+                    x_in=x,
+                    y_in=y
+        )  
         
         
     # elif configuration['Model']['arch'] == 'LNO':

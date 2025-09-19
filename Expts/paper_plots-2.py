@@ -44,7 +44,9 @@ def nRMSE(test, pred):
     return torch.sqrt(torch.mean((test - pred).pow(2), axis=(0, 1, 3, 4)) / (torch.mean(test.pow(2), axis=(0, 1, 3, 4)) + 1e-8)).numpy()
 
 def PRE(pre, vars):
-    return torch.mean(pre(vars, boundary=False), axis=(0, 2, 3)).numpy()
+    # return torch.mean(pre(vars, boundary=False), axis=(0, 2, 3)).numpy()
+    return torch.mean(torch.abs(pre(vars, boundary=False)), axis=(0, 2, 3)).numpy()
+    # return torch.abs(torch.mean(pre(vars, boundary=False), axis=(0, 2, 3))).numpy()
 # %% 
 def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_loc, metric='MSE', save=False):
 
@@ -73,7 +75,7 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
     # Professional color scheme (Nature/Science style)
     colors = ['#51829B', '#DA6C6C', '#78ABA8']  # Red, Green, Blue
     linestyles = ['-', '-', '-']
-    markers = [' ', ' ', ' ']
+    markers = ['o', 'o', 'o']
     
     data_sets = [
         (ar_err, 'Autoregressive', colors[0], linestyles[0], markers[0]),
@@ -113,7 +115,7 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
     if metric=='PRE':
         ax.set_ylabel('Physics Residual Error', fontsize=14)
         
-    ax.set_title(pde, fontsize=15, pad=15)
+    # ax.set_title(pde, fontsize=15, pad=15)
     
     # Subtle grid
     ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
@@ -137,7 +139,7 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
     
     if save:
         # Multiple format saves for different publication needs
-        formats = ['png', 'pdf', 'svg']
+        formats = ['pdf', 'svg']
         for fmt in formats:
             plot_name = f'{plot_loc}/temporal_error_{pde}_{arch}_{metric}_{t_exp}_{data_dist}.{fmt}'
             plt.savefig(plot_name, 
@@ -154,7 +156,7 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
 #Setting Run Parameters
 
 pde = 'Incompressible_Navier-Stokes'
-arch = 'fno'
+arch = 'uno'
 
 if arch == 'fno':
     ar = 'wide-timer'
@@ -166,15 +168,20 @@ if arch == 'unet':
     euler = 'caramelized-commit'
     ops_split = 'creative-assurance'
   
-if arch == 'CNO':
+if arch == 'cno':
     ar = 'bold-canal'
     euler = 'similar-river'
     ops_split = 'complicated-ideation'
 
-if arch == 'ViT':
+if arch == 'vit':
     ar = 'few-skyway'
     euler = 'crispy-tunnel'
     ops_split = 'intricate-factor'  
+
+if arch == 'uno':
+    ar = 'indigo-angle'
+    euler = 'crunchy-vase'
+    ops_split = 'warm-station'  
 
 # %% 
 # pde = 'Compressible_Navier-Stokes'
@@ -183,7 +190,7 @@ if arch == 'ViT':
 # ops_split = 'alternate-gatekeeper'
 
 t_exp = 100
-data_dist = 'ID'
+data_dist = 'OOD'
 
 models = [ar, euler, ops_split]
 mses = []

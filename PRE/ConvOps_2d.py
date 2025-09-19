@@ -13,7 +13,7 @@ import numpy as np
 import torch 
 import torch.nn as nn 
 import torch.nn.functional as F
-from fft_conv_pytorch.fft_conv import * 
+# from fft_conv_pytorch.fft_conv import * 
 
 def get_stencil(dims, deriv_order, taylor_order=2):
     if dims == 1:
@@ -151,30 +151,30 @@ class ConvOperator():
         return conv.squeeze(1)
     
 
-    def spectral_convolution(self, field, kernel=None, inverse=False):
-        """
-        Performs spectral convolution using the convolution theorem 
+    # def spectral_convolution(self, field, kernel=None, inverse=False):
+    #     """
+    #     Performs spectral convolution using the convolution theorem 
 
-        f * g = \hat{f} . \hat{g}
+    #     f * g = \hat{f} . \hat{g}
 
-        Args:
-            f (torch.Tensor): The input field tensor.
-            k (torch.Tensor): The convolution kernel tensor.
+    #     Args:
+    #         f (torch.Tensor): The input field tensor.
+    #         k (torch.Tensor): The convolution kernel tensor.
 
-        Returns:
-            torch.Tensor: The result of the 3D derivative convolution.
-        """ 
-        if kernel is not None:
-            self.kernel = kernel
+    #     Returns:
+    #         torch.Tensor: The result of the 3D derivative convolution.
+    #     """ 
+    #     if kernel is not None:
+    #         self.kernel = kernel
 
-        # Add channel dimension for conv1d
-        if field.dim() == 4:
-            field = field.unsqueeze(1)
+    #     # Add channel dimension for conv1d
+    #     if field.dim() == 4:
+    #         field = field.unsqueeze(1)
 
-        kernel = self.kernel.unsqueeze(0).unsqueeze(0)
-        convfft = fft_conv(field, kernel, padding=(self.kernel.shape[0]//2, self.kernel.shape[1]//2, self.kernel.shape[2]//2), inverse=inverse)
+    #     kernel = self.kernel.unsqueeze(0).unsqueeze(0)
+    #     convfft = fft_conv(field, kernel, padding=(self.kernel.shape[0]//2, self.kernel.shape[1]//2, self.kernel.shape[2]//2), inverse=inverse)
 
-        return convfft.squeeze(1)
+    #     return convfft.squeeze(1)
 
 
     def differentiate(self, field, kernel=None, correlation=False, slice_pad=True):

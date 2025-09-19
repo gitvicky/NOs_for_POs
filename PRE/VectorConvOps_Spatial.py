@@ -31,7 +31,7 @@ def vectorize(a, b):
 
 class Gradient(ConvOperator):
     # 1 -> 2 
-    def __init__(self, domain=('x','y'), order=1, scale=1.0, taylor_order=2, boundary_cond='periodic', conv='direct', device=torch.device("cpu"), requires_grad=False):
+    def __init__(self, domain=('x','y'), order=1, scale=1.0, taylor_order=2, boundary_cond='periodic', scalar=True, conv='direct', device=torch.device("cpu"), requires_grad=False):
         super(Gradient, self).__init__()
         
         self.grad_x = ConvOperator(domain[0], order, scale, taylor_order, boundary_cond, conv, device=torch.device("cuda"), requires_grad=True)

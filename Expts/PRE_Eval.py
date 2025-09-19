@@ -27,7 +27,7 @@ class Incomp_NS_PRE(nn.Module):
 
     def forward(self, vars, boundary=False):
         u, v = vars[:,0], vars[:, 1]
-        res = self.D_x(u) + self.D_y(v)
+        res = self.D_x(u) + (self.dx/self.dy)*self.D_y(v)
         if boundary:
             return res
         else: 
