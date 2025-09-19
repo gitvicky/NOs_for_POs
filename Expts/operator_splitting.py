@@ -451,31 +451,39 @@ class Ideal_MHD_OS_rhs(nn.Module):
 
         self.mu0 = torch.tensor(4*torch.pi*1e-7, dtype=torch.float32, requires_grad=False).to(device)
         self.gamma = torch.tensor(5/3, dtype=torch.float32, requires_grad=False).to(device)
+        self.gamma = self.normalizer.encode(self.gamma.repeat(1,6))
+        print(self.gamma)
+        self.gamma = self.gamma[0, 3]#Taking the normalisation from pressure. 
 
         #Linear Operators
-        self.divergence_operator = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
+        # self.divergence_operator = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
         self.gradient_operator = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
       
         #Nonlinear Operators
+        config = configuration
+        config['Model']['in_vars'], config['Model']['out_vars'] = 3, 1
+        self.divergence_operator = model_selection(config)  
         config = configuration
         config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
         self.convection_operator = model_selection(config)  
         config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
         self.b_cross_b = model_selection(config)  
-        config['Model']['in_vars'], config['Model']['out_vars'] = 5, 1
+        config['Model']['in_vars'], config['Model']['out_vars'] = 3, 1
         self.energy_operator = model_selection(config)
         config['Model']['in_vars'], config['Model']['out_vars'] = 4, 2
         self.induction_operator = model_selection(config)
 
+
     def forward(self, vars):
         rho, uv, P, B = vars[:,0:1], vars[:, 1:3], vars[:, 3:4], vars[:,4:6]
-        div_rho_uv = self.divergence_operator(rho[...,0]*uv[:,0:1,...,0], rho[...,0]*uv[:,1:2,...,0]).unsqueeze(-1)
-        rhs_rho = - div_rho_uv
+        rhs_cont = - self.divergence_operator(vars[:, 0:3])
         # rhs_uv = (1/rho)*(1/self.mu0)*self.b_cross_b(vars[:,1:4]) - self.gradient_operator(P[...,0]).unsqueeze(-1) - self.convection_operator(uv)
-        rhs_uv = self.b_cross_b(B) - self.gradient_operator(P[...,0]).unsqueeze(-1) - self.convection_operator(uv)
-        rhs_P = self.energy_operator(vars[:, 1:])
-        rhs_B = self.induction_operator(torch.cat((uv, B), dim=1))
-        rhs = torch.cat((rhs_rho, rhs_uv, rhs_P, rhs_B), dim=1)
+        rhs_momentum = - self.convection_operator(uv) - self.gradient_operator(P[...,0]).unsqueeze(-1)  - self.b_cross_b(B) 
+        rhs_energy = self.gamma * self.energy_operator(vars[:, 1:4])
+        rhs_induction = self.induction_operator(torch.cat((uv, B), dim=1))
+
+        rhs = torch.cat((rhs_cont, rhs_momentum, rhs_energy, rhs_induction), dim=1)
+
         return rhs
     
     def count_params(self):

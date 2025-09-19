@@ -38,6 +38,7 @@ def euler(model, u_n, dt):
     if dt == 0:
         raise ValueError("dt must be non-zero for Euler method")
     u_new = u_n + model(u_n) * dt 
+    # print(torch.mean(model(u_n)))
     return u_new 
 
 def midpoint(model, u_n, dt):
