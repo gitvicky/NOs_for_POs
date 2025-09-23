@@ -23,7 +23,7 @@ Model:
   out_vars: 2 
   width: 64
   act: 'relu'
-  operator_splitting: False
+  operator_splitting: True
   ops_split_normalise: False
 
 Data: 

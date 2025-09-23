@@ -25,7 +25,7 @@ Model:
   N_res_neck: 2
   in_vars: 2
   out_vars: 2
-  channel_multiplier: 8
+  channel_multiplier: 16
   operator_splitting: True
   ops_split_normalise: False
 

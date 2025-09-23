@@ -22,7 +22,6 @@ Model:
   in_vars: 2
   out_vars: 2 
   width: 8
-  mid_width: 4
   depth: 2
   r: 0.1
   act: 'gelu'
@@ -59,11 +58,11 @@ Train:
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:
-    epochs: 100
+    epochs: 50
   restart: False
   restart_run_name: '' #simvue run name
 

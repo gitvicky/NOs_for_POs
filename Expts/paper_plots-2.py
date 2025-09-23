@@ -155,42 +155,58 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
 # %% 
 #Setting Run Parameters
 
-pde = 'Incompressible_Navier-Stokes'
-arch = 'uno'
+# pde = 'Incompressible_Navier-Stokes'
+# arch = 'uno'
 
-if arch == 'fno':
-    ar = 'wide-timer'
-    euler = 'happy-walk'
-    ops_split = 'symmetric-chocolate'
+# if arch == 'fno':
+#     ar = 'wide-timer'
+#     euler = 'happy-walk'
+#     ops_split = 'symmetric-chocolate'
 
-if arch == 'unet':
-    ar = 'trite-accelerator'
-    euler = 'caramelized-commit'
-    ops_split = 'creative-assurance'
+# if arch == 'unet':
+#     ar = 'trite-accelerator'
+#     euler = 'caramelized-commit'
+#     ops_split = 'creative-assurance'
   
-if arch == 'cno':
-    ar = 'bold-canal'
-    euler = 'similar-river'
-    ops_split = 'complicated-ideation'
+# if arch == 'cno':
+#     ar = 'bold-canal'
+#     euler = 'similar-river'
+#     ops_split = 'complicated-ideation'
 
-if arch == 'vit':
-    ar = 'few-skyway'
-    euler = 'crispy-tunnel'
-    ops_split = 'intricate-factor'  
+# if arch == 'vit':
+#     ar = 'few-skyway'
+#     euler = 'crispy-tunnel'
+#     ops_split = 'intricate-factor'  
 
-if arch == 'uno':
-    ar = 'indigo-angle'
-    euler = 'crunchy-vase'
-    ops_split = 'warm-station'  
+# if arch == 'uno':
+#     ar = 'indigo-angle'
+#     euler = 'crunchy-vase'
+#     ops_split = 'warm-station'  
 
 # %% 
-# pde = 'Compressible_Navier-Stokes'
-# ar = 'obnoxious-yard'
-# euler = 'beige-bocaccio'
-# ops_split = 'alternate-gatekeeper'
+pde = 'Compressible_Navier-Stokes'
+arch = 'fno'
 
-t_exp = 100
-data_dist = 'OOD'
+#Ops Split - NO + FD
+if arch == 'fno':
+    ar = 'obnoxious-yard'
+    euler = 'beige-bocaccio'
+    ops_split = 'intractable-mantel'
+
+if arch == 'unet':
+    ar = 'many-martin'
+    euler = 'lower-heap'
+    ops_split = 'resultant-gain'
+
+# if arch == 'cno'
+#     ar = 
+#     euler =
+#     ops_split = 
+
+
+# %%
+t_exp = 50
+data_dist = 'ID'
 
 models = [ar, euler, ops_split]
 mses = []

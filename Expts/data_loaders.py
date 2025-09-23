@@ -139,8 +139,8 @@ def Navier_Stokes_Spectral(configuration):
     #Testing with NS_Spectral (for now)
     n_sims = configuration['Data']['ntrain']
     data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
-    # data =  np.load(data_loc + '/NS_Spectral_combined_pitagora.npz')
-    data =  np.load(data_loc + '/NS_Spectral_combined_pitagora_OOD_nu_1e-2.npz')
+    data =  np.load(data_loc + '/NS_Spectral_combined_pitagora.npz')
+    # data =  np.load(data_loc + '/NS_Spectral_combined_pitagora_OOD_nu_1e-2.npz')
 
     u = data['u'].astype(np.float32)[:n_sims]
     v = data['v'].astype(np.float32)[:n_sims]
@@ -158,8 +158,8 @@ def Navier_Stokes_Spectral(configuration):
     y = x[::configuration['Physics']['y_slice']]
     dt = dt*configuration['Physics']['t_slice']
 
-    mask = ~torch.isnan(fields).any(dim=(1,2,3,4))
-    fields = fields[mask]
+    # mask = ~torch.isnan(fields).any(dim=(1,2,3,4))
+    # fields = fields[mask]
 
     return fields, x, y, dt
 

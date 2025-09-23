@@ -35,6 +35,7 @@ with Run(mode='offline') as run:
 
     run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Mark1', 'Pitagora'], metadata=run_config)
     print("Run Name: " + str(run.name))
+    print(yaml.dump(configuration, default_flow_style=False, indent=2))
 
     # #if run is being disabled
     # import argparse
@@ -172,9 +173,8 @@ with Run(mode='offline') as run:
     train_dataset = SpatioTemporalDataset(train_data, input_window, prediction_steps)
 
     #Setting up the data loaders
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=configuration['Data']['batch_size'], shuffle=True)
-    test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch_size'], shuffle=False)
-
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=configuration['Data']['batch_size'], shuffle=True, pin_memory=True, num_workers=4)
+    test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch_size'], shuffle=False, pin_memory=True, num_workers=4)
     print("Training Input: " + str(train_in.shape))
     print("Training Output: " + str(train_out.shape))
     t2 = default_timer()

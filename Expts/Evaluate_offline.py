@@ -7,7 +7,8 @@ Evaluating Trained Models using simvue's client API.
 #Specifying the run instance
 # run_name = 'wide-timer'
 # run_name = 'happy-walk'
-run_name = 'symmetric-chocolate'
+# run_name = 'symmetric-chocolate'
+run_name = 'blue-proposal'
 
 test_data_name = None
 test_data = 'ID'
@@ -170,6 +171,7 @@ model = model_initialisation(configuration, normalizer, run=None)
 #Loading the trained model
 # client.get_artifact_as_file(client.get_run_id_from_name(run_name), name='model.pth', output_dir=tmp_loc)
 model_path = model_loc + '/model.pth'
+model_path = model_loc + '/checkpoint_150.pt'
 model.load_state_dict(torch.load(model_path, map_location='cpu', weights_only=False), strict=False)
 
 model.to(device)
@@ -195,9 +197,9 @@ else:
 # from Utils.plots import temporal_rollout_error
 # temporal_rollout_error(configuration, test_out, pred_set, tmp_loc, run, save=False)
 
-#Saving the test and prediction values
-np.save(tmp_loc + '/' + run.name + str(t_extrapolation)+test_data+'_test.npy', test_out.numpy())
-np.save(tmp_loc + '/' + run.name + str(t_extrapolation)+test_data+'_pred.npy', pred_set.numpy())
+# #Saving the test and prediction values
+# np.save(tmp_loc + '/' + run.name + str(t_extrapolation)+test_data+'_test.npy', test_out.numpy())
+# np.save(tmp_loc + '/' + run.name + str(t_extrapolation)+test_data+'_pred.npy', pred_set.numpy())
 
 # %% 
 #Shaping back to [BS, vars, Nt, Nx, Ny]
