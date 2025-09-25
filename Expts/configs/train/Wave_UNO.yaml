@@ -56,7 +56,7 @@ Train:
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:

@@ -6,9 +6,8 @@ Evaluating Trained Models using simvue's client API.
 # %%
 #Specifying the run instance
 # run_name = 'wide-timer'
-# run_name = 'happy-walk'
+run_name = 'happy-walk'
 # run_name = 'symmetric-chocolate'
-run_name = 'blue-proposal'
 
 test_data_name = None
 test_data = 'ID'

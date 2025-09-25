@@ -18,15 +18,17 @@ Physics:
   conservative: False
 
 Model:
-  arch: 'FNO'
+  arch: 'CNO'
+  Nx: 128
+  N_layers: 3
+  N_res: 4
+  N_res_neck: 2
   in_vars: 4
   out_vars: 4
-  modes: 32
-  width: 64
-  n_layers: 3
-  act: 'gelu'
+  channel_multiplier: 6
   operator_splitting: True
   ops_split_normalise: False
+
 
 Data: 
   name: 'NS_FV_combined_pitagora.npz'

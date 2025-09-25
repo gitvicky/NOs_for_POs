@@ -47,6 +47,8 @@ def PRE(pre, vars):
     # return torch.mean(pre(vars, boundary=False), axis=(0, 2, 3)).numpy()
     return torch.mean(torch.abs(pre(vars, boundary=False)), axis=(0, 2, 3)).numpy()
     # return torch.abs(torch.mean(pre(vars, boundary=False), axis=(0, 2, 3))).numpy()
+    # return np.mean(np.abs(pre(vars, boundary=False)), axis=(0, 2, 3))
+
 # %% 
 def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_loc, metric='MSE', save=False):
 
@@ -156,32 +158,38 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
 #Setting Run Parameters
 
 # pde = 'Incompressible_Navier-Stokes'
-# arch = 'uno'
+# arch = 'cno'
 
 # if arch == 'fno':
 #     ar = 'wide-timer'
 #     euler = 'happy-walk'
-#     ops_split = 'symmetric-chocolate'
+#     # ops_split = 'symmetric-chocolate'
+#     ops_split = 'reduced-roundel' #NO + FD
 
 # if arch == 'unet':
 #     ar = 'trite-accelerator'
 #     euler = 'caramelized-commit'
-#     ops_split = 'creative-assurance'
+#     # ops_split = 'creative-assurance' 
+#     ops_split = 'scared-assistant' #NO + FD
   
 # if arch == 'cno':
 #     ar = 'bold-canal'
 #     euler = 'similar-river'
-#     ops_split = 'complicated-ideation'
+#     # ops_split = 'complicated-ideation'
+#     ops_split = 'chocolate-classic' #NO + FD
 
 # if arch == 'vit':
 #     ar = 'few-skyway'
 #     euler = 'crispy-tunnel'
-#     ops_split = 'intricate-factor'  
+#     # ops_split = 'intricate-factor'   
+#     ops_split = 'wooden-rehab' #NO + FD
 
 # if arch == 'uno':
 #     ar = 'indigo-angle'
 #     euler = 'crunchy-vase'
-#     ops_split = 'warm-station'  
+#     # ops_split = 'warm-station'  
+#     ops_split = 'lazy-redshift'  #NO + FD
+
 
 # %% 
 pde = 'Compressible_Navier-Stokes'
@@ -191,21 +199,34 @@ arch = 'fno'
 if arch == 'fno':
     ar = 'obnoxious-yard'
     euler = 'beige-bocaccio'
-    ops_split = 'intractable-mantel'
+    # ops_split = 'intractable-mantel'
+    ops_split = 'undecidable-gig' #Pressure_operator
+    # ops_split = 'citron-light' #pressureconv
+    # ops_split = 'humid-argument' #gammaPDivV
+    # ops_split = 'indulgent-architect' #Pressure_operator with gamma norm from v
 
 if arch == 'unet':
     ar = 'many-martin'
     euler = 'lower-heap'
     ops_split = 'resultant-gain'
 
-# if arch == 'cno'
-#     ar = 
-#     euler =
-#     ops_split = 
+if arch == 'cno':
+    ar = 'worried-kayak'
+    euler = 'short-gravity'
+    ops_split = 'another-diatonic'
 
+if arch == 'vit':
+    ar = 'cerulean-recall'
+    euler = 'gold-broadcloth'
+    ops_split = 'thundering-HUD'
+
+if arch == 'uno':
+    ar = 'reduced-fruit'
+    euler = 'mild-contract'
+    ops_split = 'crimson-chief'
 
 # %%
-t_exp = 50
+t_exp = 100
 data_dist = 'ID'
 
 models = [ar, euler, ops_split]

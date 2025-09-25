@@ -159,9 +159,9 @@ class NS_shearflow_OS_rhs(nn.Module):#Navier-Stokes ShearFlow Operator-Splitting
         config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
         self.pressure_poisson = model_selection(config)
         self.convection_operator = model_selection(config)
-        self.laplace = Laplace(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False, scalar=False)
-        self.gradient = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
-        
+        self.laplace = Laplace(scale=1, taylor_order=4, boundary_cond='periodic', device=device, requires_grad=False, scalar=False)
+        self.gradient = Gradient(scale=1, taylor_order=4, boundary_cond='periodic', device=device, requires_grad=False)
+
         nu = 1/float(configuration['Data']['reynolds'][0])
         D = nu/float(configuration['Data']['reynolds'][0])
         self.nu = torch.tensor(nu, dtype=torch.float32, requires_grad=False).to(device)
@@ -219,6 +219,7 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         self.gamma = self.normalizer.encode(self.gamma.repeat(1,4))
         print(self.gamma)
         self.gamma = self.gamma[0, -1]#Taking the normalisation from pressure. 
+        # self.gamma = self.gamma[0, -2]#Taking the normalisation from velocity. 
 
         self.eps = torch.tensor(1e-6, dtype=torch.float32, requires_grad=True).to(device)
 
@@ -234,6 +235,9 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         config = configuration
         config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
         self.convection_operator = model_selection(config)
+
+        config['Model']['in_vars'], config['Model']['out_vars'] = 3, 1
+        self.pressure_rhs = model_selection(config)    
         
         # # Setting up NOs for linear operators. 
         # config['Model']['in_vars'], config['Model']['out_vars'] = 2, 1
@@ -284,9 +288,9 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         rhs_mass = - rho*div_uv - dot(uv, grad_rho)        
         rhs_mom = - convection - torch.log(torch.abs(rho+self.eps))*grad_p #reformulated to avoid division by zero 
         # rhs_mom = -convection - (1/rho)*grad_p  #regularisation to avoid division by zero.     
-        rhs_energy = -self.gamma*p*div_uv - dot(uv, grad_p)
-
-        # print(torch.sum(rho< 1e-4))
+        # rhs_energy = - dot(uv, grad_p) -self.gamma*p*div_uv 
+        # rhs_energy = - dot(uv, grad_p) - self.gamma*self.pressure_conv(vars[:, 1:])
+        rhs_energy = -self.gamma * self.pressure_rhs(vars[:, 1:])
 
         try: 
         

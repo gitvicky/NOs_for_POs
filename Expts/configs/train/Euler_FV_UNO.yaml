@@ -1,60 +1,59 @@
-seed: 907
+seed: 1234
 
 Physics: 
-  pde: 'Wave'
-  source: 'Spectral' 
-  field: 'u'
-  variables: 1
-  Nx: 64
-  Ny: 64
-  Nt: 120
-  dx: 0.0317
-  dy: 0.0317
-  dt: 0.0076 #1.5e-6 real time
+  pde: 'Euler-Fluid'
+  source: 'Finite Volume' 
+  field: 'rho, u, v, p'
+  variables: 4
+  Nx: 128
+  Ny: 128
+  Nt: 101
+  dx: 0.0078125
+  dy: 0.0078125
+  dt: 0.02
   x_slice: 1
   y_slice: 1
   t_slice: 1
   physics_normalisation: False
+  conservative: False
 
 Model:
-  arch: 'ViT'
-  patch_size: 16
-  embed_dim: 64
-  in_vars: 1
-  out_vars: 1
-  time_channels: 1
-  depth: 2
-  num_heads: 2
+  arch: 'UNO'
+  in_vars: 4
+  out_vars: 4 
+  width: 32
+  act: 'relu'
   operator_splitting: True
   ops_split_normalise: False
 
+
 Data: 
-  name: 'Wave_spectral_LHS.npz'
-  loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/NOs_for_POs/Data'
-  ntrain: 1000
+  name: 'NS_FV_combined_pitagora.npz'
+  loc: '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz_Euler'
+  ntrain: 100
   test_train_split: 0.2
-  batch_size: 50
+  batch_size: 10
   t_in: 1
   t_out: 50
   step: 1
-  normalisation: 'Min-Max'
+  normalisation: 'Min-Max_variable'
 
 Opt:
   optimizer: 'adam'
-  epochs: 500
-  learning_rate: 0.005
+  epochs: 250
+  learning_rate: 0.001
   beta1: 0.9
   beta2: 0.9
   weight_decay: 1e-4
   scheduler: 'step'  
-  scheduler_step: 100
+  scheduler_step : 100
   scheduler_gamma: 0.5
   grad_clip: 2.0
 
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 50
+  rollout_length: 5
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
@@ -62,11 +61,11 @@ Train:
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:
-    epochs: 100
+    epochs: 50
   restart: False
-  restart_run_name: '' #simvue run name
+  restart_run_name: '' #simvue run name 
 
 Simvue:
-  mode: 'online'
+  mode: 'offline'
   name: None 
-  folder: '/Neural_PDE/Wave' 
+  folder: '/Neural_PDE/Euler' 
