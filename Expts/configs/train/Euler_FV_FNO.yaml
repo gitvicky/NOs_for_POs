@@ -13,16 +13,16 @@ Physics:
   dt: 0.02
   x_slice: 1
   y_slice: 1
-  t_slice: 2
+  t_slice: 1
   physics_normalisation: False
-  conservative: True
+  conservative: False
 
 Model:
   arch: 'FNO'
   in_vars: 4
   out_vars: 4
-  modes: 16
-  width: 32
+  modes: 32
+  width: 64
   n_layers: 4
   act: 'gelu'
   operator_splitting: False
@@ -33,7 +33,7 @@ Data:
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
   ntrain: 500
   test_train_split: 0.2
-  batch_size: 20
+  batch_size: 10
   t_in: 1
   t_out: 50
   step: 1
@@ -41,8 +41,8 @@ Data:
 
 Opt:
   optimizer: 'adam'
-  epochs: 500
-  learning_rate: 0.005
+  epochs: 250
+  learning_rate: 0.001
   beta1: 0.9
   beta2: 0.9
   weight_decay: 1e-4
@@ -54,7 +54,7 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 20
+  rollout_length: 5
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
@@ -62,7 +62,7 @@ Train:
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:
-    epochs: 100
+    epochs: 50
   restart: False
   restart_run_name: '' #simvue run name 
 

@@ -140,7 +140,6 @@ class NS_shearflow_OS_rhs(nn.Module):#Navier-Stokes ShearFlow Operator-Splitting
             nparams += param.numel()
         return nparams 
 
-
 class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Operator-Splitting right-hand-side.
     def __init__(self, configuration, normalizer, run):
         super(Euler_FV_OS_rhs, self).__init__()
@@ -157,7 +156,7 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         print(self.gamma)
         self.gamma = self.gamma[0, -1]#Taking the normalisation from pressure. 
 
-        # self.eps = torch.tensor(1e-6, dtype=torch.float32, requires_grad=True).to(device)
+        self.eps = torch.tensor(1e-6, dtype=torch.float32, requires_grad=True).to(device)
 
         # # Multiple stabilization parameters
         # self.rho_min = torch.tensor(1e-4, dtype=torch.float32, requires_grad=False).to(device)  # Density floor
@@ -167,20 +166,30 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         # self.alpha_smooth = torch.tensor(0.01, dtype=torch.float32, requires_grad=False).to(device)
 
     #Primitive Variables
-        #Model Selection 
-        config = configuration
-        config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
-        self.convection_operator = model_selection(config)
-
-        # Setting up NOs for linear operators. 
-        config['Model']['in_vars'], config['Model']['out_vars'] = 2, 1
-        self.divergence_operator = model_selection(config)
-        config['Model']['in_vars'], config['Model']['out_vars'] = 1, 2
-        self.gradient_operator = model_selection(config)
+        # #Model Selection 
+        # config = configuration
+        # config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
+        # self.convection_operator = model_selection(config)
+        # # Setting up NOs for linear operators. 
+        # config['Model']['in_vars'], config['Model']['out_vars'] = 2, 1
+        # self.divergence_operator = model_selection(config)
+        # config['Model']['in_vars'], config['Model']['out_vars'] = 1, 2
+        # self.gradient_operator = model_selection(config)
 
         # #Using predetermined operators.
-        # self.divergence_operator = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
-        # self.gradient_operator = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
+        # self.divergence_operator = Divergence(scale=1, taylor_order=8, boundary_cond='periodic', device=device, requires_grad=False)
+        # self.gradient_operator = Gradient(scale=1, taylor_order=8, boundary_cond='periodic', device=device, requires_grad=False)
+
+        #Using the latest formulation 
+        config = configuration
+        config['Model']['in_vars'], config['Model']['out_vars'] = 3, 1
+        self.continuity_operator = model_selection(config)
+        config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
+        self.convection_operator = model_selection(config)
+        config['Model']['in_vars'], config['Model']['out_vars'] = 3, 2
+        self.pressure_gradient_density_weighting = model_selection(config)
+        config['Model']['in_vars'], config['Model']['out_vars'] = 3, 1
+        self.pressure_operator = model_selection(config)
 
     #Using Conservative Variables 
         # #Model Selection 
@@ -190,12 +199,12 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         # self.grad_y = model_selection(config)
 
 
-    def stabilise_density(self, rho):
-        return torch.where(
-            rho >= self.rho_min,
-            rho,
-            self.rho_min + F.elu(torch.abs(rho - self.rho_min), alpha=self.alpha_smooth)
-        )
+    # def stabilise_density(self, rho):
+    #     return torch.where(
+    #         rho >= self.rho_min,
+    #         rho,
+    #         self.rho_min + F.elu(torch.abs(rho - self.rho_min), alpha=self.alpha_smooth)
+    #     )
     
 #Using primitive variables.
     def forward(self, vars): 
@@ -204,33 +213,40 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         uv  = vars[:, 1:3]
         p   = vars[:, 3:4]
 
-        # # Stabilise density
-        # rho = self.stabilise_density(rho)
+        # # # Stabilise density
+        # # rho = self.stabilise_density(rho)
+        # # rho = torch.log(torch.abs(rho+ self.eps))
 
-        div_uv = self.divergence_operator(uv)
-        grad_rho = self.gradient_operator(rho)
-        grad_p = self.gradient_operator(p)
+        # div_uv = self.divergence_operator(uv)
+        # grad_rho = self.gradient_operator(rho)
+        # grad_p = self.gradient_operator(p)
 
-        # div_uv = self.divergence_operator(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1)
-        # grad_rho = self.gradient_operator(rho[...,0]).unsqueeze(-1)
-        # grad_p = self.gradient_operator(p[...,0]).unsqueeze(-1)
+        # # div_uv = self.divergence_operator(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1)
+        # # grad_rho = self.gradient_operator(rho[...,0]).unsqueeze(-1)
+        # # grad_p = self.gradient_operator(p[...,0]).unsqueeze(-1)
+
+        # convection = self.convection_operator(uv)
+
+        # rhs_mass = - rho*div_uv - dot(uv, grad_rho)        
+        # rhs_mom = - convection - torch.log(torch.abs(rho+ self.eps))*grad_p #reformulated to avoid division by zero 
+        # # rhs_mom = -convection - (1/rho)*grad_p  #regularisation to avoid division by zero.     
+        # rhs_energy = -self.gamma*p*div_uv - dot(uv, grad_p)
+
+        #Novel Formulation
+        rhs_mass = - self.continuity_operator(vars[:, 0:3])
+        rhs_mom = - self.convection_operator(uv) - self.pressure_gradient_density_weighting(torch.cat((uv, p), dim=1))
+        rhs_energy = - self.gamma*self.pressure_operator(vars[:, 1:4])
+        torch.cat((rhs_mass, rhs_mom, rhs_energy), dim=1)
+
+        try: 
         
-
-        convection = self.convection_operator(uv)
-
-        rhs_mass = - rho*div_uv - dot(uv, grad_rho)        
-        rhs_mom = -convection - (rho)*grad_p #reformulated to avoid division by zero 
-        # rhs_mom = -convection - (1/rho)*grad_p   #regularisation to avoid division by zero.     
-        rhs_energy = -self.gamma*p*div_uv - dot(uv, grad_p)
-
-        # print(torch.sum(rho< 1e-4))
-
+            self.run.log_metrics({"rhs_mass": rhs_mass.detach().mean(),
+                                "rhs_mom.": rhs_mom.detach().mean(),
+                                "rhs_energy": rhs_energy.detach().mean()
+                                })
+        except: 
+            pass
         
-        self.run.log_metrics({"rhs_mass": rhs_mass.detach().mean(),
-                              "rhs_mom.": rhs_mom.detach().mean(),
-                              "rhs_energy": rhs_energy.detach().mean()
-                             })
-
         rhs = torch.cat((rhs_mass, rhs_mom, rhs_energy), dim=1)
         return rhs
 
@@ -277,7 +293,6 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         for param in self.parameters():
             nparams += param.numel()
         return nparams 
-
 
 class Euler_Quadrant_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Operator-Splitting right-hand-side.
     def __init__(self, configuration, normalizer, run):

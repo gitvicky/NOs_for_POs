@@ -136,7 +136,7 @@ with Run(mode='online') as run:
     # %%
     # Normalising the data -- using the same normalisations for inputs and outputs
     normalizer_func = Normalisation(configuration['Data']['normalisation'])
-    normalizer = normalizer_func(fields, low=-0.0, high=1.0)
+    normalizer = normalizer_func(fields, low=0.0, high=1.0)
     if configuration['Model']['ops_split_normalise']: #Normalise and Denormalise done within the Model. 
         fields_encoded = fields
     else:
