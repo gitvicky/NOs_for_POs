@@ -237,7 +237,7 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         self.convection_operator = model_selection(config)
 
         config['Model']['in_vars'], config['Model']['out_vars'] = 3, 1
-        self.pressure_rhs = model_selection(config)    
+        self.div_cons = model_selection(config)   #Divergence of a conservative variable
         
         # # Setting up NOs for linear operators. 
         # config['Model']['in_vars'], config['Model']['out_vars'] = 2, 1
@@ -246,7 +246,7 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         # self.gradient_operator = model_selection(config)
 
         #Using predetermined operators.
-        self.divergence_operator = Divergence(scale=1, taylor_order=4, boundary_cond='periodic', device=device, requires_grad=False)
+        # self.divergence_operator = Divergence(scale=1, taylor_order=4, boundary_cond='periodic', device=device, requires_grad=False)
         self.gradient_operator = Gradient(scale=1, taylor_order=4, boundary_cond='periodic', device=device, requires_grad=False)
 
     #Using Conservative Variables 
@@ -279,18 +279,19 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         # grad_rho = self.gradient_operator(rho)
         # grad_p = self.gradient_operator(p)
 
-        div_uv = self.divergence_operator(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1)
-        grad_rho = self.gradient_operator(rho[...,0]).unsqueeze(-1)
+        # div_uv = self.divergence_operator(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1)
+        # grad_rho = self.gradient_operator(rho[...,0]).unsqueeze(-1)
         grad_p = self.gradient_operator(p[...,0]).unsqueeze(-1)
 
         convection = self.convection_operator(uv)
 
-        rhs_mass = - rho*div_uv - dot(uv, grad_rho)        
+        # rhs_mass = - rho*div_uv - dot(uv, grad_rho)
+        rhs_mass = - self.div_cons(vars[:, 0:3])        
         rhs_mom = - convection - torch.log(torch.abs(rho+self.eps))*grad_p #reformulated to avoid division by zero 
         # rhs_mom = -convection - (1/rho)*grad_p  #regularisation to avoid division by zero.     
         # rhs_energy = - dot(uv, grad_p) -self.gamma*p*div_uv 
         # rhs_energy = - dot(uv, grad_p) - self.gamma*self.pressure_conv(vars[:, 1:])
-        rhs_energy = -self.gamma * self.pressure_rhs(vars[:, 1:])
+        rhs_energy = -self.gamma * self.div_cons(vars[:, 1:])
 
         try: 
         

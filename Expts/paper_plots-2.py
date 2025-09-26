@@ -45,21 +45,21 @@ def nRMSE(test, pred):
 
 def PRE(pre, vars):
     # return torch.mean(pre(vars, boundary=False), axis=(0, 2, 3)).numpy()
-    return torch.mean(torch.abs(pre(vars, boundary=False)), axis=(0, 2, 3)).numpy()
+    # return torch.mean(torch.abs(pre(vars, boundary=False)), axis=(0, 2, 3)).numpy()
     # return torch.abs(torch.mean(pre(vars, boundary=False), axis=(0, 2, 3))).numpy()
-    # return np.mean(np.abs(pre(vars, boundary=False)), axis=(0, 2, 3))
+    return np.mean(np.abs(pre(vars, boundary=False)), axis=(0, 2, 3))
 
 # %% 
 def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_loc, metric='MSE', save=False):
 
     time_points = torch.arange(0,t_exp-1, 1)
 
-    if metric=='PRE':
-        time_points = time_points[1:-1]
+    # if metric=='PRE':
+    #     time_points = time_points[1:-1]
 
     # Use LaTeX rendering for professional typography (if available)
     plt.rcParams.update({
-        'font.size': 12,
+        'font.size': 14,
         'font.serif': ['Times New Roman'],
         'axes.linewidth': 1.2,
         'axes.spines.left': True,
@@ -89,7 +89,7 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
         ax.plot(time_points, data,
                 color=color,
                 linestyle=linestyle,
-                linewidth=2.0,
+                linewidth=2.5,
                 marker=marker,
                 markersize=5,
                 markevery=max(1, len(time_points)//12),
@@ -111,11 +111,11 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
 
 
     # Professional styling
-    ax.set_xlabel('Time Instance', fontsize=14)
+    ax.set_xlabel('Time Instance', fontsize=16)
     if metric=='MSE':
-        ax.set_ylabel('Norm. Root Mean Squared Error', fontsize=14)
+        ax.set_ylabel('Norm. Root Mean Squared Error', fontsize=16)
     if metric=='PRE':
-        ax.set_ylabel('Physics Residual Error', fontsize=14)
+        ax.set_ylabel('Physics Residual Error', fontsize=16)
         
     # ax.set_title(pde, fontsize=15, pad=15)
     
@@ -124,7 +124,7 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
     ax.set_axisbelow(True)
     
     # Professional legend
-    ax.legend(fontsize=11, 
+    ax.legend(fontsize=14, 
              frameon=True, 
              fancybox=False, 
              shadow=False,
@@ -158,7 +158,7 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
 #Setting Run Parameters
 
 # pde = 'Incompressible_Navier-Stokes'
-# arch = 'cno'
+# arch = 'uno'
 
 # if arch == 'fno':
 #     ar = 'wide-timer'
@@ -191,24 +191,26 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
 #     ops_split = 'lazy-redshift'  #NO + FD
 
 
-# %% 
+#%% 
 pde = 'Compressible_Navier-Stokes'
-arch = 'fno'
+arch = 'unet'
 
 #Ops Split - NO + FD
 if arch == 'fno':
     ar = 'obnoxious-yard'
     euler = 'beige-bocaccio'
     # ops_split = 'intractable-mantel'
-    ops_split = 'undecidable-gig' #Pressure_operator
+    # ops_split = 'undecidable-gig' #Pressure_operator
     # ops_split = 'citron-light' #pressureconv
     # ops_split = 'humid-argument' #gammaPDivV
     # ops_split = 'indulgent-architect' #Pressure_operator with gamma norm from v
+    ops_split = 'terminal-rehab' #NO for divergence of cons. 
 
 if arch == 'unet':
     ar = 'many-martin'
     euler = 'lower-heap'
-    ops_split = 'resultant-gain'
+    # ops_split = 'resultant-gain'
+    ops_split = 'inverted-accuracy'
 
 if arch == 'cno':
     ar = 'worried-kayak'
