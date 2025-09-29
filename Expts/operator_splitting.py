@@ -215,7 +215,7 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         else:
             self.normalizer.cpu()
 
-        self.gamma = torch.tensor(5/3, dtype=torch.float32, requires_grad=False).to(device)
+        self.gamma = torch.tensor(2/3, dtype=torch.float32, requires_grad=False).to(device)
         self.gamma = self.normalizer.encode(self.gamma.repeat(1,4))
         print(self.gamma)
         self.gamma = self.gamma[0, -1]#Taking the normalisation from pressure. 
