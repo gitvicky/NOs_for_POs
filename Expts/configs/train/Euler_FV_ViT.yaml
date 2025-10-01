@@ -24,7 +24,7 @@ Model:
   in_vars: 4
   out_vars: 4
   time_channels: 1
-  depth: 8
+  depth: 6
   num_heads: 10
   operator_splitting: True
   ops_split_normalise: False

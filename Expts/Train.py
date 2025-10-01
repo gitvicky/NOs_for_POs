@@ -293,16 +293,16 @@ with Run(mode='offline') as run:
                 attach_to_run=True
             )
             
-        #Checkpointing. 
-        if ep % configuration['Train']['checkpoint']['epochs'] == 0:
-            checkpoint = {}
-            checkpoint["model"] = model.state_dict()
-            checkpoint["optimizer"] = optimizer.state_dict() 
-            checkpoint["scheduler"] = scheduler.state_dict()
-            checkpoint["epoch"] = ep
-            torch.save(checkpoint, model_loc + "/checkpoint_"+str(ep)+".pt")
-            run.save_file(model_loc + "/checkpoint_"+str(ep)+".pt", 'output')
-            run.update_metadata({'Epochs': ep})
+        # #Checkpointing. 
+        # if ep+1 % configuration['Train']['checkpoint']['epochs'] == 0:
+        #     checkpoint = {}
+        #     checkpoint["model"] = model.state_dict()
+        #     checkpoint["optimizer"] = optimizer.state_dict() 
+        #     checkpoint["scheduler"] = scheduler.state_dict()
+        #     checkpoint["epoch"] = ep
+        #     torch.save(checkpoint, model_loc + "/checkpoint_"+str(ep)+".pt")
+        #     run.save_file(model_loc + "/checkpoint_"+str(ep)+".pt", 'output')
+        #     run.update_metadata({'Epochs': ep})
 
     train_time = default_timer() - start_time
 
