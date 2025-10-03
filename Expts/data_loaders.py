@@ -158,8 +158,8 @@ def Navier_Stokes_Spectral(configuration):
     y = x[::configuration['Physics']['y_slice']]
     dt = dt*configuration['Physics']['t_slice']
 
-    mask = ~torch.isnan(fields).any(dim=(1,2,3,4))
-    fields = fields[mask]
+    # mask = ~torch.isnan(fields).any(dim=(1,2,3,4))
+    # fields = fields[mask]
 
     return fields, x, y, dt
 
@@ -167,8 +167,8 @@ def Euler_FV(configuration):
     #Finite Volume Simulation Data from Philip Mocz for Compressible Navier-Stokes 
     n_sims = configuration['Data']['ntrain']
     data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
-    data =  np.load(data_loc + '/NS_FV_combined_pitagora.npz')
-    # data =  np.load(data_loc + '/NS_FV_combined_pitagora_gamma_2by3.npz')
+    # data =  np.load(data_loc + '/NS_FV_combined_pitagora.npz')
+    data =  np.load(data_loc + '/NS_FV_combined_pitagora_gamma_2by3.npz')
 
     rho = data['rho'].astype(np.float32)[:n_sims]
     u = data['u'].astype(np.float32)[:n_sims]

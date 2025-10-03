@@ -21,7 +21,7 @@ Model:
   arch: 'UNO'
   in_vars: 4
   out_vars: 4 
-  width: 32
+  width: 24
   act: 'relu'
   operator_splitting: True
   ops_split_normalise: False

@@ -322,9 +322,10 @@ for model in models:
 # %% 
 # temporal_rollout_error(pde, t_exp, mses[0], mses[1], mses[2], plot_loc, metric='MSE', save=True)
 # temporal_rollout_error(pde, t_exp, pres[0], pres[1], pres[2], plot_loc, metric='PRE', save=True)
+import cmocean as cmo
 
 def imshow_plot(data_matrix, plot_title, plot_loc, xlabel='X', ylabel='Y', 
-                cbar_label='Value', vmin=None, vmax=None, cmap='viridis', 
+                cbar_label='Value', vmin=None, vmax=None, cmap=cmo.cm.thermal, 
                 save=False, filename='imshow_plot'):
     """
     
@@ -380,7 +381,7 @@ def imshow_plot(data_matrix, plot_title, plot_loc, xlabel='X', ylabel='Y',
     # Professional styling
     ax.set_xlabel(xlabel, fontsize=16)
     ax.set_ylabel(ylabel, fontsize=16)
-    ax.set_title(plot_title, fontsize=15, pad=15)
+    # ax.set_title(plot_title, fontsize=15, pad=15)
     
     plt.tight_layout()
     
@@ -447,7 +448,7 @@ def convection_operator(uv):
     conv_x = apply_dealias(conv_x, dealias)
     conv_y = apply_dealias(conv_y, dealias)
     
-    return conv_x, conv_y
+    return -conv_x, -conv_y
 
 
 # u, v, p, w, x, t, err = solver.solve()
@@ -512,7 +513,7 @@ for t_idx in [5, 25, 50, 75]:
 
 
     conv_no_idx = conv_no[idx, 0, 0] + conv_no[idx, 1, 0]
-    conv_no_idx = normalize_array(-conv_no_idx)
+    conv_no_idx = normalize_array(conv_no_idx)
 
     imshow_plot(conv_no_idx, 
                 plot_title='Convection Operator: NO',

@@ -1,5 +1,5 @@
 
-seed: 907
+seed: 1234
 
 Physics: 
   pde: 'Navier-Stokes'

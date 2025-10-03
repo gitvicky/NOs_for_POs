@@ -111,11 +111,11 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
 
 
     # Professional styling
-    ax.set_xlabel('Time Instance', fontsize=16)
+    ax.set_xlabel('Time Instance', fontsize=25)
     if metric=='MSE':
-        ax.set_ylabel('Norm. Root Mean Squared Error', fontsize=16)
+        ax.set_ylabel('NRMSE', fontsize=25)
     if metric=='PRE':
-        ax.set_ylabel('Physics Residual Error', fontsize=16)
+        ax.set_ylabel('Physics Residual Error', fontsize=22)
         
     # ax.set_title(pde, fontsize=15, pad=15)
     
@@ -124,7 +124,7 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
     ax.set_axisbelow(True)
     
     # Professional legend
-    ax.legend(fontsize=14, 
+    ax.legend(fontsize=22, 
              frameon=True, 
              fancybox=False, 
              shadow=False,
@@ -141,7 +141,7 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
     
     if save:
         # Multiple format saves for different publication needs
-        formats = ['pdf', 'svg']
+        formats = ['pdf']#, 'svg']
         for fmt in formats:
             plot_name = f'{plot_loc}/temporal_error_{pde}_{arch}_{metric}_{t_exp}_{data_dist}.{fmt}'
             plt.savefig(plot_name, 
@@ -155,83 +155,100 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
     plt.show()
 
 # %% 
-#Setting Run Parameters
+# Setting Run Parameters
 
-pde = 'Incompressible_Navier-Stokes'
-arch = 'fno'
+# pde = 'Incompressible_Navier-Stokes'
+# arch = 'uno'
 
-if arch == 'fno':
-    ar = 'wide-timer'
-    euler = 'happy-walk'
-    # ops_split = 'symmetric-chocolate'
-    ops_split = 'reduced-roundel' #NO + FD
-
-if arch == 'unet':
-    ar = 'trite-accelerator'
-    euler = 'caramelized-commit'
-    # ops_split = 'creative-assurance' 
-    ops_split = 'scared-assistant' #NO + FD
-  
-if arch == 'cno':
-    ar = 'bold-canal'
-    euler = 'similar-river'
-    # ops_split = 'complicated-ideation'
-    ops_split = 'chocolate-classic' #NO + FD
-
-if arch == 'vit':
-    ar = 'icy-methodology'
-    euler = 'bright-novella'
-    # ops_split = 'intricate-factor'   
-    ops_split = 'sticky-chimpanzee' #NO + FD
-
-if arch == 'uno':
-    ar = 'indigo-angle'
-    euler = 'current-circle'
-    # ops_split = 'warm-station'  
-    ops_split = 'ordered-act'  #NO + FD
-
-
-#%% 
-# pde = 'Compressible_Navier-Stokes'
-# arch = 'fno'
-
-# #Ops Split - NO + FD
 # if arch == 'fno':
-#     ar = 'obnoxious-yard'
-#     euler = 'beige-bocaccio'
-#     # ops_split = 'intractable-mantel'
-#     # ops_split = 'undecidable-gig' #Pressure_operator
-#     # ops_split = 'citron-light' #pressureconv
-#     # ops_split = 'humid-argument' #gammaPDivV
-#     # ops_split = 'indulgent-architect' #Pressure_operator with gamma norm from v
-#     ops_split = 'terminal-rehab' #NO for divergence of cons. 
+#     ar = 'wide-timer'
+#     euler = 'happy-walk'
+#     # ops_split = 'symmetric-chocolate'
+#     ops_split = 'reduced-roundel' #NO + FD
 
 # if arch == 'unet':
-#     ar = 'many-martin'
-#     euler = 'lower-heap'
-#     # ops_split = 'resultant-gain'
-#     ops_split = 'inverted-accuracy'
-
+#     ar = 'trite-accelerator'
+#     euler = 'caramelized-commit'
+#     # ops_split = 'creative-assurance' 
+#     ops_split = 'scared-assistant' #NO + FD
+  
 # if arch == 'cno':
-#     ar = 'worried-kayak'
-#     euler = 'short-gravity'
-#     ops_split = 'another-diatonic'
-
+#     ar = 'bold-canal'
+#     euler = 'similar-river'
+#     # ops_split = 'complicated-ideation'
+#     # ops_split = 'annoying-budget' #NO + FD Diff Seed
+#     # ops_split = 'staccato-moscato' #NO + FD Diff Seed
+#     ops_split = 'cheerful-mercury' #NO + FD Diff Seed
+    
 # if arch == 'vit':
-#     ar = 'cerulean-recall'
-#     euler = 'gold-broadcloth'
-#     ops_split = 'thundering-HUD'
+#     ar = 'icy-methodology'
+#     euler = 'bright-novella'
+#     # ops_split = 'intricate-factor'   
+#     ops_split = 'sticky-chimpanzee' #NO + FD
 
 # if arch == 'uno':
-#     ar = 'reduced-fruit'
-#     euler = 'mild-contract'
-#     ops_split = 'crimson-chief'
+#     # # ar = 'objective-grid'
+#     # ar = 'equidistant-marker'
+#     # euler = 'current-circle'
+#     # # ops_split = 'warm-station'  
+#     # ops_split = 'ordered-act'  #NO + FD
+#     ar = 'random-bean'
+#     euler = 'forgiving-parameter'
+#     ops_split = 'intractable-halite'
+# %%
+pde = 'Compressible_Navier-Stokes'
+arch = 'cno'
+
+#Ops Split - NO + FD
+if arch == 'fno':
+    ar = 'obnoxious-yard'
+    euler = 'beige-bocaccio'
+    # ops_split = 'intractable-mantel'
+    # ops_split = 'undecidable-gig' #Pressure_operator
+    # ops_split = 'citron-light' #pressureconv
+    # ops_split = 'humid-argument' #gammaPDivV
+    # ops_split = 'indulgent-architect' #Pressure_operator with gamma norm from v
+    ops_split = 'terminal-rehab' #NO for divergence of cons. 
+
+if arch == 'unet':
+    ar = 'many-martin'
+    euler = 'lower-heap'
+    # ops_split = 'resultant-gain'
+    ops_split = 'inverted-accuracy'
+
+if arch == 'cno':
+    # ar = 'worried-kayak'
+    # euler = 'short-gravity'
+    # # ops_split = 'another-diatonic'
+    # ops_split = 'large-cylinder'
+    ar = 'swift-modulation'
+    euler = 'cold-metaphor'
+    # ops_split = 'minimum-support'
+
+    # ops_split = 'warm-region'
+    # ops_split = 'coplanar-stockade'
+    # ops_split = 'overcast-pumice'
+    # ops_split = 'concrete-moleskin'
+    ops_split = 'inclusive-iteration'
+
+if arch == 'vit':
+    ar = 'cerulean-recall'
+    euler = 'gold-broadcloth'
+    ops_split = 'thundering-HUD'
+
+if arch == 'uno':
+    # ar = 'reduced-fruit'
+    # euler = 'mild-contract'
+    # ops_split = 'crimson-chief'
+    ar = 'grouchy-dynamic'
+    euler = 'great-hook'
+    ops_split = 'foggy-lagoon'
 
 # %%
 t_exp = 100
-data_dist = 'ID'
+data_dist = 'OOD'
 
-models = [ar, euler, ops_split]
+models = [ops_split]
 mses = []
 pres = []
 
