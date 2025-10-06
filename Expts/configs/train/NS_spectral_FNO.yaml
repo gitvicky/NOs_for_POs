@@ -30,7 +30,7 @@
   Data: 
     name: 'NS_Spectral_combined_pitagora.npz'
     loc: '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
-    ntrain: 100
+    ntrain: 500
     test_train_split: 0.2
     batch_size: 20
     t_in: 1
@@ -40,8 +40,8 @@
 
   Opt:
     optimizer: 'adam'
-    epochs: 250
-    learning_rate: 0.001
+    epochs: 500
+    learning_rate: 0.005
     beta1: 0.9
     beta2: 0.9
     weight_decay: 1e-4

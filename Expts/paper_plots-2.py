@@ -45,17 +45,17 @@ def nRMSE(test, pred):
 
 def PRE(pre, vars):
     # return torch.mean(pre(vars, boundary=False), axis=(0, 2, 3)).numpy()
-    return torch.mean(torch.abs(pre(vars, boundary=False)), axis=(0, 2, 3)).numpy()
+    # return torch.mean(torch.abs(pre(vars, boundary=False)), axis=(0, 2, 3)).numpy()
     # return torch.abs(torch.mean(pre(vars, boundary=False), axis=(0, 2, 3))).numpy()
-    # return np.mean(np.abs(pre(vars, boundary=False)), axis=(0, 2, 3))
+    return np.mean(np.abs(pre(vars, boundary=False)), axis=(0, 2, 3))
 
 # %% 
 def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_loc, metric='MSE', save=False):
 
     time_points = torch.arange(0,t_exp-1, 1)
 
-    if metric=='PRE':
-        time_points = time_points[1:-1]
+    # if metric=='PRE':
+    #     time_points = time_points[1:-1]
 
     # Use LaTeX rendering for professional typography (if available)
     plt.rcParams.update({
@@ -192,10 +192,14 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
 #     # euler = 'current-circle'
 #     # # ops_split = 'warm-station'  
 #     # ops_split = 'ordered-act'  #NO + FD
-#     ar = 'random-bean'
-#     euler = 'forgiving-parameter'
-#     ops_split = 'intractable-halite'
-# %%
+#     # ar = 'random-bean'
+#     # euler = 'forgiving-parameter'
+#     # ops_split = 'intractable-halite'
+
+#     ar = 'concave-falls'
+#     euler = 'icy-attache'
+#     ops_split = 'adventurous-buck'
+#%%
 pde = 'Compressible_Navier-Stokes'
 arch = 'cno'
 
@@ -248,7 +252,7 @@ if arch == 'uno':
 t_exp = 100
 data_dist = 'OOD'
 
-models = [ops_split]
+models = [ar, euler, ops_split]
 mses = []
 pres = []
 

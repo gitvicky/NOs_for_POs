@@ -255,6 +255,7 @@ with Run(mode='offline') as run:
     #Training
     ####################################
     start_time = default_timer()
+    trainloss, testloss = [], []
     for ep in tqdm(range(epoch_init, epochs+1)): #Training Loop - Epochwise
 
         model.train()
@@ -265,6 +266,9 @@ with Run(mode='offline') as run:
 
         train_loss = train_loss / len(train_loader)
         test_loss = test_loss / len(test_loader)
+
+        trainloss.append(train_loss)
+        testloss.append(test_loss)
 
         print(f"Epoch {ep}, Time Taken: {round(t2-t1,3)}, Train Loss: {round(train_loss, 5)}, Test Loss: {round(test_loss,5)}")
         current_lr = optimizer.param_groups[0]['lr']
@@ -293,16 +297,16 @@ with Run(mode='offline') as run:
                 attach_to_run=True
             )
             
-        # #Checkpointing. 
-        # if ep+1 % configuration['Train']['checkpoint']['epochs'] == 0:
-        #     checkpoint = {}
-        #     checkpoint["model"] = model.state_dict()
-        #     checkpoint["optimizer"] = optimizer.state_dict() 
-        #     checkpoint["scheduler"] = scheduler.state_dict()
-        #     checkpoint["epoch"] = ep
-        #     torch.save(checkpoint, model_loc + "/checkpoint_"+str(ep)+".pt")
-        #     run.save_file(model_loc + "/checkpoint_"+str(ep)+".pt", 'output')
-        #     run.update_metadata({'Epochs': ep})
+        #Checkpointing. 
+        if ep+1 % configuration['Train']['checkpoint']['epochs'] == 0:
+            checkpoint = {}
+            checkpoint["model"] = model.state_dict()
+            checkpoint["optimizer"] = optimizer.state_dict() 
+            checkpoint["scheduler"] = scheduler.state_dict()
+            checkpoint["epoch"] = ep
+            torch.save(checkpoint, model_loc + "/checkpoint_"+str(ep)+".pt")
+            run.save_file(model_loc + "/checkpoint_"+str(ep)+".pt", 'output')
+            run.update_metadata({'Epochs': ep})
 
     train_time = default_timer() - start_time
 
@@ -311,6 +315,10 @@ with Run(mode='offline') as run:
     saved_model = model_loc + '/model.pth'
     torch.save(model.state_dict(), saved_model)
     run.save_file(saved_model, 'output')
+    
+    #Saving test-train
+    np.save(model_loc + '/train_loss.npy', np.asarray(trainloss))
+    np.save(model_loc + '/test_loss.npy', np.asarray(testloss))
 
     #Evaluation 
     if configuration['Train']['odesolve']['source'] == 'custom':
