@@ -11,7 +11,7 @@ run_name = 'happy-walk'
 
 test_data_name = None
 test_data = 'ID'
-t_extrapolation = 50
+t_extrapolation = 100
 # %%
 class Run:
     def __init__(self, name=None):

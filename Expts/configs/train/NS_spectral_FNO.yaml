@@ -1,4 +1,4 @@
-  seed: 907
+  seed: 1234
 
   Physics: 
     pde: 'Navier-Stokes'
@@ -24,13 +24,13 @@
     width: 64
     n_layers: 6
     act: 'gelu'
-    operator_splitting: True
+    operator_splitting: False
     ops_split_normalise: False
 
   Data: 
     name: 'NS_Spectral_combined_pitagora.npz'
     loc: '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
-    ntrain: 500
+    ntrain: 100
     test_train_split: 0.2
     batch_size: 20
     t_in: 1
@@ -40,7 +40,7 @@
 
   Opt:
     optimizer: 'adam'
-    epochs: 500
+    epochs: 250
     learning_rate: 0.005
     beta1: 0.9
     beta2: 0.9
@@ -57,7 +57,7 @@
     input_noise: 0.0
     odesolve: 
       source: 'custom' #'torchdiffeq', 'custom'
-      method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+      method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
       adjoint: False #Only for torchdiffeq
     batch_norm: False
     checkpoint:

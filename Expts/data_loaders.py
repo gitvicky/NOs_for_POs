@@ -158,8 +158,8 @@ def Navier_Stokes_Spectral(configuration):
     y = x[::configuration['Physics']['y_slice']]
     dt = dt*configuration['Physics']['t_slice']
 
-    mask = ~torch.isnan(fields).any(dim=(1,2,3,4))
-    fields = fields[mask]
+    # mask = ~torch.isnan(fields).any(dim=(1,2,3,4))
+    # fields = fields[mask]
 
     return fields, x, y, dt
 

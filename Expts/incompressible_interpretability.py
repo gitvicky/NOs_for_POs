@@ -50,9 +50,8 @@ def PRE(pre, vars):
 
 # %% 
 #Setting Run Parameters
-
 pde = 'Incompressible_Navier-Stokes'
-arch = 'UNO'
+arch = 'FNO'
 
 if arch == 'FNO':
     ar = 'wide-timer'
@@ -309,7 +308,6 @@ def convection_operator(uv):
 
 
 # u, v, p, w, x, t, err = solver.solve()
-
 #Convection Operator - Finite Difference
 from PRE.ConvOps_2d import * 
 def convection_operator_FD(uv):
@@ -326,7 +324,6 @@ def convection_operator_FD(uv):
 #     gradient_operator = Gradient(scale=1, taylor_order=4, boundary_cond='periodic', device=device, requires_grad=False)
 #     div_FD =   rho*divergence_operator(uv) + dot(uv, gradient_operator(rho))
 #     return div_FD
-
 
 def normalize_array(array, target_min=-1, target_max=1):
     """Normalize array to [target_min, target_max] range"""
@@ -368,7 +365,6 @@ for t_idx in [5, 25, 50, 75]:
                 save=True,
                 filename= f'{name}_{idx}_{data_dist}_{t_idx}')
 
-
     conv_no_idx = conv_no[idx, 0, 0] + conv_no[idx, 1, 0]
     conv_no_idx = normalize_array(conv_no_idx)
 
@@ -380,4 +376,3 @@ for t_idx in [5, 25, 50, 75]:
                 cbar_label='',
                 save=True,
                 filename=f'conv_ops_{arch}_{idx}_{data_dist}_{t_idx}')
-# %%

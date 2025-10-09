@@ -104,7 +104,7 @@ def imshow_plot(data_matrix, plot_title, plot_loc, xlabel='X', ylabel='Y',
     # Professional styling
     ax.set_xlabel(xlabel, fontsize=16)
     ax.set_ylabel(ylabel, fontsize=16)
-    ax.set_title(plot_title, fontsize=20, pad=15)
+    # ax.set_title(plot_title, fontsize=20, pad=15)
     
     plt.tight_layout()
     
@@ -331,7 +331,7 @@ for s in ['rho', 'p']:
         rho = test[:, 0]
         u  = test[:, 1]
         v = test[:, 2]
-        p   = test[:, 3]
+        p  = test[:, 3]
 
         if numerical == 'FD':
             if s == 'rho':
