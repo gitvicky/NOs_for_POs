@@ -7,7 +7,7 @@ import sys
 sys.path.append("..")
 
 # from Neural_PDE.Models.FNO_classic import *
-# from Neural_PDE.Models.ViT import * 
+from Neural_PDE.Models.ViT import * 
 from Neural_PDE.Models.UNet import * 
 from Neural_PDE.Models.UNet_Classic import *
 from Neural_PDE.Models.CNO import * 
@@ -15,6 +15,7 @@ from Neural_PDE.Models.gMLP_Vision import *
 from Neural_PDE.Models.ConvOperator import *
 from Neural_PDE.Models.LNO import * 
 from Neural_PDE.Models.Neural_Ops_lib import *
+# from Neural_PDE.Models.GNO import * 
 
 #Function to count_params
 count_parameters = lambda model: sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -137,6 +138,20 @@ def model_selection(configuration):
                         activation=configuration['Model']['activation'],
                         init_type=configuration['Model']['init_type'],
         )
+    
+    # elif configuration['Model']['arch'] == 'GNO':
+    #         x = torch.linspace(0, configuration['Physics']['Nx']*configuration['Physics']['dt'] , configuration['Physics']['Nx'])
+    #         y = torch.linspace(0, configuration['Physics']['Ny']*configuration['Physics']['dt'] , configuration['Physics']['Ny'])
+    #         model = GNO(
+    #                 in_channels=configuration['Model']['in_vars'], 
+    #                 out_channels=configuration['Model']['out_vars'], 
+    #                 hidden_channels=configuration['Model']['width'], 
+    #                 # mid_width=configuration['Model']['mid_width'], 
+    #                 r=configuration['Model']['r'], 
+    #                 n_layers=configuration['Model']['depth'],
+    #                 x_in=x,
+    #                 y_in=y
+    #     )  
         
         
     # elif configuration['Model']['arch'] == 'LNO':
@@ -156,9 +171,11 @@ def model_selection(configuration):
 def model_initialisation(configuration, normalizer, run):
     pde = configuration['Physics']['pde']
     if configuration['Model']['operator_splitting'] == True: 
-    
     #With operator_splitting.
-        if pde == 'Navier-Stokes':
+        if pde == 'ConvDiff':
+            from operator_splitting import Conv_Diff_OS_rhs
+            model = Conv_Diff_OS_rhs(configuration, normalizer, run)
+        elif pde == 'Navier-Stokes':
             from operator_splitting import NS_spectral_OS_rhs
             model = NS_spectral_OS_rhs(configuration, normalizer, run)
         elif pde == 'Shear Flow':
@@ -167,9 +184,6 @@ def model_initialisation(configuration, normalizer, run):
         elif pde == 'Euler-Fluid':
             from operator_splitting import Euler_FV_OS_rhs
             model = Euler_FV_OS_rhs(configuration, normalizer, run)
-        elif pde == 'Euler Quadrant':
-            from operator_splitting import Euler_Quadrant_OS_rhs
-            model = Euler_Quadrant_OS_rhs(configuration, normalizer, run)
         elif pde == 'Incomp. Navier-Stokes':
             from operator_splitting import Incomp_PDEB_NS_OS_rhs
             model = Incomp_PDEB_NS_OS_rhs(configuration, normalizer, run)
@@ -181,7 +195,7 @@ def model_initialisation(configuration, normalizer, run):
             model = Ideal_MHD_OS_rhs(configuration, normalizer, run)
 
         else:
-            raise ValueError(f"Unknown PDE: {pde} in operator splitting. ")
+            raise ValueError(f"Unknown PDE: {pde} in operator splitting")
         
         return model
     

@@ -33,15 +33,15 @@ run_config = flatten_dict(configuration)
 from simvue import Run, Client
 with Run(mode='online') as run:
 
-    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Mark2'], metadata=run_config)
+    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Mark3', 'Ablation1', 'Transfer-Learn'], metadata=run_config)
 
     # #if run is being disabled
     # import argparse
     # run = argparse.Namespace()
     # run.name = "test"
 
-    #setting up the client API 
-    # client = Client()
+    # setting up the client API 
+    client = Client()
 
     #Saving the current run file and the git hash of the repo
     run.save_file(os.path.abspath(__file__), 'code')
@@ -169,9 +169,8 @@ with Run(mode='online') as run:
     train_dataset = SpatioTemporalDataset(train_data, input_window, prediction_steps)
 
     #Setting up the data loaders
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=configuration['Data']['batch_size'], shuffle=True)
-    test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch_size'], shuffle=False)
-
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=configuration['Data']['batch_size'], shuffle=True, pin_memory=True, num_workers=4)
+    test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch_size'], shuffle=False, pin_memory=True, num_workers=4)
     print("Training Input: " + str(train_in.shape))
     print("Training Output: " + str(train_out.shape))
     t2 = default_timer()
@@ -202,9 +201,36 @@ with Run(mode='online') as run:
     #     return model
 
     model = model_initialisation(configuration, normalizer, run)
-    model.to(device)
     # model = convert_model_to_complex(model)  # Convert model parameters to complex type
 
+    if configuration['Train']['finetune']==True:
+        # import shutil
+        # tmp_loc = os.getcwd() + '/tmp'
+        # # Create tmp directory if it doesn't exist, or recreate it if it does
+        # if os.path.exists(tmp_loc):
+        #     shutil.rmtree(tmp_loc)
+        # os.makedirs(tmp_loc, exist_ok=True)
+        # run_id = client.get_run_id_from_name(configuration['Train']['finetune_run_name'])
+        # client.get_artifact_as_file(run_id, name = 'model.pth', output_dir=tmp_loc)
+        # client.get_artifact_as_file(run_id, name = 'model.pth', output_dir=tmp_loc)
+        # ckpt_path = tmp_loc + '/model.pth'
+        # model.load_state_dict(torch.load(ckpt_path, weights_only=False), strict=False)
+
+        #Loading from model saved locally
+        from model_setup import * 
+        from pathlib import Path
+        run_loc = file_loc + '/Weights/' + configuration['Train']['finetune_run_name']
+        configuration_base = yaml.safe_load(open(next(Path(run_loc).glob('*.yaml'))))
+        normalizer_func_base = Normalisation(configuration_base['Data']['normalisation'])
+        normalizer_base = normalizer_func_base(fields, low=0.0, high=1.0)
+        model_base= model_initialisation(configuration_base, normalizer_base, run=None)
+        model_path = run_loc + '/model.pth'
+        model_base.load_state_dict(torch.load(model_path, map_location='cpu', weights_only=False), strict=False)
+
+        #Setting the convection operator
+        model.convection_operator.load_state_dict(model_base.convection_operator.state_dict(), strict=False)
+
+    model.to(device)
     run.update_metadata({'Number of Params': int(model.count_params())})
     print("Number of model params : " + str(model.count_params()))
 
@@ -319,6 +345,7 @@ with Run(mode='online') as run:
     pred_encoded, error = eval.inference(configuration['Data']['step'], configuration['Data']['t_out']-1, dt=dt)
 
 
+    print('Training Time: %.3e' % (train_time))
     print('(MSE) Testing Error: %.3e' % (error))
 
     run.update_metadata({'Training Time': float(train_time),

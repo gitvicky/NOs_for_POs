@@ -1,4 +1,4 @@
-seed: 907
+seed: 6789
 
 Physics: 
   pde: 'Euler-Fluid'
@@ -23,15 +23,15 @@ Model:
   out_vars: 4
   modes: 32
   width: 64
-  n_layers: 4
+  n_layers: 3 #6 or 3
   act: 'gelu'
-  operator_splitting: False
+  operator_splitting: True
   ops_split_normalise: False
 
 Data: 
   name: 'NS_FV_combined.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
-  ntrain: 500
+  ntrain: 100
   test_train_split: 0.2
   batch_size: 10
   t_in: 1
@@ -58,13 +58,15 @@ Train:
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:
     epochs: 50
   restart: False
   restart_run_name: '' #simvue run name 
+  finetune: False
+  finetune_run_name: 'happy-ray' 
 
 Simvue:
   mode: 'online'

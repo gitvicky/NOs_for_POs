@@ -6,7 +6,7 @@ sys.path.append("..")
 from model_setup import * 
 from PRE.ConvOps_2d import * 
 # from PRE.VectorConvOps_Spatial import *
-
+from findiff import Divergence
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # %% 
 class Incomp_NS_PRE(nn.Module):
@@ -25,13 +25,25 @@ class Incomp_NS_PRE(nn.Module):
 
         self.nu = torch.tensor(0.001, dtype=torch.float32, requires_grad=False).to(device)
 
+        self.div = Divergence(h=[1,1])
+
+    # def forward(self, vars, boundary=False):
+    #     u, v = vars[:,0], vars[:, 1]
+    #     res = self.D_x(u) + (self.dx/self.dy)*self.D_y(v)
+    #     if boundary:
+    #         return res
+    #     else: 
+    #         return res[...,1:-1,1:-1,1:-1]
+
     def forward(self, vars, boundary=False):
-        u, v = vars[:,0], vars[:, 1]
-        res = self.D_x(u) + (self.dx/self.dy)*self.D_y(v)
-        if boundary:
-            return res
-        else: 
-            return res[...,1:-1,1:-1,1:-1]
+        uv = vars.numpy()
+        pre = []
+        for idx in range(uv.shape[0]):
+            tmp = []
+            for it in range(uv.shape[2]):
+                tmp.append(self.div(uv[idx, :, it]))
+            pre.append(np.asarray(tmp))
+        return np.asarray(pre)
 
 
     # def forward(self, vars, boundary=False):
@@ -77,5 +89,6 @@ class Comp_NS_PRE(nn.Module):
             return res[...,1:-1,1:-1,1:-1]
 
 # %% 
+
 
 

@@ -115,8 +115,8 @@ def Navier_Stokes_Spectral(configuration):
     #Testing with NS_Spectral (for now)
     n_sims = configuration['Data']['ntrain']
     data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
-    # data =  np.load(data_loc + '/NS_Spectral_combined.npz')
-    data = np.load(data_loc + '/NS_Spectral_combined_nu_1e-2_OOD.npz')
+    data =  np.load(data_loc + '/NS_Spectral_combined.npz')
+    # data = np.load(data_loc + '/NS_Spectral_combined_nu_1e-2_OOD.npz')
     # data =  np.load(data_loc + '/NS_Spectral_combined_t_extrapolate.npz')
 
     u = data['u'].astype(np.float32)[:n_sims]

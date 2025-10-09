@@ -1,5 +1,5 @@
 
-seed: 907
+seed: 1234
 
 Physics: 
   pde: 'Navier-Stokes'
@@ -18,15 +18,12 @@ Physics:
   physics_normalisation: False
 
 Model:
-  arch: 'ViT'
-  patch_size: 4
-  embed_dim: 512
+  arch: 'UNO'
   in_vars: 2
-  out_vars: 2
-  time_channels: 1
-  depth: 12
-  num_heads: 10
-  operator_splitting: True
+  out_vars: 2 
+  width: 64
+  act: 'relu'
+  operator_splitting: False
   ops_split_normalise: False
 
 Data: 
@@ -39,7 +36,6 @@ Data:
   t_out: 50
   step: 1
   normalisation: 'Min-Max'
-
 
 Opt:
   optimizer: 'adam'
@@ -54,7 +50,7 @@ Opt:
   grad_clip: 2.0
 
 Train: 
-  loss: 'MSE'
+  loss: 'LP'
   input_length: 1
   rollout_length: 5
   input_noise: 0.0
@@ -71,4 +67,5 @@ Train:
 Simvue:
   mode: 'online'
   name: None 
-  folder: '/Neural_PDE/Spectral' 
+  folder: '/Neural_PDE/NS_Spectral' 
+
