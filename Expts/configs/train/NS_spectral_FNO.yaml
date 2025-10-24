@@ -40,7 +40,7 @@
 
   Opt:
     optimizer: 'adam'
-    epochs: 250
+    epochs: 2
     learning_rate: 0.005
     beta1: 0.9
     beta2: 0.9

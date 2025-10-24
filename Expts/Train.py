@@ -34,6 +34,7 @@ from simvue import Run, Client
 with Run(mode='offline') as run:
 
     run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Mark1', 'Pitagora'], metadata=run_config)
+    run.config(disable_resources_metrics=True)
     print("Run Name: " + str(run.name))
     print(yaml.dump(configuration, default_flow_style=False, indent=2))
 
@@ -275,27 +276,27 @@ with Run(mode='offline') as run:
         run.log_metrics({'Train Loss': train_loss, 'Test Loss': test_loss, 'Learning Rate': current_lr}, step=ep)
         scheduler.step()
 
-        #Alerting potential instability in training.
-        run.create_metric_threshold_alert(
-            name='Unstable',
-            metric='Train Loss',
-            threshold=1e5,
-            rule='is above',  
-            frequency=1,
-            window=1,
-            trigger_abort=True
-            )
+        # #Alerting potential instability in training.
+        # run.create_metric_threshold_alert(
+        #     name='Unstable',
+        #     metric='Train Loss',
+        #     threshold=1e5,
+        #     rule='is above',  
+        #     frequency=1,
+        #     window=1,
+        #     trigger_abort=True
+        #     )
         
-        #Killing the run if the training becomes unstable. 
-        if math.isnan(train_loss) or math.isinf(train_loss):
-            print("Training loss is NaN or Inf, stopping training.")
-            run.create_user_alert(
-                name='Training terminated',
-                description='Training loss became NaN or Inf, stopping training.',
-                notification='none',
-                trigger_abort=True,
-                attach_to_run=True
-            )
+        # #Killing the run if the training becomes unstable. 
+        # if math.isnan(train_loss) or math.isinf(train_loss):
+        #     print("Training loss is NaN or Inf, stopping training.")
+        #     run.create_user_alert(
+        #         name='Training terminated',
+        #         description='Training loss became NaN or Inf, stopping training.',
+        #         notification='none',
+        #         trigger_abort=True,
+        #         attach_to_run=True
+        #     )
             
         #Checkpointing. 
         if ep+1 % configuration['Train']['checkpoint']['epochs'] == 0:
@@ -369,8 +370,10 @@ with Run(mode='offline') as run:
 
     # %%
     #Saving the slurm output file. 
+    import time 
+    time.sleep(1)
     slurm_id = os.environ['SLURM_JOB_ID']
-    run.save_file(os.path.abspath('slurm-'+str(slurm_id)+'.out'), 'output')
+    run.save_file(os.path.abspath('slurm-'+str(slurm_id)+'.out'), 'output',snapshot=True)
 
     # run.close()
     # %%
