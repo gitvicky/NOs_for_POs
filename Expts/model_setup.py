@@ -146,8 +146,8 @@ def model_selection(configuration):
                     in_channels=configuration['Model']['in_vars'], 
                     out_channels=configuration['Model']['out_vars'], 
                     hidden_channels=configuration['Model']['width'], 
-                    # mid_width=configuration['Model']['mid_width'], 
                     r=configuration['Model']['r'], 
+                    # k_neighbours = 20,
                     n_layers=configuration['Model']['depth'],
                     x_in=x,
                     y_in=y

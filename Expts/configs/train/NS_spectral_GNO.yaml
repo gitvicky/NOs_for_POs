@@ -1,5 +1,4 @@
-
-seed: 907
+seed: 1234
 
 Physics: 
   pde: 'Navier-Stokes'
@@ -33,7 +32,7 @@ Data:
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
   ntrain: 100
   test_train_split: 0.2
-  batch_size: 5
+  batch_size: 10
   t_in: 1
   t_out: 50
   step: 1
@@ -54,7 +53,7 @@ Opt:
 Train: 
   loss: 'LP'
   input_length: 1
-  rollout_length: 5
+  rollout_length: 2
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
@@ -67,7 +66,7 @@ Train:
   restart_run_name: '' #simvue run name
 
 Simvue:
-  mode: 'online'
+  mode: 'offline'
   name: None 
   folder: '/Neural_PDE/NS_Spectral' 
 
