@@ -15,7 +15,10 @@ from Neural_PDE.Models.gMLP_Vision import *
 from Neural_PDE.Models.ConvOperator import *
 from Neural_PDE.Models.LNO import * 
 from Neural_PDE.Models.Neural_Ops_lib import *
-from Neural_PDE.Models.GNO import * 
+from Neural_PDE.Models.GNO_neuralop import * 
+from Neural_PDE.Models.GINO_neuralop import * 
+from Neural_PDE.Models.INR_NOs4POs import *
+from Neural_PDE.Models.DeepONet_NOs4POs import * 
 
 #Function to count_params
 count_parameters = lambda model: sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -142,15 +145,34 @@ def model_selection(configuration):
     elif configuration['Model']['arch'] == 'GNO':
             x = torch.linspace(0, configuration['Physics']['Nx']*configuration['Physics']['dt'] , configuration['Physics']['Nx'])
             y = torch.linspace(0, configuration['Physics']['Ny']*configuration['Physics']['dt'] , configuration['Physics']['Ny'])
+            x, y = x[::configuration['Physics']['x_slice']], y[::configuration['Physics']['y_slice']]
             model = GNO(
                     in_channels=configuration['Model']['in_vars'], 
                     out_channels=configuration['Model']['out_vars'], 
                     hidden_channels=configuration['Model']['width'], 
                     r=configuration['Model']['r'], 
-                    # k_neighbours = 20,
                     n_layers=configuration['Model']['depth'],
                     x_in=x,
                     y_in=y
+        )  
+        
+    
+    elif configuration['Model']['arch'] == 'GINO':
+            x = torch.linspace(0, configuration['Physics']['Nx']*configuration['Physics']['dt'] , configuration['Physics']['Nx'])
+            y = torch.linspace(0, configuration['Physics']['Ny']*configuration['Physics']['dt'] , configuration['Physics']['Ny'])
+            x, y = x[::configuration['Physics']['x_slice']], y[::configuration['Physics']['y_slice']]
+
+            model = GINO(
+                    in_channels=configuration['Model']['in_vars'], 
+                    out_channels=configuration['Model']['out_vars'], 
+                    hidden_channels=configuration['Model']['width'], 
+                    fno_n_modes=(12, 12),
+                    fno_n_layers=configuration['Model']['depth'],
+                    in_gno_radius=configuration['Model']['r'], 
+                    n_gno_layers=configuration['Model']['depth'],
+                    x_in=x,
+                    y_in=y,
+                    latent_grid_size=32
         )  
         
         
@@ -162,6 +184,72 @@ def model_selection(configuration):
     #                             num_vars = configuration['Model']['in_vars'],     #
     #                             width_time = configuration['Model']['width'],    # Width of the FNO (number of channels)
     #                             )
+
+    elif configuration['Model']['arch'] == 'SIREN':
+        # Setup coordinate grids
+        x = torch.linspace(0, configuration['Physics']['Nx']*configuration['Physics']['dx'], 
+                        configuration['Physics']['Nx'])
+        y = torch.linspace(0, configuration['Physics']['Ny']*configuration['Physics']['dy'], 
+                        configuration['Physics']['Ny'])
+
+        x, y = x[::configuration['Physics']['x_slice']], y[::configuration['Physics']['y_slice']]
+ 
+        model = SIREN(
+            in_channels=configuration['Model']['in_vars'],
+            out_channels=configuration['Model']['out_vars'],
+            hidden_features=configuration['Model']['width'],      # Network width
+            hidden_layers=configuration['Model']['depth'],        # Network depth
+            x_in=x,
+            y_in=y,
+            first_omega_0=configuration['Model'].get('first_omega', 30),    # First layer frequency
+            hidden_omega_0=configuration['Model'].get('hidden_omega', 30),  # Hidden layer frequency
+            outermost_linear=True  # Use linear output layer
+        )
+
+
+    elif configuration['Model']['arch'] == 'FourierNet':
+        # Setup coordinate grids
+        x = torch.linspace(0, configuration['Physics']['Nx']*configuration['Physics']['dx'], 
+                        configuration['Physics']['Nx'])
+        y = torch.linspace(0, configuration['Physics']['Ny']*configuration['Physics']['dy'], 
+                        configuration['Physics']['Ny'])
+        
+        x, y = x[::configuration['Physics']['x_slice']], y[::configuration['Physics']['y_slice']]
+
+        model = FourierNet(
+            in_channels=configuration['Model']['in_vars'],
+            out_channels=configuration['Model']['out_vars'],
+            hidden_size=configuration['Model']['width'],          # Network width
+            n_layers=configuration['Model']['depth'],             # Network depth
+            x_in=x,
+            y_in=y,
+            input_scale=configuration['Model'].get('input_scale', 256.0),  # Fourier feature scale
+            weight_scale=configuration['Model'].get('weight_scale', 1.0),
+            bias=True,
+            output_act=False
+        )
+
+
+    elif configuration['Model']['arch'] == 'DeepONet':
+        # Setup coordinate grids
+        x = torch.linspace(0, configuration['Physics']['Nx']*configuration['Physics']['dx'], 
+                        configuration['Physics']['Nx'])
+        y = torch.linspace(0, configuration['Physics']['Ny']*configuration['Physics']['dy'], 
+                        configuration['Physics']['Ny'])
+        
+        x, y = x[::configuration['Physics']['x_slice']], y[::configuration['Physics']['y_slice']]
+
+        model = DeepONet(
+            in_channels=configuration['Model']['in_vars'],
+            out_channels=configuration['Model']['out_vars'],
+            branch_width = configuration['Model']['branch_width'],
+            branch_depth = configuration['Model']['branch_depth'],
+            trunk_width = configuration['Model']['trunk_width'],
+            trunk_depth = configuration['Model']['trunk_depth'],
+            basis_size = configuration['Model']['basis_size'],
+            x_in=x,
+            y_in=y
+        )
 
     else:
         raise ValueError(f"Unknown architecture: {configuration['Model']['arch']}. ")

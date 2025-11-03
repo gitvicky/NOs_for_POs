@@ -34,6 +34,8 @@ from simvue import Run, Client
 with Run(mode='offline') as run:
 
     run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Mark4', 'Pitagora'], metadata=run_config)
+    run.update_tags([configuration['Simvue']['tags']])
+    
     run.config(disable_resources_metrics=True)
     print("Run Name: " + str(run.name))
     print(yaml.dump(configuration, default_flow_style=False, indent=2))
@@ -52,6 +54,8 @@ with Run(mode='offline') as run:
     
     if configuration['Model']['operator_splitting']:
         run.save_file(os.path.abspath('operator_splitting.py'), 'code', snapshot=True)
+        run.update_tags(['OpsSplit'])
+
 
     import git
     repo = git.Repo(search_parent_directories=True)

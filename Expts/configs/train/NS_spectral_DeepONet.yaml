@@ -11,28 +11,31 @@ Physics:
   dx: 0.01
   dy: 0.01
   dt: 0.01
-  x_slice: 2
-  y_slice: 2
+  x_slice: 1
+  y_slice: 1
   t_slice: 1
   physics_normalisation: False
 
 Model:
-  arch: 'GNO'
+  arch: 'DeepONet'
   in_vars: 2
-  out_vars: 2 
-  width: 32
-  depth: 3
-  r: 0.1
-  act: 'gelu'
+  out_vars: 2
+  branch_width: 128             
+  branch_depth: 6       
+  trunk_width: 128  
+  trunk_depth: 6     
+  basis_size: 128
   operator_splitting: False
   ops_split_normalise: False
+
+
 
 Data: 
   name: 'NS_Spectral_combined.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
-  ntrain: 100
+  ntrain: 500
   test_train_split: 0.2
-  batch_size: 10
+  batch_size: 50
   t_in: 1
   t_out: 50
   step: 1
@@ -40,8 +43,8 @@ Data:
 
 Opt:
   optimizer: 'adam'
-  epochs: 250
-  learning_rate: 0.001
+  epochs: 5
+  learning_rate: 0.005
   beta1: 0.9
   beta2: 0.9
   weight_decay: 1e-4
@@ -61,7 +64,7 @@ Train:
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:
-    epochs: 50
+    epochs: 100
   restart: False
   restart_run_name: '' #simvue run name
 
@@ -69,4 +72,4 @@ Simvue:
   mode: 'offline'
   name: None 
   folder: '/Neural_PDE/NS_Spectral' 
-
+  tags: 'offline_tests'
