@@ -1,18 +1,13 @@
 seed: 1234
 
 Physics: 
-  pde: 'Navier-Stokes'
-  source: 'Spectral' 
+  pde: 'Incomp. Navier-Stokes'
+  source: 'Nvidia' 
   field: 'u, v'
   variables: 2
-  Nx: 100
-  Ny: 100
-  Nt: 100
-  dx: 0.01
-  dy: 0.01
-  dt: 0.01
-  x_slice: 1
-  y_slice: 1
+  Nxy: 1699
+  Nt: 401
+  dt: 0.001
   t_slice: 1
   physics_normalisation: False
 
@@ -20,20 +15,19 @@ Model:
   arch: 'DeepONet'
   in_vars: 2
   out_vars: 2
-  branch_width: 128             
-  branch_depth: 6       
-  trunk_width: 128  
+  branch_width: 64            
+  branch_depth: 4       
+  trunk_width: 64  
   trunk_depth: 6     
-  basis_size: 128
+  basis_size: 4
   operator_splitting: False
   ops_split_normalise: False
 
 
-
 Data: 
-  name: 'NS_Spectral_combined.npz'
-  loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
-  ntrain: 500
+  name: 'flow_past_cylinder'
+  loc: '/pitagora/home/userexternal/vgopakum/NOs_for_POs/Data'
+  ntrain: 100
   test_train_split: 0.2
   batch_size: 50
   t_in: 1
@@ -43,7 +37,7 @@ Data:
 
 Opt:
   optimizer: 'adam'
-  epochs: 500
+  epochs: 5
   learning_rate: 0.005
   beta1: 0.9
   beta2: 0.9
@@ -71,5 +65,5 @@ Train:
 Simvue:
   mode: 'offline'
   name: None 
-  folder: '/Neural_PDE/NS_Spectral' 
+  folder: '/Neural_PDE/Cylinder' 
   tags: 'offline_tests'
