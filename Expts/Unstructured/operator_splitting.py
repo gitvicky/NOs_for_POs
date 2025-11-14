@@ -28,18 +28,15 @@ class NS_incompressible_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-h
         self.convection_operator = model_selection(config, x, y)
         self.diffusion_operator = model_selection(config, x, y)
 
-        self.nu = torch.tensor(0.001, dtype=torch.float32, requires_grad=False).to(device)
-        self.nu = self.normalizer.encode(self.nu.unsqueeze(-1)).squeeze()
-        print(self.nu)
-
     def forward(self, vars):
 
-        uv = vars[:, 0:2]
+        nu, uv = vars[0], vars[1]
 
-        convection = self.convection_operator(uv)
-        diffusion = self.diffusion_operator(uv)
+        convection = self.convection_operator(vars)
+        diffusion = self.diffusion_operator(vars)
+        nu = self.normalizer.encode(nu)
 
-        rhs = - convection + self.nu*diffusion #- pressure_grad
+        rhs = - convection + nu*diffusion #- pressure_grad
 
         try:
             self.run.log_metrics({"rhs_momx": rhs[:, 0].detach().mean(),

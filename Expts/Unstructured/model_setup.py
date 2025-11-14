@@ -29,7 +29,8 @@ def model_selection(configuration, x, y):
                     r=configuration['Model']['r'], 
                     n_layers=configuration['Model']['depth'],
                     x_in=x,
-                    y_in=y
+                    y_in=y,
+                    grid_type='unstructured'
         )  
         
     
@@ -92,8 +93,11 @@ def model_selection(configuration, x, y):
             trunk_depth = configuration['Model']['trunk_depth'],
             basis_size = configuration['Model']['basis_size'],
             x_in=x,
-            y_in=y
+            y_in=y,
+            grid_type='unstructured'
         )
+
+    
 
     else:
         raise ValueError(f"Unknown architecture: {configuration['Model']['arch']}. ")
@@ -105,10 +109,11 @@ def model_initialisation(configuration, normalizer, run, x, y):
     if configuration['Model']['operator_splitting'] == True: 
     #With operator_splitting.
         if pde == 'Incomp. Navier-Stokes':
-            from operator_splitting import NS_incompressible_OS_rhs
-            model = NS_incompressible_OS_rhs(configuration, normalizer, run)
+            from operator_splitting import NS_incompressible_rhs
+            model = NS_incompressible_rhs(configuration, normalizer, run, x, y)
         else:
             raise ValueError(f"Unknown PDE: {pde} in operator splitting")
         return model
     else:
         return model_selection(configuration, x, y)
+

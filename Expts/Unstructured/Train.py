@@ -107,7 +107,7 @@ with Run(mode='offline') as run:
     from data_loaders import *
     pde = configuration['Physics']['pde']
     if pde == 'Incomp. Navier-Stokes':
-        fields, x, y, dt, mass, reynolds, edge_attr, edge_index = flow_past_cylinder(configuration)
+        fields, x, y, dt, mass, viscosity, edge_attr, edge_index = flow_past_cylinder(configuration)
             
     t = torch.arange(0, configuration['Data']['t_out']*dt, dt)
     fields = fields[...,:configuration['Data']['t_out']]
@@ -117,7 +117,7 @@ with Run(mode='offline') as run:
     # %%
     # Normalising the data -- using the same normalisations for inputs and outputs
     normalizer_func = Normalisation(configuration['Data']['normalisation'])
-    normalizer = normalizer_func(fields, low=-1.0, high=1.0)
+    normalizer = normalizer_func(fields)
     if configuration['Model']['ops_split_normalise']: #Normalise and Denormalise done within the Model. 
         fields_encoded = fields
     else:
@@ -125,23 +125,30 @@ with Run(mode='offline') as run:
     
     #Saving Normalisation 
     saved_normalisations = model_loc + '/norms.npz'
-    np.savez(saved_normalisations, 
-            a=normalizer.a.numpy(), b=normalizer.b.numpy(), 
-            )
-    run.save_file(saved_normalisations, 'output')
+    if normalizer_func == 'Min-Max':
+        np.savez(saved_normalisations, 
+                a=normalizer.a.numpy(), b=normalizer.b.numpy(), 
+                )
+        run.save_file(saved_normalisations, 'output')
+    elif normalizer_func == 'Gaussian':
+        np.savez(saved_normalisations, 
+                a=normalizer.mean.numpy(), b=normalizer.std.numpy(), 
+                )
+        run.save_file(saved_normalisations, 'output') 
 
     #If using a single step rollout, then we need to create a windowed dataset.
     train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=configuration['Data']['test_train_split'], random_state=42)
-
+    params_train, params_test = viscosity[:int(100*(1-0.2))], viscosity[-int(100*(0.2)):]
+    
     train_data = torch.cat((train_in, train_out), dim=-1)#Merging for creating the windowed dataset.
-
     input_window = configuration['Train']['input_length']
     prediction_steps = configuration['Train']['rollout_length'] - 1 
-    train_dataset = SpatioTemporalDataset(train_data, input_window, prediction_steps)
+    train_dataset = SpatioTemporalDataset(train_data, params_train, input_window, prediction_steps)
+    test_dataset = DatasetWithParams(test_in, params_test, test_out)
 
     #Setting up the data loaders
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=configuration['Data']['batch_size'], shuffle=True, pin_memory=True, num_workers=4)
-    test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch_size'], shuffle=False, pin_memory=True, num_workers=4)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=configuration['Data']['batch_size'], shuffle=False, pin_memory=True, num_workers=4)
     print("Training Input: " + str(train_in.shape))
     print("Training Output: " + str(train_out.shape))
     t2 = default_timer()
@@ -161,8 +168,11 @@ with Run(mode='offline') as run:
 
     #Setting up the optimizer and scheduler, loss and epochs 
     optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning_rate'], weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler_step'], gamma=configuration['Opt']['scheduler_gamma'])
-    
+    if configuration['Opt']['scheduler'] == 'step':
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler_step'], gamma=configuration['Opt']['scheduler_gamma'])
+    elif configuration['Opt']['scheduler'] == 'cosine':
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
+
     if configuration['Train']['loss']=='LP':
         loss_func = LpLoss()
     else:
@@ -192,12 +202,9 @@ with Run(mode='offline') as run:
 
     # Setting up the Training pipeline
     if configuration['Train']['odesolve']['source'] == 'custom':
-        from Utils import explicit_time
-        train = explicit_time.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  ode_solver=configuration['Train']['odesolve']['source'], roll_out=configuration['Train']['odesolve']['method'], noise=configuration['Train']['input_noise'], batch_norm=configuration['Train']['batch_norm'])
-    elif configuration['Train']['odesolve']['source'] == 'torchdiffeq':
-        from Utils import torch_odesolve  
-        train = torch_odesolve.Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  configuration['Train']['odesolve']['method'],  configuration['Train']['odesolve']['adjoint'])
-    
+        from explicit_time import * 
+        train = Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  ode_solver=configuration['Train']['odesolve']['source'], roll_out=configuration['Train']['odesolve']['method'], noise=configuration['Train']['input_noise'], batch_norm=configuration['Train']['batch_norm'])
+
     # %% 
     ####################################
     #Training
@@ -223,27 +230,7 @@ with Run(mode='offline') as run:
         run.log_metrics({'Train Loss': train_loss, 'Test Loss': test_loss, 'Learning Rate': current_lr}, step=ep)
         scheduler.step()
 
-        # #Alerting potential instability in training.
-        # run.create_metric_threshold_alert(
-        #     name='Unstable',
-        #     metric='Train Loss',
-        #     threshold=1e5,
-        #     rule='is above',  
-        #     frequency=1,
-        #     window=1,
-        #     trigger_abort=True
-        #     )
-        
-        # #Killing the run if the training becomes unstable. 
-        # if math.isnan(train_loss) or math.isinf(train_loss):
-        #     print("Training loss is NaN or Inf, stopping training.")
-        #     run.create_user_alert(
-        #         name='Training terminated',
-        #         description='Training loss became NaN or Inf, stopping training.',
-        #         notification='none',
-        #         trigger_abort=True,
-        #         attach_to_run=True
-        #     )
+
             
         #Checkpointing. 
         if ep+1 % configuration['Train']['checkpoint']['epochs'] == 0:
@@ -270,11 +257,8 @@ with Run(mode='offline') as run:
 
     #Evaluation 
     if configuration['Train']['odesolve']['source'] == 'custom':
-        eval = explicit_time.Eval_Setup(model, test_in, test_out, normalizer='False', ode_solver = configuration['Train']['odesolve']['source'], roll_out= configuration['Train']['odesolve']['method'])
+        eval = Eval_Setup(model, test_loader, test_out, normalizer='False', ode_solver = configuration['Train']['odesolve']['source'], roll_out= configuration['Train']['odesolve']['method'])
 
-    elif configuration['Train']['odesolve']['source'] == 'torchdiffeq':
-        eval = torch_odesolve.Eval_Setup( model, test_in, test_out, normalizer='False', method=configuration['Train']['odesolve']['method']
-)
     pred_encoded, error = eval.inference(configuration['Data']['step'], configuration['Data']['t_out']-1, dt=dt)
 
 
@@ -299,9 +283,6 @@ with Run(mode='offline') as run:
         test_out = test_out.cpu()
         pred_set = pred_encoded.cpu()
 
-    #Shaping back to [BS, vars, Nt, Nx, Ny]
-    test_out = test_out.permute(0,1,4,2,3)
-    pred_set = pred_set.permute(0,1,4,2,3)
 
     run.update_metadata({'MSE (physical)': float(MSE(pred_set, test_out)['average']),
                         'NRMSE (physical)': float(NRMSE(pred_set, test_out)['average'])
@@ -310,10 +291,37 @@ with Run(mode='offline') as run:
     print('(NRMSE) Physical Error: %.3e' % float(NRMSE(pred_set, test_out)['average']))
     # %% 
     #Plotting the results 
-    from Utils.plots import plots_2d_yaml
+    from cylinder_flow_plot import * 
     idx = 0 
-    # plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run, idx, save=True)
-    plots_2d_yaml(configuration, test_out, pred_set, model_loc, run, idx, save=True)
+    
+    # Create the plot
+    fig, axes = create_cylinder_flow_plot(
+        x, y, test_out, pred_set, 
+        run,
+        batch_idx=idx,
+        var_idx=0,
+        cylinder_center=(0.024, 0.006),
+        cylinder_radius=0.687,
+        time_steps=[0, 15, 30, 45],
+        title="Cylinder Flow: u"
+    )
+    
+    plt.savefig(plot_loc + '/' + run.name + '_u_cylinder_flow_plot.png', dpi=300, bbox_inches='tight')
+    
+    # Create the plot
+    fig, axes = create_cylinder_flow_plot(
+        x, y, test_out, pred_set, 
+        run,
+        batch_idx=idx,
+        var_idx=0,
+        cylinder_center=(0.024, 0.006),
+        cylinder_radius=0.687,
+        time_steps=[0, 15, 30, 45],
+        title="Cylinder Flow: v"
+    )
+    
+    plt.savefig(plot_loc + '/' + run.name + '_v_cylinder_flow_plot.png', dpi=300, bbox_inches='tight')
+
 
     # %%
     #Saving the slurm output file. 

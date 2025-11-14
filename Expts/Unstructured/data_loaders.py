@@ -17,12 +17,14 @@ def stacked_fields(variables):
 
 class SpatioTemporalDataset(Dataset):
     #Rewritten for data of shape [BS, Nxy, Nt]
-    def __init__(self, data, input_window=64, prediction_steps=1):
+    def __init__(self, data, params=None, input_window=64, prediction_steps=1):
         """
         Initialize the dataset for spatiotemporal sequence prediction.
         
         Args:
-            data (numpy.ndarray or torch.Tensor): Input data of shape (batch_size, variables, x_dim, y_dim, time_steps)
+            data (numpy.ndarray or torch.Tensor): Input data of shape (batch_size, variables, xy_dim, time_steps)
+            params (numpy.ndarray or torch.Tensor, optional): Parameters associated with each trajectory,
+                shape (batch_size, n_params) or (batch_size,) for single parameter
             input_window (int): Number of time steps to use as input
             prediction_steps (int): Number of steps to predict ahead
         """
@@ -30,6 +32,24 @@ class SpatioTemporalDataset(Dataset):
             self.data = torch.tensor(data, dtype=torch.float32)
         else:
             self.data = data.float()
+        
+        # Handle parameters
+        if params is not None:
+            if isinstance(params, np.ndarray):
+                self.params = torch.tensor(params, dtype=torch.float32)
+            else:
+                self.params = params.float()
+            
+            # Ensure params is 2D (batch_size, n_params)
+            if self.params.ndim == 1:
+                self.params = self.params.unsqueeze(1)
+            
+            # Validate params shape matches data batch size
+            if self.params.shape[0] != data.shape[0]:
+                raise ValueError(f"params batch size ({self.params.shape[0]}) must match "
+                               f"data batch size ({data.shape[0]})")
+        else:
+            self.params = None
         
         self.input_window = input_window
         self.prediction_steps = prediction_steps
@@ -69,9 +89,11 @@ class SpatioTemporalDataset(Dataset):
         Get a single sample from the dataset.
         
         Returns:
-            tuple: (input_sequence, target_sequence)
-                - input_sequence: Tensor of shape (variables, x_dim, y_dim, input_window)
-                - target_sequence: Tensor of shape (variables, x_dim, y_dim, prediction_steps)
+            tuple: ([input_sequence, param_vector], target_sequence) if params is provided
+                (input_sequence, target_sequence) if params is None
+                - input_sequence: Tensor of shape (variables, xy_dim, input_window)
+                - param_vector: Tensor of shape (n_params,) - parameters for this trajectory
+                - target_sequence: Tensor of shape (variables, xy_dim, prediction_steps)
         """
         sample_idx, start_idx = self.indices[idx]
         
@@ -84,8 +106,44 @@ class SpatioTemporalDataset(Dataset):
         target_end = target_start + self.prediction_steps
         target_sequence = self.data[sample_idx, :, :, target_start:target_end]
         
-        return input_sequence, target_sequence
+        if self.params is not None:
+            # Get the parameter vector for this trajectory
+            param_vector = self.params[sample_idx]
+            return [input_sequence, param_vector], target_sequence
+        else:
+            return input_sequence, target_sequence
 
+
+class DatasetWithParams(Dataset):
+    def __init__(self, inputs, params, targets):
+        self.inputs = inputs
+        self.targets = targets
+        
+                # Handle parameters
+        if params is not None:
+            if isinstance(params, np.ndarray):
+                self.params = torch.tensor(params, dtype=torch.float32)
+            else:
+                self.params = params.float()
+            
+            # Ensure params is 2D (batch_size, n_params)
+            if self.params.ndim == 1:
+                self.params = self.params.unsqueeze(1)
+            
+            # Validate params shape matches data batch size
+            if self.params.shape[0] != self.inputs.shape[0]:
+                raise ValueError(f"params batch size ({self.params.shape[0]}) must match "
+                               f"data batch size ({self.inputs.shape[0]})")
+        else:
+            self.params = None
+        
+
+    def __len__(self):
+        return len(self.inputs)
+    
+    def __getitem__(self, idx):
+        return [self.inputs[idx], self.params[idx]], self.targets[idx]
+    
 
 # %% 
 def flow_past_cylinder(configuration):
@@ -103,13 +161,16 @@ def flow_past_cylinder(configuration):
     dt = torch.tensor(configuration['Physics']['dt'], dtype=torch.float)
 
     fields = stacked_fields([u,v])
+    fields = fields.permute(0, 1, 3, 2)
 
     mass = data['mass']
-    reynolds = data['para']
+    viscosity = data['para'][:n_sims]
     edge_attr, edge_index = data['edge_attr'], data['edge_index']
 
     #Slicing the data to reduce the size.
     fields = fields[...,::configuration['Physics']['t_slice']]
     dt = dt*configuration['Physics']['t_slice']
 
-    return fields, x, y, dt, mass, reynolds, edge_attr, edge_index
+    return fields, x, y, dt, mass, viscosity, edge_attr, edge_index
+
+# %%
