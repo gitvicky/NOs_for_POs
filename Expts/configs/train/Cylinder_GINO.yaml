@@ -1,4 +1,4 @@
-seed: 6758
+seed: 1234
 
 Physics: 
   pde: 'Incomp. Navier-Stokes'
@@ -7,21 +7,22 @@ Physics:
   variables: 2
   Nxy: 1699
   Nt: 401
-  dt: 0.5
-  t_slice: 4
+  dt: 0.001
+  t_slice: 1
   physics_normalisation: False
 
 Model:
-  arch: 'DeepONet'
+  arch: 'GINO'
   in_vars: 2
-  out_vars: 2
-  branch_width: 64            
-  branch_depth: 4       
-  trunk_width: 64  
-  trunk_depth: 4    
-  basis_size: 64
+  out_vars: 2 
+  width: 32
+  depth: 2
+  r: 0.1
+  act: 'gelu'
   operator_splitting: False
   ops_split_normalise: False
+
+
 
 
 Data: 
@@ -33,7 +34,7 @@ Data:
   t_in: 1
   t_out: 50
   step: 1
-  normalisation: 'Identity'
+  normalisation: 'Min-Max'
 
 Opt:
   optimizer: 'adam'
@@ -42,15 +43,15 @@ Opt:
   beta1: 0.9
   beta2: 0.9
   weight_decay: 1e-4
-  scheduler: 'step'  #step or cosine
+  scheduler: 'step'  
   scheduler_step: 100
   scheduler_gamma: 0.5
   grad_clip: 2.0
 
 Train: 
-  loss: 'MSE'
+  loss: 'LP'
   input_length: 1
-  rollout_length: 5
+  rollout_length: 2
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'

@@ -11,7 +11,7 @@ from Neural_PDE.Models.Neural_Ops_lib import *
 from Neural_PDE.Models.GNO_neuralop import * 
 from Neural_PDE.Models.GINO_neuralop import * 
 from Neural_PDE.Models.INR_NOs4POs import *
-from Neural_PDE.Models.DeepONet_NOs4POs import * 
+from Models.DeepONet import * 
 
 #Function to count_params
 count_parameters = lambda model: sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -81,22 +81,17 @@ def model_selection(configuration, x, y):
             output_act=False
         )
 
-
     elif configuration['Model']['arch'] == 'DeepONet':
-
-        model = DeepONet(
+        model = MIONet(
             in_channels=configuration['Model']['in_vars'],
             out_channels=configuration['Model']['out_vars'],
             branch_width = configuration['Model']['branch_width'],
             branch_depth = configuration['Model']['branch_depth'],
             trunk_width = configuration['Model']['trunk_width'],
             trunk_depth = configuration['Model']['trunk_depth'],
-            basis_size = configuration['Model']['basis_size'],
             x_in=x,
-            y_in=y,
-            grid_type='unstructured'
+            y_in=y
         )
-
     
 
     else:

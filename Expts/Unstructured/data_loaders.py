@@ -174,3 +174,61 @@ def flow_past_cylinder(configuration):
     return fields, x, y, dt, mass, viscosity, edge_attr, edge_index
 
 # %%
+def Wave_Spectral(configuration):
+    #Testing with NS_Spectral (for now)
+    n_sims = configuration['Data']['ntrain']
+    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/'
+    data =  np.load(data_loc + '/Spectral_Wave_data_LHS.npz')
+
+    fields = data['u'].astype(np.float32)[:n_sims]
+    x = data['x']
+    y = data['y']
+    t = data['t']
+    dt = torch.tensor(t[1] - t[0], dtype=torch.float)
+
+    #Slicing the data to reduce the size.
+    fields = fields[:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
+    x = x[::configuration['Physics']['x_slice']]
+    y = x[::configuration['Physics']['y_slice']]
+    dt = dt*configuration['Physics']['t_slice']
+
+    xx, yy = np.meshgrid(x,y, indexing='ij')
+    X, Y = xx.reshape(-1), yy.reshape(-1)
+    X, Y = torch.tensor(X, dtype=torch.float32), torch.tensor(Y, dtype=torch.float32)
+
+    fields = fields.reshape(fields.shape[0], fields.shape[1], -1)
+    fields = torch.tensor(fields, dtype=torch.float32).unsqueeze(1)
+    fields = fields.permute(0, 1, 3, 2)
+    wave_velocity = np.ones(n_sims)
+
+    return fields, X, Y, dt, wave_velocity
+
+
+
+#Testing on Diffusion Data built from pypde. 
+import sys 
+sys.path.append('/pitagora/home/userexternal/vgopakum/NOs_for_POs/Data/')
+def diffusion_pypde(configuration):
+    from pypde.generate_diffusion_dataset import load_dataset
+    data = load_dataset('/pitagora/home/userexternal/vgopakum/NOs_for_POs/Data/pypde/diffusion_dataset.hdf5')
+    fields = data['fields']
+    dt = data['metadata']['dt']
+    diffusivities = data['diffusivities']
+    
+    x = np.linspace(0,1,data['metadata']['grid_size'])
+    y = np.linspace(0,1,data['metadata']['grid_size'])
+    xx, yy = np.meshgrid(x, y, indexing='ij')
+    x, y = xx.flatten(), yy.flatten()
+    x, y = torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
+
+    fields = torch.tensor(fields, dtype=torch.float32).flatten(start_dim=-2).unsqueeze(1)
+    fields = fields.permute(0, 1, 3, 2)
+
+    #Slicing the data to reduce the size.
+    fields = fields[...,::configuration['Physics']['t_slice']]
+    dt = dt*configuration['Physics']['t_slice']
+
+    return fields, x, y, dt, diffusivities
+
+
+# %%

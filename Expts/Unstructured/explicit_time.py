@@ -150,8 +150,8 @@ class Train_Setup():
         if batch_norm:
             # Infer number of features from a sample batch
             sample_batch = next(iter(train_loader))[0]
-            num_features = sample_batch.shape[1]  # Assuming [B, C, H, W, T] format
-            self.bn = nn.BatchNorm3d(num_features=num_features).to(device)
+            num_features = sample_batch[0].shape[1]  # Assuming [B, C, HW, T] format
+            self.bn = nn.BatchNorm2d(num_features=num_features).to(device)
         else:
             self.bn = nn.Identity()
 

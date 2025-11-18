@@ -18,7 +18,7 @@ from Neural_PDE.Models.Neural_Ops_lib import *
 from Neural_PDE.Models.GNO_neuralop import * 
 from Neural_PDE.Models.GINO_neuralop import * 
 from Neural_PDE.Models.INR_NOs4POs import *
-from Neural_PDE.Models.DeepONet_NOs4POs import * 
+from Neural_PDE.Models.DeepONet import * 
 
 #Function to count_params
 count_parameters = lambda model: sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -30,7 +30,7 @@ def model_selection(configuration):
             
     #Discretisation
     dx, dy = configuration['Physics']['dx'] * configuration['Physics']['x_slice'], configuration['Physics']['dy'] * configuration['Physics']['y_slice']
-    Nx, Ny = configuration['Physics']['Nx'] / configuration['Physics']['x_slice'], configuration['Physics']['Ny'] / configuration['Physics']['y_slice']
+    Nx, Ny = configuration['Physics']['Nx'] // configuration['Physics']['x_slice'], configuration['Physics']['Ny'] // configuration['Physics']['y_slice']
 
     gridx = torch.tensor(np.linspace(0, int(Nx*dx), int(Nx)), dtype=torch.float)
     gridy = torch.tensor(np.linspace(0, int(Ny*dy), int(Ny)), dtype=torch.float)
@@ -100,7 +100,7 @@ def model_selection(configuration):
     
     elif configuration['Model']['arch'] == 'ViT':
         model = ViT(
-            image_size=(configuration['Physics']['Nx'], configuration['Physics']['Ny']),
+            image_size=(Nx, Ny),
             patch_size=(configuration['Model']['patch_size'], configuration['Model']['patch_size']),
             embed_dim=configuration['Model']['embed_dim'],
             depth=configuration['Model']['depth'],
@@ -239,14 +239,13 @@ def model_selection(configuration):
         
         x, y = x[::configuration['Physics']['x_slice']], y[::configuration['Physics']['y_slice']]
 
-        model = DeepONet(
+        model = MIONet(
             in_channels=configuration['Model']['in_vars'],
             out_channels=configuration['Model']['out_vars'],
             branch_width = configuration['Model']['branch_width'],
             branch_depth = configuration['Model']['branch_depth'],
             trunk_width = configuration['Model']['trunk_width'],
             trunk_depth = configuration['Model']['trunk_depth'],
-            basis_size = configuration['Model']['basis_size'],
             x_in=x,
             y_in=y
         )

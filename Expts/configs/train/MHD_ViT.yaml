@@ -17,13 +17,17 @@ Physics:
   physics_normalisation: False
 
 Model:
-  arch: 'U-Net'
+  arch: 'ViT'
+  patch_size: 4
+  embed_dim: 256
   in_vars: 6
   out_vars: 6
-  width: 16
-  act: 'tanh'
+  time_channels: 1
+  depth: 8
+  num_heads: 6
   operator_splitting: True
   ops_split_normalise: False
+
 
 Data: 
   name: 'Constrained_MHD_combined.npz'

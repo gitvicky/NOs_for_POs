@@ -34,7 +34,7 @@ run_config = flatten_dict(configuration)
 from simvue import Run, Client
 with Run(mode='offline') as run:
 
-    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Unstructured', 'Pitagora'], metadata=run_config)
+    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Unstructured', 'Pitagora', 'Mark5'], metadata=run_config)
     run.update_tags([configuration['Simvue']['tags']])
     
     run.config(disable_resources_metrics=True)
@@ -107,7 +107,11 @@ with Run(mode='offline') as run:
     from data_loaders import *
     pde = configuration['Physics']['pde']
     if pde == 'Incomp. Navier-Stokes':
-        fields, x, y, dt, mass, viscosity, edge_attr, edge_index = flow_past_cylinder(configuration)
+        fields, x, y, dt, mass, params, edge_attr, edge_index = flow_past_cylinder(configuration)
+    if pde == 'Diffusion':
+        fields, x, y, dt, params = diffusion_pypde(configuration)
+    if pde == 'Wave':
+        fields, x, y, dt, params = Wave_Spectral(configuration)
             
     t = torch.arange(0, configuration['Data']['t_out']*dt, dt)
     fields = fields[...,:configuration['Data']['t_out']]
@@ -138,7 +142,7 @@ with Run(mode='offline') as run:
 
     #If using a single step rollout, then we need to create a windowed dataset.
     train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=configuration['Data']['test_train_split'], random_state=42)
-    params_train, params_test = viscosity[:int(100*(1-0.2))], viscosity[-int(100*(0.2)):]
+    params_train, params_test = params[:int(configuration['Data']['ntrain']*(1-0.2))], params[-int(configuration['Data']['ntrain']*(0.2)):]
     
     train_data = torch.cat((train_in, train_out), dim=-1)#Merging for creating the windowed dataset.
     input_window = configuration['Train']['input_length']
@@ -291,38 +295,60 @@ with Run(mode='offline') as run:
     print('(NRMSE) Physical Error: %.3e' % float(NRMSE(pred_set, test_out)['average']))
     # %% 
     #Plotting the results 
-    from cylinder_flow_plot import * 
-    idx = 0 
-    
-    # Create the plot
-    fig, axes = create_cylinder_flow_plot(
-        x, y, test_out, pred_set, 
-        run,
-        batch_idx=idx,
-        var_idx=0,
-        cylinder_center=(0.024, 0.006),
-        cylinder_radius=0.687,
-        time_steps=[0, 15, 30, 45],
-        title="Cylinder Flow: u"
-    )
-    
-    plt.savefig(plot_loc + '/' + run.name + '_u_cylinder_flow_plot.png', dpi=300, bbox_inches='tight')
-    
-    # Create the plot
-    fig, axes = create_cylinder_flow_plot(
-        x, y, test_out, pred_set, 
-        run,
-        batch_idx=idx,
-        var_idx=0,
-        cylinder_center=(0.024, 0.006),
-        cylinder_radius=0.687,
-        time_steps=[0, 15, 30, 45],
-        title="Cylinder Flow: v"
-    )
-    
-    plt.savefig(plot_loc + '/' + run.name + '_v_cylinder_flow_plot.png', dpi=300, bbox_inches='tight')
+    from Expts.Unstructured.unstructured_plot import * 
+    if configuration['Data']['name'] == 'flow_past_cylinder':
+        idx = 0 
+            
+        obstacles = [{
+            'type': 'circle',
+            'center': (0.024, 0.006),
+            'radius': 0.687
+        }]
+        
 
+        fig, axes = create_field_comparison_plot(
+        x, y, test_out, pred_set,
+        run,
+        batch_idx=0, var_idx=0,
+        time_steps=[0, 15, 30, 45],
+        title="Cylinder Flow: u",
+        obstacles=obstacles,
+        test_label='Sim.',
+        pred_label='Net.'
+    )
+        plot_name = plot_loc + '/' + run.name + '_u_cylinder_flow_plot.png'
+        plt.savefig(plot_name, dpi=300, bbox_inches='tight')
+        run.save_file(plot_name, 'output')
+            
+        fig, axes = create_field_comparison_plot(
+        x, y, test_out, pred_set,
+        run,
+        batch_idx=0, var_idx=1,
+        time_steps=[0, 15, 30, 45],
+        title="Cylinder Flow: v",
+        obstacles=obstacles,
+        test_label='Sim.',
+        pred_label='Net.'
+    )
+        plot_name = plot_loc + '/' + run.name + '_v_cylinder_flow_plot.png'
+        plt.savefig(plot_name, dpi=300, bbox_inches='tight')
+        run.save_file(plot_name, 'output')
 
+    else: 
+
+        fig, axes = create_field_comparison_plot(
+        x, y, test_out, pred_set,
+        run,
+        batch_idx=0, var_idx=0,
+        time_steps=[0, 15, 30, 45],
+        title="Field: u",
+        obstacles=None,
+        test_label='Sim.',
+        pred_label='Net.'
+    )
+        plot_name = plot_loc + '/' + run.name + '_Field.png'
+        plt.savefig(plot_name, dpi=300, bbox_inches='tight')
+        run.save_file(plot_name, 'output')
     # %%
     #Saving the slurm output file. 
     import time 

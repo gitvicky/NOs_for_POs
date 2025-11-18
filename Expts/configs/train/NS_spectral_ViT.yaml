@@ -72,3 +72,4 @@ Simvue:
   mode: 'online'
   name: None 
   folder: '/Neural_PDE/Spectral' 
+  tags: 'PosEnc'

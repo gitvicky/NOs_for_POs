@@ -30,11 +30,13 @@ class NS_incompressible_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-h
 
     def forward(self, vars):
 
-        nu, uv = vars[0], vars[1]
+        uv, nu = vars[0], vars[1]
 
         convection = self.convection_operator(vars)
         diffusion = self.diffusion_operator(vars)
-        nu = self.normalizer.encode(nu)
+
+        nu = self.normalizer.encode(nu).view(uv.shape[0], 1, 1, 1)  # Shape: [50, 1, 1, 1]
+
 
         rhs = - convection + nu*diffusion #- pressure_grad
 
