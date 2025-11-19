@@ -6,7 +6,7 @@ import shutil
 import os
 import yaml 
 import argparse
-
+from timeit import default_timer
 import sys
 sys.path.append("..")
 sys.path.append("../..")
@@ -15,25 +15,51 @@ import numpy as np
 from matplotlib import pyplot as plt
 import torch
 import torch.nn as nn 
-
+#Setting up the seeds and devices
+torch.manual_seed(42)
+np.random.seed(42)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+torch.set_default_dtype(torch.float32)
 # %% 
 #Loading config
-def parse_args():
+def is_notebook():
+    """Check if running in Jupyter notebook"""
+    try:
+        get_ipython()
+        return True
+    except NameError:
+        return False
+
+def load_config(config_path='configs/train/Wave_DeepONet.yaml'):
+    """Load configuration from YAML file"""
+    print(f"Loading configuration from: {config_path}")
+    with open(config_path, 'r') as f:
+        configuration = yaml.safe_load(f)
+    print(f"Configuration loaded successfully!")
+    return configuration
+
+# Determine config path based on environment
+if is_notebook():
+    # Jupyter notebook mode - set your config path here
+    CONFIG_PATH = '/pitagora/home/userexternal/vgopakum/NOs_for_POs/Expts/configs/train/Wave_DeepONet.yaml'  # Change this as needed
+    configuration = load_config(CONFIG_PATH)
+else:
+    # Command-line mode
+    import argparse
     parser = argparse.ArgumentParser(description='Training script with YAML config')
-    parser.add_argument('--config', type=str, required=True, help='Path to config YAML file')
-    return parser.parse_args()
+    parser.add_argument('--config', type=str, required=True,
+                       help='Path to config YAML file')
+    args = parser.parse_args()
+    configuration = load_config(args.config)
 
-args = parse_args()
-with open(args.config, 'r') as f:
-    configuration = yaml.safe_load(f)
-
+# %% 
 #Loading dataset
 from data_loaders import *
 pde = configuration['Physics']['pde']
 if pde == 'Incomp. Navier-Stokes':
-    fields, x, y, dt, mass, params, edge_attr, edge_index = flow_past_cylinder(configuration)
+    fields, X, Y, dt, mass, params, edge_attr, edge_index = flow_past_cylinder(configuration)
 if pde == 'Wave':
-    fields, x, y, dt, params = Wave_Spectral(configuration)
+    fields, X, Y, dt, params = Wave_Spectral(configuration)
 
 t = torch.arange(0, configuration['Data']['t_out']*dt, dt)
 fields = fields[...,:configuration['Data']['t_out']]
@@ -63,65 +89,171 @@ print("Training Output: " + str(train_out.shape))
 
 # %% 
 #Model Definition 
-# MultiInputOutput Network
+# MIONet
+from Models.DeepONet import * 
+#Instantiating the Model
+model = MIONet(
+    in_channels=configuration['Model']['in_vars'],
+    out_channels=configuration['Model']['out_vars'],
+    branch_width = configuration['Model']['branch_width'],
+    branch_depth = configuration['Model']['branch_depth'],
+    trunk_width = configuration['Model']['trunk_width'],
+    trunk_depth = configuration['Model']['trunk_depth'],
+    x_in=X,
+    y_in=Y)
 
-class FNN(torch.nn.Module):
-    """Fully-connected neural network."""
 
-    def __init__(self, input_size, output_size, width, num_layers, activation=torch.tanh):
-        super().__init__()
+# model = DON(
+#     in_channels=configuration['Model']['in_vars'],
+#     out_channels=configuration['Model']['out_vars'],
+#     branch_width = configuration['Model']['branch_width'],
+#     branch_depth = configuration['Model']['branch_depth'],
+#     trunk_width = configuration['Model']['trunk_width'],
+#     trunk_depth = configuration['Model']['trunk_depth'],
+#     x_in=X,
+#     y_in=Y)
 
-        self.linears = torch.nn.ModuleList()
-        self.linears.append(torch.nn.Linear(input_size, width, dtype=torch.float32))
-        for i in range(1, num_layers-1):
-            self.linears.append(
-                torch.nn.Linear(
-                    width, width, dtype=torch.float32
-                )
-            )
-        self.linears.append(torch.nn.Linear(width, output_size, dtype=torch.float32))
-        self.activation = activation 
 
-    def forward(self, inputs):
-        x = inputs
-        for j, linear in enumerate(self.linears[:-1]):
-            x = self.activation(linear(x))
-        x = self.linears[-1](x)
-        return x
 
-class MIONet(torch.nn.Module):
-    def __init__(
-        self, 
-        in_channels,
-        out_channels,
-        trunk_width,
-        trunk_depth, 
-        branch_width,
-        branch_depth,
-        x_in, 
-        y_in
-    ):
-        super().__init__()
-        
-        self.trunk = FNN(input_size=2, output_size=1, width=trunk_width, num_layers=trunk_depth)
-        self.branches = nn.ModuleList([
-            FNN(input_size=in_channels, output_size=1, width=branch_width, num_layers=branch_depth)
-            for _ in range(out_channels)
-            ])
-        self.coords = torch.stack([x_in, y_in], dim=-1)
+model.to(device)
+model.coords = model.coords.to(device)
+print("Number of model params : " + str(model.count_params()))
 
-    def forward(self, X):
-        batch_size = X.shape[0]
-        trunked = self.trunk(self.coords)
-        outputs = []
-        for branch in self.branches:
-            branched = torch.einsum('bpo, po->bp', branch(X), trunked) #Dot product across branch and trunk
-            outputs.append(branched)
-                    
-        output = torch.stack(outputs, dim=1)
-        return output 
-
+#Setting up the optimizer and scheduler, loss and epochs 
+optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning_rate'], weight_decay=1e-4)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler_step'], gamma=configuration['Opt']['scheduler_gamma'])
+loss_func = torch.nn.MSELoss()
 
 # %% 
-#Instantiating the Model
-model = MIONet(2, 2, 32, 4, 32, 4, x_in, y_in)
+#Training
+start_time = default_timer()
+epoch_init = 0
+epochs = configuration['Opt']['epochs']
+step, train_T_out, test_T_out = configuration['Data']['step'], configuration['Train']['rollout_length']-1, configuration['Data']['t_out']-1
+
+# def forward(model, xx, dt):
+#      return (model(xx[0]))
+
+def forward(model, xx, dt): 
+    """Euler method for temporal integration."""
+    if dt == 0:
+        raise ValueError("dt must be non-zero for Euler method")
+    xx_new = xx[0] + model(xx) * dt 
+    return xx_new 
+
+
+for ep in tqdm(range(epoch_init, epochs+1)): 
+    t1 = default_timer()
+    train_loss = 0 
+    for xx, yy in train_loader:
+        model.train()
+        optimizer.zero_grad()
+        loss = 0 
+        xx[0] = xx[0].to(device, non_blocking=True)
+        xx[1] = xx[1].to(device, non_blocking=True)
+        yy = yy.to(device, non_blocking=True)
+        batch_size = xx[0].shape[0]
+
+        for t in range(0, train_T_out, step):
+            y = yy[..., t:t + step]
+            
+            im = forward(model, xx, dt)# Ensure output has time dimension
+
+            # Compute loss for this step
+            loss += loss_func(im.reshape(batch_size, -1), y.reshape(batch_size, -1))
+            
+            # Collect predictions for full sequence loss
+            if t == 0:
+                pred = im
+            else:
+                pred = torch.cat((pred, im), -1)
+            
+            # Update input for next timestep (sliding window)
+            xx[0] = torch.cat((xx[0][..., step:], im), dim=-1)
+            print(xx[0].shape)
+        
+        loss.backward(retain_graph=True)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0, norm_type=2.0)
+        optimizer.step()
+        train_loss += loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1)).item()
+
+
+        # Validation Loop
+        test_loss = 0
+        model.eval()
+        with torch.no_grad():
+            for xx, yy in test_loader:
+                xx[0], xx[1], yy = xx[0].to(device, non_blocking=True), xx[1].to(device, non_blocking=True), yy.to(device, non_blocking=True)
+                batch_size = xx[0].shape[0]
+                
+                for t in range(0, test_T_out, step):
+                    y = yy[..., t:t + step]
+                    
+                    out = forward(model, xx, dt)
+                    
+                    if t == 0:
+                        pred = out
+                    else:
+                        pred = torch.cat((pred, out), -1)
+                    
+                    # Update input for next timestep
+                    xx[0] = torch.cat((xx[0][..., step:], out), dim=-1)
+                
+                test_loss += loss_func(pred.reshape(batch_size, -1), yy.reshape(batch_size, -1)).item()
+    
+    train_loss = train_loss / len(train_loader)
+    test_loss = test_loss / len(test_loader)
+    t2 = default_timer()
+
+    print(f"Epoch {ep}, Time Taken: {round(t2-t1,3)}, Train Loss: {round(train_loss, 5)}, Test Loss: {round(test_loss,5)}")
+    scheduler.step()
+
+train_time = default_timer() - start_time
+
+# %% 
+#Evaluation
+
+pred_set = []
+model.eval()
+with torch.no_grad():
+    for xx, yy in tqdm(test_loader, desc="Running inference"):
+        xx = [xx[0].to(device, non_blocking=True), 
+            xx[1].to(device, non_blocking=True)]
+        yy = yy.to(device, non_blocking=True)
+        batch_size = xx[0].shape[0]
+        pred_list = []
+        
+        for t in range(0, test_T_out, step):
+            out = forward(model, xx, dt)
+            
+
+            pred_list.append(out)
+            xx[0] = torch.cat((xx[0][..., step:], out), dim=-1)
+
+        # Concatenate predictions
+        if pred_list:
+            pred = torch.cat(pred_list, dim=-1)
+            pred_set.append(pred)
+
+    if pred_set:
+        pred_set = torch.cat(pred_set, dim=0)
+
+        # Compute performance metrics
+        test_out_device = test_out.to(device)
+
+# %% 
+from Expts.Unstructured.unstructured_plot import * 
+fig, axes = create_field_comparison_plot(
+X, Y, test_out.cpu(), pred_set.cpu(),
+run=None,
+batch_idx=15, var_idx=0,
+time_steps=[0, 15, 30, 45],
+title="Field: u",
+obstacles=None,
+test_label='Sim.',
+pred_label='Net.'
+)
+plot_loc = os.getcwd()
+plot_name = plot_loc + '/u_Field.png'
+plt.savefig(plot_name, dpi=300, bbox_inches='tight')
+# %%

@@ -34,7 +34,7 @@ run_config = flatten_dict(configuration)
 from simvue import Run, Client
 with Run(mode='offline') as run:
 
-    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Unstructured', 'Pitagora', 'Mark5'], metadata=run_config)
+    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Unstructured', 'Pitagora', 'GNN'], metadata=run_config)
     run.update_tags([configuration['Simvue']['tags']])
     
     run.config(disable_resources_metrics=True)
@@ -299,8 +299,8 @@ with Run(mode='offline') as run:
             
         obstacles = [{
             'type': 'circle',
-            'center': (0.024, 0.006),
-            'radius': 0.687
+            'center': (0.0, 0.0),
+            'radius': 0.5
         }]
         
 

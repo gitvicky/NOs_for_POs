@@ -92,8 +92,8 @@ def model_selection(configuration, x, y):
             x_in=x,
             y_in=y
         )
+        model.coords = model.coords.to(device)
     
-
     else:
         raise ValueError(f"Unknown architecture: {configuration['Model']['arch']}. ")
     
