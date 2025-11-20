@@ -21,7 +21,7 @@ np.random.seed(42)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.float32)
 
-model_type = 'gcn'
+model_type = 'nnconv'
 # %% 
 #Loading config
 def is_notebook():
@@ -106,13 +106,14 @@ test_dataset = GraphSpatioTemporalDataset(
 from torch_geometric.loader import DataLoader
 train_loader = DataLoader(train_dataset, batch_size=configuration['Data']['batch_size'], shuffle=False, pin_memory=True, num_workers=4)
 test_loader = DataLoader(test_dataset, batch_size=configuration['Data']['batch_size'], shuffle=False, pin_memory=True, num_workers=4)
-print("Training Input: " + str(train_in.shape))
-print("Training Output: " + str(train_out.shape))
 
 
 # %%
 from Models.GNNs import * 
-model = GCN(in_channels=1, hidden_channels=32, out_channels=1, num_layers=4).to(device)
+if model_type == 'gcn':
+    model = GCN(in_channels=1, hidden_channels=configuration['Model']['width'], out_channels=1, num_layers=configuration['Model']['depth'])
+if model_type == 'nnconv':
+    model = NNConvNet(in_channels=1, hidden_channels=configuration['Model']['width'], out_channels=1, num_layers=configuration['Model']['depth'], edge_dim=4)
 model.to(device)
 
 # print("Number of model params : " + str(model.count_params()))
@@ -136,42 +137,46 @@ for ep in tqdm(range(epoch_init, epochs+1)):
     for batch in train_loader:
         model.train()
         optimizer.zero_grad()
-        loss = 0 
-        for t in range(0, train_T_out, step):            
-            im = model(batch.x.to(device), batch.edge_index.to(device))
+        pred = []
+        for t in range(0, train_T_out, step):    
+            if model_type == 'gcn':       
+                im = model(batch.x.to(device), batch.edge_index.to(device))
+            elif model_type == 'nnconv':
+                im = model(batch.x.to(device), batch.edge_index.to(device), batch.edge_attr.to(device))
             # Compute loss for this step
-            loss += loss_func(im, batch.y.to(device))
-
+            pred.append(im)
             # Update input for next timestep (sliding window)
             batch.x = im
-        
+        pred = torch.stack(pred, -1).squeeze(1)
+        loss = loss_func(pred, batch.y.to(device))
         loss.backward(retain_graph=True)
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0, norm_type=2.0)
         optimizer.step()
         train_loss += loss.item()
 
-        # Validation Loop
-        test_loss = 0
-        model.eval()
-        with torch.no_grad():
-            for batch in test_loader:
-                model.train()
-                optimizer.zero_grad()
-                loss = 0 
-                pred = []
-                for t in range(0, test_T_out, step):            
-                    out = model(batch.x.to(device), batch.edge_index.to(device))
-                    # Compute loss for this step
-                    loss += loss_func(out, batch.y.to(device))
-                    batch.x = out
+        # # Validation Loop
+        # test_loss = 0
+        # model.eval()
+        # with torch.no_grad():
+        #     for batch in test_loader:
+        #         pred = []
+        #         for t in range(0, test_T_out, step):        
+        #             if model_type == 'gcn':       
+        #                 out = model(batch.x.to(device), batch.edge_index.to(device))
+        #             elif model_type == 'nnconv':
+        #                 out = model(batch.x.to(device), batch.edge_index.to(device), batch.edge_attr.to(device))
+                # pred.append(im)
+        #             batch.x = out
+        #         pred = torch.stack(pred, -1).squeeze(1)
+        #         loss = loss_func(pred, batch.y.to(device)).item()#Computing loss for the full rollout. 
 
-                test_loss += loss.item()
+        #         test_loss += loss
     
     train_loss = train_loss / len(train_loader)
-    test_loss = test_loss / len(test_loader)
+    # test_loss = test_loss / len(test_loader)
     t2 = default_timer()
 
-    print(f"Epoch {ep}, Time Taken: {round(t2-t1,3)}, Train Loss: {round(train_loss, 5)}, Test Loss: {round(test_loss,5)}")
+    print(f"Epoch {ep}, Time Taken: {round(t2-t1,3)}, Train Loss: {round(train_loss, 5)}") #, Test Loss: {round(test_loss,5)}")
     scheduler.step()
 
 train_time = default_timer() - start_time
@@ -182,12 +187,13 @@ pred_set = []
 model.eval()
 with torch.no_grad():
     for batch in test_loader:
-        model.train()
-        optimizer.zero_grad()
         loss = 0 
         pred = []
         for t in range(0, test_T_out, step):        
-            out = model(batch.x.to(device), batch.edge_index.to(device))
+            if model_type == 'gcn':       
+                out = model(batch.x.to(device), batch.edge_index.to(device))
+            elif model_type == 'nnconv':
+                out = model(batch.x.to(device), batch.edge_index.to(device), batch.edge_attr.to(device))
             batch.x = out
             # Collect predictions for full sequence loss
             pred.append(out)
@@ -210,12 +216,13 @@ pred_set = pred_set.reshape(pred_set.shape[0], pred_set.shape[1], pred_set.shape
 test_out = data_test[...,1:].permute(0, 1, 3, 2)
 test_out = test_out.reshape(test_out.shape[0], test_out.shape[1], test_out.shape[2], 33, 33)
 
+print(f"MSE: {np.mean(pred_set-test_out)**2}")
 #%%
 from Utils.plots import * 
 class Run:
     def __init__(self, name=None):
         self.name = name
 
-run = Run('test')
+run = Run('test_'+model_type)
 plots_2d_yaml(configuration, test_out, pred_set, plot_loc=os.getcwd(), run=run, idx=0, save=True)
 # %% 

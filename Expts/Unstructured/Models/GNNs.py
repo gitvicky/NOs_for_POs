@@ -25,7 +25,11 @@ class GCN(nn.Module):
             if i < self.num_layers - 1:  # Apply ReLU to all but the last layer
                 x = F.relu(x)
         return x
- 
+
+    def count_params(self):
+        """Count the number of trainable parameters in the model."""
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
   
 #NNconv with edge attributes as well. 
 class NNConvNet(nn.Module):
@@ -62,13 +66,41 @@ class NNConvNet(nn.Module):
         ))
         self.convs.append(NNConv(hidden_channels, out_channels, self.nns[-1], aggr='mean'))
 
+    # def forward(self, x, edge_index, edge_attr):
+    #     for i, conv in enumerate(self.convs):
+    #         x = conv(x, edge_index, edge_attr)
+    #         if i < self.num_layers - 1:  # Apply ReLU to all but the last layer
+    #             x = F.relu(x)
+    #     return x
+    
+        # Modified forward method for NNConvNet to use skip connections
     def forward(self, x, edge_index, edge_attr):
         for i, conv in enumerate(self.convs):
-            x = conv(x, edge_index, edge_attr)
-            if i < self.num_layers - 1:  # Apply ReLU to all but the last layer
+            # Calculate the convolution output
+            x_conv = conv(x, edge_index, edge_attr)
+            
+            # Apply the residual connection only for hidden layers
+            if i > 1: # Skip the first layer for the residual connection if input/output dims mismatch
+                print(x_conv.shape, x.shape)
+                x = x_conv + x
+            else:
+                x = x_conv # For the first layer, just use the conv output
+
+            # Apply ReLU to all but the last layer
+            if i < self.num_layers - 1:
                 x = F.relu(x)
+                
+        # For a deep network (num_layers > 2), you might want to consider aligning 
+        # the dimensions and adding a residual from the input 'x_original' 
+        # to the output of a block of layers, or directly across each layer 
+        # (as shown above if input/output dimensions match).
+
         return x
-    
+
+        
+    def count_params(self):
+        """Count the number of trainable parameters in the model."""
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 class CustomGNN(MessagePassing):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers):
