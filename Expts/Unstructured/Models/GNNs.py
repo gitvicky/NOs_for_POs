@@ -81,7 +81,6 @@ class NNConvNet(nn.Module):
             
             # Apply the residual connection only for hidden layers
             if i > 1: # Skip the first layer for the residual connection if input/output dims mismatch
-                print(x_conv.shape, x.shape)
                 x = x_conv + x
             else:
                 x = x_conv # For the first layer, just use the conv output
@@ -273,3 +272,104 @@ class GNO_zl(nn.Module):
 
         u_out = self.to_output(u)
         return u_out
+
+from neuralop.layers.gno_block import * 
+class GNO2DTimeSolver(nn.Module):
+    """
+    A Neural Operator architecture using GNO Blocks to solve a 2D PDE in time.
+    
+    Architecture:
+    1. Lift: Projects physical input (u, v, etc) to latent channels.
+    2. Process: Layers of GNOBlocks to integrate information over the mesh.
+    3. Project: Projects latent channels back to physical output.
+    """
+    def __init__(self, 
+                 in_channels, 
+                 out_channels, 
+                 coord_dim=2, 
+                 latent_channels=32, 
+                 num_layers=2, 
+                 radius=0.2):
+        super().__init__()
+
+        # 1. Lifting Layer
+        # Maps input function values (e.g., velocity at t) to latent space
+        self.lifting = nn.Linear(in_channels, latent_channels)
+
+        # 2. Processing Layers (The GNO Blocks)
+        self.layers = nn.ModuleList()
+        
+        for _ in range(num_layers):
+            gno_layer = GNOBlock(
+                in_channels=latent_channels,
+                out_channels=latent_channels,
+                coord_dim=coord_dim,
+                radius=radius,
+                transform_type='linear',
+                use_open3d_neighbor_search=False 
+            )
+            self.layers.append(gno_layer)
+
+        # 3. Projection Layer
+        # Maps latent space back to physical values
+        self.projection = nn.Sequential(
+            nn.Linear(latent_channels, latent_channels * 2),
+            nn.GELU(),
+            nn.Linear(latent_channels * 2, out_channels)
+        )
+
+    def forward(self, x_in, x_out, xx):
+        """
+        x_in: (Batch, N_points, coord_dim) -> Input coordinates
+        x_out: (Batch, N_points, coord_dim) -> Output coordinates
+        xx: (Batch, num_vars, N_points, 1) -> Input features (physics state at time t)
+        
+        Returns:
+        out: (Batch, num_vars, N_points, 1)
+        """
+        
+        # 1. Reshape Input Features
+        # Target internal shape: [Batch, N_points, in_channels]
+        # Current shape: [Batch, num_vars, N_points, 1]
+        if xx.ndim == 4:
+            # Squeeze time dim: [B, C, N, 1] -> [B, C, N]
+            xx = xx.squeeze(-1)
+            # Permute: [B, C, N] -> [B, N, C]
+            xx = xx.permute(0, 2, 1)
+        
+        # 2. Lift to latent space
+        h = self.lifting(xx) # [B, N, latent]
+
+        # 3. Handle Coordinates
+        # GNOBlock expects [N, coord_dim] (unbatched) if the geometry is constant across the batch.
+        # We assume the mesh is the same for all batch items (standard for this solver type).
+        if x_in.ndim == 3:
+            mesh_in = x_in[0] 
+        else:
+            mesh_in = x_in
+            
+        if x_out.ndim == 3:
+            mesh_out = x_out[0]
+        else:
+            mesh_out = x_out
+
+        # 4. Apply GNO Layers
+        for layer in self.layers:
+            # GNOBlock will broadcast mesh_in (N, 2) against h (B, N, latent)
+            h_out = layer(y=mesh_in, x=mesh_out, f_y=h)
+            h = F.gelu(h_out) + h # Skip connection
+
+        # 5. Project Output
+        out = self.projection(h) # [B, N, out_channels]
+
+        # 6. Reshape Output
+        # Target output shape: [Batch, num_vars, N_points, 1]
+        # Current shape: [Batch, N_points, out_channels]
+        out = out.permute(0, 2, 1) # [B, C, N]
+        out = out.unsqueeze(-1)    # [B, C, N, 1]
+
+        return out
+
+    def count_params(self):
+        """Count the number of trainable parameters in the model."""
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)

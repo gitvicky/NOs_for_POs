@@ -14,14 +14,11 @@ Physics:
 Model:
   arch: 'GNO'
   in_vars: 2
-  out_vars: 2 
-  width: 64
-  depth: 4
-  r: 0.1
-  act: 'gelu'
+  out_vars: 2
+  width: 32
+  depth: 2
   operator_splitting: False
   ops_split_normalise: False
-
 
 Data: 
   name: 'flow_past_cylinder'
@@ -53,7 +50,7 @@ Train:
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:

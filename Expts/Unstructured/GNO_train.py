@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-GNO (GCNs and NNConv) Testing Pipeline with Simvue integration.
+GNO (NeuralOp) Testing Pipeline with Simvue integration.
 """
 #Imports
 
@@ -161,9 +161,7 @@ with Run(mode='offline') as run:
                 a=normalizer.mean.numpy(), b=normalizer.std.numpy(), 
                 )
         run.save_file(saved_normalisations, 'output') 
-
     
-    from sklearn.model_selection import train_test_split
     data = fields_encoded[...,:configuration['Data']['t_out']]
     data_train, data_test = data[:int(configuration['Data']['ntrain']*(1-0.2))], data[-int(configuration['Data']['ntrain']*(0.2)):]
     params_train, params_test = params[:int(configuration['Data']['ntrain']*(1-0.2))], params[-int(configuration['Data']['ntrain']*(0.2)):]
@@ -172,39 +170,42 @@ with Run(mode='offline') as run:
     prediction_steps = configuration['Train']['rollout_length'] - 1 
 
     # --- 2. Initialize Dataset ---
-    from data_loaders import GraphSpatioTemporalDataset # Assuming this path from GNNs_Train.py
-    train_dataset = GraphSpatioTemporalDataset(
+    from data_loaders import SpatioTemporalDataset # Assuming this path from GNNs_Train.py
+    train_dataset = SpatioTemporalDataset(
         data=data_train,
-        pos=XY,
-        params=params_train,
+        # pos=XY,
+        # params=params_train,
         input_window=input_window,    
         prediction_steps=prediction_steps, 
-        connectivity_radius=0.1
+        # connectivity_radius=0.1
     )
 
-    test_dataset = GraphSpatioTemporalDataset(
+    test_dataset = SpatioTemporalDataset(
         data=data_test,
-        pos=XY,
-        params=params_test,
+        # pos=XY,
+        # params=params_test,
         input_window=input_window,     # Look at past 10 steps
         prediction_steps=configuration['Data']['t_out']-1,  # Predict next 1 step
-        connectivity_radius=0.1
+        # connectivity_radius=0.1
     )
 
     #Setting up the data loaders
-    from torch_geometric.loader import DataLoader
+    # from torch_geometric.loader import DataLoader
+    from torch.utils.data.dataloader import DataLoader
     train_loader = DataLoader(train_dataset, batch_size=configuration['Data']['batch_size'], shuffle=False, pin_memory=True, num_workers=4)
     test_loader = DataLoader(test_dataset, batch_size=configuration['Data']['batch_size'], shuffle=False, pin_memory=True, num_workers=4)
 
-
     # %%
     from Models.GNNs import * 
-    if model_type == 'gcn':
-        model = GCN(in_channels=configuration['Model']['in_vars'], hidden_channels=configuration['Model']['width'], out_channels=configuration['Model']['out_vars'], num_layers=configuration['Model']['depth'])
-    if model_type == 'nnconv':
-        model = NNConvNet(in_channels=configuration['Model']['in_vars'], hidden_channels=configuration['Model']['width'], out_channels=configuration['Model']['out_vars'], num_layers=configuration['Model']['depth'], edge_dim=4)
-    model.to(device)
-
+    # 2. Initialize Model
+    model = GNO2DTimeSolver(
+        in_channels=2,    # Scalar field (e.g. Pressure)
+        out_channels=2,   # Scalar field
+        coord_dim=2,      # 2D Mesh
+        latent_channels=configuration['Model']['width'],
+        num_layers=configuration['Model']['depth'],
+        radius=0.1
+    ).to(device)
     # Log number of parameters to Simvue metadata
     run.update_metadata({'Number of Params': int(model.count_params())})
     print("Number of model params : " + str(model.count_params()))
@@ -221,36 +222,61 @@ with Run(mode='offline') as run:
     epochs = configuration['Opt']['epochs']
     step, train_T_out, test_T_out = configuration['Data']['step'], configuration['Train']['rollout_length']-1, configuration['Data']['t_out']-1
 
-    def evolve(model, batch):
-        return model(batch)
+    def autoreg(model, coords, xx, dt=None):
+        out = model(coords, coords, xx)
+        return out
 
+    def euler(model, coords, xx, dt):
+        out = xx + model(coords, coords, xx)*dt
+        return out
+
+    if configuration['Train']['odesolve']['method'] == 'AR':
+        evolve = autoreg
+    elif configuration['Train']['odesolve']['method'] == 'euler':
+        evolve = euler
+    
     for ep in tqdm(range(epoch_init, epochs+1)): 
         t1 = default_timer()
         train_loss = 0 
-        for batch in train_loader:
+        for xx, yy in train_loader:
             model.train()
             optimizer.zero_grad()
             pred = []
+            xx, yy = xx.to(device), yy.to(device)
+            coords = XY.repeat(xx.shape[0], 1, 1).to(device)
+            loss = 0
             for t in range(0, train_T_out, step):    
-                if model_type == 'gcn':       
-                    im = model(batch.x.to(device), batch.edge_index.to(device))
-                elif model_type == 'nnconv':
-                    im = model(batch.x.to(device), batch.edge_index.to(device), batch.edge_attr.to(device))
+                y = yy[..., t:t + step]
+                im = evolve(model, coords, xx, dt)
                 # Compute loss for this step
-                pred.append(im)
+                loss+= loss_func(im, y)
                 # Update input for next timestep (sliding window)
-                batch.x = im
-            pred = torch.stack(pred, -1).flatten(-2)
-            loss = loss_func(pred, batch.y.to(device))
+                xx = torch.cat((xx[..., step:], im), dim=-1)
+                pred.append(im)
+            # pred = torch.stack(pred, -1)
             loss.backward(retain_graph=True)
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0, norm_type=2.0)
             optimizer.step()
             train_loss += loss.item()
 
-            # # Validation Loop (omitted for brevity, keeping original GNO_test structure)
-        
+        with torch.no_grad():
+            test_loss = 0 
+            model.eval()
+            for xx, yy in test_loader:
+                xx, yy = xx.to(device), yy.to(device)
+                coords = XY.repeat(xx.shape[0], 1, 1).to(device)
+                pred = []
+                for t in range(0, test_T_out, step):    
+                    y = yy[..., t:t + step]
+                    out = evolve(model, coords, xx, dt)
+                    # Update input for next timestep (sliding window)
+                    xx = torch.cat((xx[..., step:], out), dim=-1)
+                    pred.append(out)
+                pred = torch.cat(pred, -1)
+                test_loss += loss_func(pred, yy)
+
         train_loss = train_loss / len(train_loader)
-        # test_loss = test_loss / len(test_loader)
+        test_loss = test_loss / len(test_loader)
         t2 = default_timer()
 
         # Log metrics to Simvue
@@ -271,45 +297,41 @@ with Run(mode='offline') as run:
     pred_set = []
     model.eval()
     with torch.no_grad():
-        for batch in test_loader:
-            loss = 0 
+        model.eval()
+        for xx, yy in test_loader:
+            xx, yy = xx.to(device), yy.to(device)
+            coords = XY.repeat(xx.shape[0], 1, 1).to(device)
             pred = []
-            x_init = batch.x.clone() # Keep initial state for next batch
-            for t in range(0, test_T_out, step):        
-                if model_type == 'gcn':       
-                    out = model(batch.x.to(device), batch.edge_index.to(device))
-                elif model_type == 'nnconv':
-                    out = model(batch.x.to(device), batch.edge_index.to(device), batch.edge_attr.to(device))
-                batch.x = out
-                # Collect predictions for full sequence loss
+            for t in range(0, test_T_out, step):    
+                y = yy[..., t:t + step]
+                out = evolve(model, coords, xx, dt)
+                # Update input for next timestep (sliding window)
+                xx = torch.cat((xx[..., step:], out), dim=-1)
                 pred.append(out)
-            pred = torch.stack(pred, -1)
-            batch.x = x_init # Restore initial state if you loop over test_loader again
-
-        # Split predictions by graph
-            batch_size = batch.num_graphs
-            for i in range(batch_size):
-                mask = batch.batch == i
-                graph_preds = pred[mask]
-                pred_set.append(graph_preds)
-        pred_set = torch.stack(pred_set, 0)
+            pred = torch.cat(pred, -1)
+            pred_set.append(pred)
+        pred_set = torch.cat(pred_set, 0)
 
     # %% 
     #Plottin
     from Utils.metrics import MSE, NRMSE 
     
-    #Shaping back to [BS, vars, Nt, Nx, Ny]
-    pred_set = pred_set.permute(0, 2, 1, 3).cpu()
+    #Shaping back to [BS, vars, Nxy, Nt]
+    pred_set = pred_set.cpu()
     test_out = data_test[...,1:]
     
-    mse_error = torch.mean((pred_set-test_out).pow(2))
+    mse_error = torch.mean((pred_set-test_out).pow(2)).cpu()
+    mse = float(NRMSE(pred_set, test_out)['average'])
     print(f"MSE: {mse_error}")
 
     pred_set, test_out = normalizer.decode(pred_set), normalizer.decode(test_out)
+    mse = float(NRMSE(pred_set, test_out)['average'])
+    nrmse = float(NRMSE(pred_set, test_out)['average'])
 
-    run.update_metadata({'MSE': mse_error,
-                        'NRMSE (physical)': float(NRMSE(pred_set, test_out)['average'])
-                        })  
+    run.update_metadata({'MSE': mse,
+                         'NRMSE (physical)':nrmse})
+    # run.update_metadata({'NRMSE': nrmse})
+
 
     #%%
     from Utils.plots import * # Using a simple class to mock the run object for the plotting function if needed
@@ -334,7 +356,6 @@ with Run(mode='offline') as run:
     test_label='Sim.',
     pred_label='Net.'
     )
-    plot_loc = os.getcwd()
     plot_name = plot_loc + '/u_'+run.name+'.png'
     plt.savefig(plot_name, dpi=300, bbox_inches='tight')
     run.save_file(plot_name, 'output')
@@ -350,18 +371,10 @@ with Run(mode='offline') as run:
     test_label='Sim.',
     pred_label='Net.'
     )
-    plot_loc = os.getcwd()
     plot_name = plot_loc + '/v_'+run.name+'.png'
     plt.savefig(plot_name, dpi=300, bbox_inches='tight')
     run.save_file(plot_name, 'output')
     
-    # %%
-    #Saving the slurm output file. 
-    if 'SLURM_JOB_ID' in os.environ:
-        import time 
-        time.sleep(1)
-        slurm_id = os.environ['SLURM_JOB_ID']
-        run.save_file(os.path.abspath('slurm-'+str(slurm_id)+'.out'), 'output', snapshot=True)
 
 # The 'with Run(mode='offline') as run:' block automatically handles 'run.close()'
 # %%
