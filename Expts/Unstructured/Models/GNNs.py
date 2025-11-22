@@ -373,3 +373,49 @@ class GNO2DTimeSolver(nn.Module):
     def count_params(self):
         """Count the number of trainable parameters in the model."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+
+from neuralop.models.gino import GINO
+
+class GINO2DTimeSolver(nn.Module):
+    """
+    Wrapper around the GINO architecture to solve a 2D PDE.
+    Handles reshaping of 4D tensors and generation of the latent grid.
+    """
+    def __init__(self, 
+                 in_channels, 
+                 out_channels, 
+                 coord_dim=2, 
+                 latent_resolution=(32, 32), # Grid size for FNO
+                 radius=0.2):
+        super().__init__()
+        
+        self.latent_resolution = latent_resolution
+        self.coord_dim = coord_dim
+        
+        # Initialize GINO model
+        # We set fno_n_modes to half the resolution (Nyquist)
+        fno_modes = (latent_resolution[0]//2, latent_resolution[1]//2)
+        
+        self.gino = GINO(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            gno_coord_dim=coord_dim,
+            in_gno_radius=radius,
+            out_gno_radius=radius,
+            fno_n_modes=fno_modes,
+            fno_hidden_channels=32,
+            gno_use_open3d=False
+        )
+
+        # Create latent grid (buffer so it moves with device)
+        self.register_buffer('latent_queries', self._create_latent_grid(latent_resolution))
+
+    def _create_latent_grid(self, resolution):
+        """Generates a regular grid on [0,1]^2 of shape (1, res_x, res_y, 2)"""
+        x = torch.linspace(0, 1, resolution[0])
+        y = torch.linspace(0, 1, resolution[1])
+        grid_x, grid_y = torch.meshgrid(x, y, indexing='ij')
+        grid = torch.stack((grid_x, grid_y), dim=-1)
+        return grid.unsqueeze(0) # (1, res_x, res_y, 2)
+    
