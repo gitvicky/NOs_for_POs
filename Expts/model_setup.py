@@ -15,8 +15,8 @@ from Neural_PDE.Models.gMLP_Vision import *
 from Neural_PDE.Models.ConvOperator import *
 from Neural_PDE.Models.LNO import * 
 from Neural_PDE.Models.Neural_Ops_lib import *
-from Neural_PDE.Models.GNO_neuralop import * 
-from Neural_PDE.Models.GINO_neuralop import * 
+from Neural_PDE.Models.Unstructured.GNO_neuralop import * 
+from Neural_PDE.Models.Unstructured.GINO_neuralop import * 
 from Neural_PDE.Models.INR_NOs4POs import *
 from Neural_PDE.Models.DeepONet import * 
 

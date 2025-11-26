@@ -1,4 +1,4 @@
-  seed: 1234
+  seed: 6789
 
   Physics: 
     pde: 'Navier-Stokes'
@@ -69,4 +69,4 @@
     mode: 'offline'
     name: None 
     folder: '/Neural_PDE/NS_Spectral' 
-    tags: 'odesolve_ablation'
+    tags: 'LinearOps'

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Ablation Studies: Evaluating Trained Models using simvue's client API. 
-Convergence, Data Efficiency, Model Efficiency, Rollout_length 
+Convergence studies only showcasing the train and test losses. 
 """
 # %% 
 pde = 'incompressible' #incompressible or compressible

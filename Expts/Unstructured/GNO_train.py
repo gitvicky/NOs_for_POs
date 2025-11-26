@@ -212,7 +212,14 @@ with Run(mode='offline') as run:
 
     #Setting up the optimizer and scheduler, loss and epochs 
     optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning_rate'], weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler_step'], gamma=configuration['Opt']['scheduler_gamma'])
+    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler_step'], gamma=configuration['Opt']['scheduler_gamma'])
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    # optimizer, 
+    # mode='min', 
+    # factor=0.5, 
+    # patience=10, 
+    # )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=1000)
     loss_func = torch.nn.MSELoss()
 
     # %% 
@@ -254,6 +261,7 @@ with Run(mode='offline') as run:
                 xx = torch.cat((xx[..., step:], im), dim=-1)
                 pred.append(im)
             # pred = torch.stack(pred, -1)
+            # loss = torch.clamp(loss, max=10)
             loss.backward(retain_graph=True)
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0, norm_type=2.0)
             optimizer.step()
@@ -273,7 +281,7 @@ with Run(mode='offline') as run:
                     xx = torch.cat((xx[..., step:], out), dim=-1)
                     pred.append(out)
                 pred = torch.cat(pred, -1)
-                test_loss += loss_func(pred, yy)
+                test_loss += loss_func(pred, yy).item()
 
         train_loss = train_loss / len(train_loader)
         test_loss = test_loss / len(test_loader)
@@ -281,10 +289,11 @@ with Run(mode='offline') as run:
 
         # Log metrics to Simvue
         current_lr = optimizer.param_groups[0]['lr']
-        run.log_metrics({'Train Loss': train_loss, 'Learning Rate': current_lr}, step=ep)
+        run.log_metrics({'Train Loss': train_loss, 'Test Loss': test_loss,  'Learning Rate': current_lr}, step=ep)
 
-        print(f"Epoch {ep}, Time Taken: {round(t2-t1,3)}, Train Loss: {round(train_loss, 5)}") #, Test Loss: {round(test_loss,5)}")
+        print(f"Epoch {ep}, Time Taken: {round(t2-t1,3)}, Train Loss: {round(train_loss, 5)}, Test Loss: {round(test_loss,5)}")
         scheduler.step()
+        # scheduler.step(test_loss)
 
     train_time = default_timer() - start_time
     
@@ -344,13 +353,15 @@ with Run(mode='offline') as run:
     # plot_name = plot_loc + '/' + run.name + '_Field_Comparison.png'
     # plots_2d_yaml(configuration, test_out, pred_set, plot_loc=plot_loc, run=run, idx=0, save=True)
 
+    
     X, Y = X_normalizer.decode(X), Y_normalizer.decode(Y)
+    test_out, pred_set = test_out.numpy(), pred_set.numpy()
     from Expts.Unstructured.unstructured_plot import * 
     fig, axes = create_field_comparison_plot(
     X, Y, test_out, pred_set,
     run=None,
-    batch_idx=15, var_idx=0,
-    time_steps=[0, 15, 30, 45],
+    batch_idx=0, var_idx=0,
+    time_steps=[0, 4, 8],
     title="Field: u",
     obstacles=None,
     test_label='Sim.',
@@ -364,8 +375,8 @@ with Run(mode='offline') as run:
     fig, axes = create_field_comparison_plot(
     X, Y, test_out, pred_set,
     run=None,
-    batch_idx=15, var_idx=1,
-    time_steps=[0, 15, 30, 45],
+    batch_idx=0, var_idx=1,
+    time_steps=[0, 4, 8],
     title="Field: v",
     obstacles=None,
     test_label='Sim.',

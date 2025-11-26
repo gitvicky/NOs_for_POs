@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 Ablation Studies: Evaluating Trained Models - Pitagora
-Convergence, Data Efficiency, Model Efficiency, Rollout_length 
+Convergence, Data Efficiency, Model Efficiency, Rollout_length, odesolver
 """
 # %% 
 pde = 'incompressible' #incompressible or compressible
-study = 'model-efficiency' 
+study = 'odesolve' 
 data_dist = 'OOD'
 t_exp = 100
 n_sims = 100 
@@ -176,6 +176,14 @@ if pde == 'incompressible':
         x_axis = [1, 5, 15, 25]
         xlabel = 'Rollout Length'
         train_times = np.array([2800, 8700, 23000, 28000])/3600
+    
+    if study == 'odesolve':
+        ar = ['lower-honey', 'stale-juniper', 'deterministic-blanc']
+        euler = ['lower-honey', 'stale-juniper', 'deterministic-blanc']
+        ops_split = ['alternating-antagonist', 'savory-exercise', 'salty-static']
+        x_axis = ['euler', 'midpoint', 'rk4']
+        xlabel = 'ODE Solver'
+        train_times = np.array([4400, 8500, 16500])/3600    
 
 if pde == 'compressible':
     if study == 'data-efficiency':
@@ -185,6 +193,7 @@ if pde == 'compressible':
         x_axis = [100, 200, 400, 500]
         xlabel = 'Training Samples'
         train_times = np.array([15000, 30000, 68000, 80000])/3600    
+
 # %%
 #Load data 
 from data_loaders_ablations import *
@@ -269,7 +278,6 @@ for index, type in enumerate(types):
         euler_loss = np.asarray(loss)
     elif index ==2:
         ops_split_loss = np.asarray(loss)
-print(ar_loss.shape)
 
 # %% 
 def temporal_rollout_error(pde, x_axis, xlabel, ar_err, euler_err, ops_split_err, plot_loc, metric='MSE', save=False):
@@ -297,7 +305,7 @@ def temporal_rollout_error(pde, x_axis, xlabel, ar_err, euler_err, ops_split_err
     markers = ['o', 's', 'D']
     
     data_sets = [
-        (ar_err, 'Autoregressive', colors[0], linestyles[0], markers[0]),
+        # (ar_err, 'Autoregressive', colors[0], linestyles[0], markers[0]),
         (euler_err, 'Neural ODE', colors[1], linestyles[1], markers[1]),
         (ops_split_err, 'OpsSplit', colors[2], linestyles[2], markers[2])
     ]
@@ -359,161 +367,162 @@ def temporal_rollout_error(pde, x_axis, xlabel, ar_err, euler_err, ops_split_err
 
 temporal_rollout_error(pde, x_axis, xlabel, ar_loss, euler_loss, ops_split_loss, plot_loc, metric='MSE', save=True)
 
-# %% 
-# def ablation_bar_plot(x_axis, xlabel, y_values, ylabel='Training Time (hours)', 
-#                       plot_loc='.', title='Ablation Study', save=True, 
-#                       convert_to_hours=False, show_values=True):
-#     """
-#     Generic bar plot with color scale for ablation studies.
+#%% 
+def ablation_bar_plot(x_axis, xlabel, y_values, ylabel='Training Time (hours)', 
+                      plot_loc='.', title='Ablation Study', save=True, 
+                      convert_to_hours=False, show_values=True):
+    """
+    Generic bar plot with color scale for ablation studies.
     
-#     Parameters:
-#     -----------
-#     x_axis : list or array
-#         X-axis values (e.g., [100, 200, 400, 500] for training samples)
-#     xlabel : str
-#         Label for x-axis (e.g., 'Training Samples', 'Number of Layers')
-#     y_values : list or array
-#         Y-axis values (e.g., training times in hours)
-#     ylabel : str
-#         Label for y-axis
-#     plot_loc : str
-#         Directory path for saving plots
-#     title : str
-#         Title for the saved file
-#     save : bool
-#         Whether to save the plot
-#     convert_to_hours : bool
-#         If True, divides y_values by 3600 (for seconds to hours conversion)
-#     show_values : bool
-#         Whether to show value labels on top of bars
+    Parameters:
+    -----------
+    x_axis : list or array
+        X-axis values (e.g., [100, 200, 400, 500] for training samples)
+    xlabel : str
+        Label for x-axis (e.g., 'Training Samples', 'Number of Layers')
+    y_values : list or array
+        Y-axis values (e.g., training times in hours)
+    ylabel : str
+        Label for y-axis
+    plot_loc : str
+        Directory path for saving plots
+    title : str
+        Title for the saved file
+    save : bool
+        Whether to save the plot
+    convert_to_hours : bool
+        If True, divides y_values by 3600 (for seconds to hours conversion)
+    show_values : bool
+        Whether to show value labels on top of bars
     
-#     Example Usage:
-#     --------------
-#     # Training Samples
-#     x_axis = [100, 200, 400, 500]
-#     train_times = np.array([6200, 12500, 24500, 31000]) / 3600
-#     ablation_bar_plot(x_axis, 'Training Samples', train_times)
+    Example Usage:
+    --------------
+    # Training Samples
+    x_axis = [100, 200, 400, 500]
+    train_times = np.array([6200, 12500, 24500, 31000]) / 3600
+    ablation_bar_plot(x_axis, 'Training Samples', train_times)
     
-#     # Number of Layers
-#     x_axis = [2, 4, 6]
-#     train_times = np.array([2600, 4500, 6200]) / 3600
-#     ablation_bar_plot(x_axis, 'Number of Layers', train_times)
+    # Number of Layers
+    x_axis = [2, 4, 6]
+    train_times = np.array([2600, 4500, 6200]) / 3600
+    ablation_bar_plot(x_axis, 'Number of Layers', train_times)
     
-#     # Rollout Length
-#     x_axis = [1, 5, 15, 30]
-#     train_times = np.array([2800, 8700, 23000, 28000]) / 3600
-#     ablation_bar_plot(x_axis, 'Rollout Length', train_times)
-#     """
+    # Rollout Length
+    x_axis = [1, 5, 15, 30]
+    train_times = np.array([2800, 8700, 23000, 28000]) / 3600
+    ablation_bar_plot(x_axis, 'Rollout Length', train_times)
+    """
     
-#     import matplotlib.pyplot as plt
-#     import numpy as np
-#     from matplotlib.colors import LinearSegmentedColormap
-#     import matplotlib.cm as cm
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from matplotlib.colors import LinearSegmentedColormap
+    import matplotlib.cm as cm
     
-#     # Convert to hours if needed
-#     if convert_to_hours:
-#         y_values = np.array(y_values) / 3600
-#     else:
-#         y_values = np.array(y_values)
+    # Convert to hours if needed
+    if convert_to_hours:
+        y_values = np.array(y_values) / 3600
+    else:
+        y_values = np.array(y_values)
     
-#     # Use LaTeX rendering for professional typography (if available)
-#     plt.rcParams.update({
-#         'font.size': 14,
-#         'font.serif': ['Times New Roman'],
-#         'axes.linewidth': 1.2,
-#         'axes.spines.left': True,
-#         'axes.spines.bottom': True,
-#         'axes.spines.top': False,
-#         'axes.spines.right': False,
-#         'xtick.major.size': 7,
-#         'xtick.minor.size': 4,
-#         'ytick.major.size': 7,
-#         'ytick.minor.size': 4,
-#     })
+    # Use LaTeX rendering for professional typography (if available)
+    plt.rcParams.update({
+        'font.size': 14,
+        'font.serif': ['Times New Roman'],
+        'axes.linewidth': 1.2,
+        'axes.spines.left': True,
+        'axes.spines.bottom': True,
+        'axes.spines.top': False,
+        'axes.spines.right': False,
+        'xtick.major.size': 7,
+        'xtick.minor.size': 4,
+        'ytick.major.size': 7,
+        'ytick.minor.size': 4,
+    })
     
-#     fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+    fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
     
-#     # Create a custom green colormap (light to dark based on y values)
-#     colors_list = ['#D8F3DC', '#95D5B2', '#52B788', '#2D6A4F', '#1B4332']
-#     n_bins = 100
-#     cmap = LinearSegmentedColormap.from_list('custom_green', colors_list, N=n_bins)
+    # Create a custom colormap (light to dark based on y values)
+    # colors_list = ['#D8F3DC', '#95D5B2', '#52B788', '#2D6A4F', '#1B4332']
+    colors_list = ['#D4E6F1', '#7DBBDB', '#4A9FCA', '#2E5F7A']
+    n_bins = 100
+    cmap = LinearSegmentedColormap.from_list('custom', colors_list, N=n_bins)
     
-#     # Normalize y values to [0, 1] for color mapping
-#     norm = plt.Normalize(vmin=y_values.min(), vmax=y_values.max())
+    # Normalize y values to [0, 1] for color mapping
+    norm = plt.Normalize(vmin=y_values.min(), vmax=y_values.max())
     
-#     # Adjust bar width based on number of bars
-#     n_bars = len(x_axis)
-#     if n_bars <= 4:
-#         bar_width = 0.6
-#     elif n_bars <= 6:
-#         bar_width = 0.7
-#     else:
-#         bar_width = 0.8
+    # Adjust bar width based on number of bars
+    n_bars = len(x_axis)
+    if n_bars <= 4:
+        bar_width = 0.6
+    elif n_bars <= 6:
+        bar_width = 0.7
+    else:
+        bar_width = 0.8
     
-#     # Create bars with colors from the colormap
-#     bars = []
-#     for i, (x_val, y_val) in enumerate(zip(x_axis, y_values)):
-#         color = cmap(norm(y_val))
-#         bar = ax.bar(i, y_val, 
-#                      width=bar_width,
-#                      color=color,
-#                      alpha=0.9,
-#                      edgecolor='black',
-#                      linewidth=1.2)
-#         bars.append(bar)
+    # Create bars with colors from the colormap
+    bars = []
+    for i, (x_val, y_val) in enumerate(zip(x_axis, y_values)):
+        color = cmap(norm(y_val))
+        bar = ax.bar(i, y_val, 
+                     width=bar_width,
+                     color=color,
+                     alpha=0.9,
+                     edgecolor='black',
+                     linewidth=1.2)
+        bars.append(bar)
     
-#     # Add value labels on top of bars
-#     if show_values:
-#         for i, (bar, y_val) in enumerate(zip(bars, y_values)):
-#             height = bar[0].get_height()
-#             # Format based on magnitude
-#             if y_val < 1:
-#                 label_text = f'{y_val:.3f}'
-#             elif y_val < 10:
-#                 label_text = f'{y_val:.2f}'
-#             else:
-#                 label_text = f'{y_val:.1f}'
+    # Add value labels on top of bars
+    if show_values:
+        for i, (bar, y_val) in enumerate(zip(bars, y_values)):
+            height = bar[0].get_height()
+            # Format based on magnitude
+            if y_val < 1:
+                label_text = f'{y_val:.3f}'
+            elif y_val < 10:
+                label_text = f'{y_val:.2f}'
+            else:
+                label_text = f'{y_val:.1f}'
             
-#             ax.text(bar[0].get_x() + bar[0].get_width()/2., height,
-#                     label_text,
-#                     ha='center', va='bottom', fontsize=12, fontweight='bold')
+            ax.text(bar[0].get_x() + bar[0].get_width()/2., height,
+                    label_text,
+                    ha='center', va='bottom', fontsize=12, fontweight='bold')
     
-#     # Professional styling
-#     ax.set_xlabel(xlabel, fontsize=25)
-#     ax.set_ylabel(ylabel, fontsize=25)
+    # Professional styling
+    ax.set_xlabel(xlabel, fontsize=25)
+    ax.set_ylabel(ylabel, fontsize=25)
     
-#     # Set x-axis ticks
-#     ax.set_xticks(range(len(x_axis)))
-#     ax.set_xticklabels(x_axis)
+    # Set x-axis ticks
+    ax.set_xticks(range(len(x_axis)))
+    ax.set_xticklabels(x_axis)
     
-#     # Subtle grid (horizontal only for bar charts)
-#     ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5, axis='y')
-#     ax.set_axisbelow(True)
+    # Subtle grid (horizontal only for bar charts)
+    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5, axis='y')
+    ax.set_axisbelow(True)
     
-#     # # Add colorbar to show the scale
-#     # sm = cm.ScalarMappable(cmap=cmap, norm=norm)
-#     # sm.set_array([])
-#     # cbar = plt.colorbar(sm, ax=ax, pad=0.02, aspect=30)
-#     # cbar.set_label(ylabel, fontsize=18, rotation=270, labelpad=30)
-#     # cbar.ax.tick_params(labelsize=12)
+    # # Add colorbar to show the scale
+    # sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+    # sm.set_array([])
+    # cbar = plt.colorbar(sm, ax=ax, pad=0.02, aspect=30)
+    # cbar.set_label(ylabel, fontsize=18, rotation=270, labelpad=30)
+    # cbar.ax.tick_params(labelsize=12)
     
-#     plt.tight_layout()
+    plt.tight_layout()
     
-#     if save:
-#         # Multiple format saves for different publication needs
-#         formats = ['pdf']
-#         for fmt in formats:
-#             plot_name = f'{plot_loc}/{title.replace(" ", "_")}.{fmt}'
-#             plt.savefig(plot_name, 
-#                     dpi=300 if fmt == 'png' else None,
-#                     bbox_inches='tight',
-#                     facecolor='none',
-#                     edgecolor='none',
-#                     transparent=True,
-#                     format=fmt)
-#         print(f"Saved: {plot_name}")
+    if save:
+        # Multiple format saves for different publication needs
+        formats = ['pdf']
+        for fmt in formats:
+            plot_name = f'{plot_loc}/{title.replace(" ", "_")}.{fmt}'
+            plt.savefig(plot_name, 
+                    dpi=300 if fmt == 'png' else None,
+                    bbox_inches='tight',
+                    facecolor='none',
+                    edgecolor='none',
+                    transparent=True,
+                    format=fmt)
+        print(f"Saved: {plot_name}")
         
-#     plt.show()
+    plt.show()
 
 
 # # Training Samples
@@ -541,6 +550,13 @@ temporal_rollout_error(pde, x_axis, xlabel, ar_loss, euler_loss, ops_split_loss,
 # x_axis = [1, 5, 15, 30]
 # xlabel = 'Rollout Length'
 # train_times = np.array([2800, 8700, 23000, 28000]) / 3600
+# ablation_bar_plot(x_axis, xlabel, train_times, plot_loc = plot_loc, title='incomp_times_rollout_length')
+
+# # ODESolve
+# print("\nExample 4: ODESolve")
+# x_axis = ['euler', 'midpoint', 'rk4']
+# xlabel = 'ODE Solver'
+# train_times = np.array([4400, 8500, 16500])/3600    
 # ablation_bar_plot(x_axis, xlabel, train_times, plot_loc = plot_loc, title='incomp_times_rollout_length')
 
 # %%

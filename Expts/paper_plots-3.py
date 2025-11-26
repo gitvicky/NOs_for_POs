@@ -1,6 +1,5 @@
  # %% 
-#Temporal Rollout Error Plots 
-#Importing the necessary packages
+#Temporal Rollout Error Plots and NRMSE Evaluations for the OpsSplit Ablations
 
 import os 
 import yaml 
@@ -30,7 +29,7 @@ if os.path.exists(tmp_loc) == False:
     os.makedirs(tmp_loc, exist_ok=True)
 
 # %% 
-from data_loaders import *
+from data_loaders_ablations import *
 from Neural_PDE.Utils.processing_utils import * 
 from Neural_PDE.Utils.training_utils import * 
 
@@ -44,19 +43,26 @@ def MSE(test, pred):
 def nRMSE(test, pred):
     return torch.sqrt(torch.mean((test - pred).pow(2), axis=(0, 1, 3, 4)) / (torch.mean(test.pow(2), axis=(0, 1, 3, 4)) + 1e-8)).numpy()
 
-def PRE(pre, vars):
-    # return torch.mean(pre(vars, boundary=False), axis=(0, 2, 3)).numpy()
-    # return torch.mean(torch.abs(pre(vars, boundary=False)), axis=(0, 2, 3)).numpy()
-    # return torch.abs(torch.mean(pre(vars, boundary=False), axis=(0, 2, 3))).numpy()
-    return np.mean(np.abs(pre(vars, boundary=False)), axis=(0, 2, 3))
+# def PRE(pre, vars):
+#     # return torch.mean(pre(vars, boundary=False), axis=(0, 2, 3)).numpy()
+#     # return torch.mean(torch.abs(pre(vars, boundary=False)), axis=(0, 2, 3)).numpy()
+#     # return torch.abs(torch.mean(pre(vars, boundary=False), axis=(0, 2, 3))).numpy()
+#     return np.mean(np.abs(pre(vars, boundary=False)), axis=(0, 2, 3))
 
 # %% 
-def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_loc, metric='MSE', save=False):
-
-    time_points = torch.arange(0,t_exp-1, 1)
-
-    # if metric=='PRE':
-    #     time_points = time_points[1:-1]
+def temporal_rollout_error(pde, t_exp, error_list, run_names, plot_loc, metric='MSE', save=False):
+    """
+    Dynamic plotting function that accepts a list of error arrays.
+    
+    Args:
+        pde (str): Name of PDE
+        t_exp (int): Time horizon
+        error_list (list): List of numpy arrays containing error data
+        run_names (list): List of strings for naming (optional, used for files)
+        plot_loc (str): Save location
+    """
+    
+    time_points = torch.arange(0, t_exp-1, 1)
 
     # Use LaTeX rendering for professional typography (if available)
     plt.rcParams.update({
@@ -75,18 +81,32 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
     
     fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
     
-    # Professional color scheme (Nature/Science style)
-    colors = ['#51829B', '#DA6C6C', '#78ABA8']  # Red, Green, Blue
-    linestyles = ['-', '-', '-']
-    markers = ['o', 'o', 'o']
+    # Generate distinct colors dynamically based on number of runs
+    num_runs = len(error_list)
     
-    data_sets = [
-        (ar_err, 'Autoregressive', colors[0], linestyles[0], markers[0]),
-        (euler_err, 'Neural ODE', colors[1], linestyles[1], markers[1]),
-        (ops_split_err, 'OpsSplit', colors[2], linestyles[2], markers[2])
-    ]
+    # Use tab10 for distinct categorical colors, fallback to viridis if many runs
+    if num_runs <= 10:
+        colors = plt.cm.tab10(np.linspace(0, 1, 10))
+    else:
+        colors = plt.cm.viridis(np.linspace(0, 1, num_runs))
+        
+    markers = ['o', 's', '^', 'D', 'v', '<', '>', 'p', '*', 'h'] # Cycle these
+    linestyles = ['-', '--', '-.', ':'] # Cycle these
     
-    for data, label, color, linestyle, marker in data_sets:
+    # Iterate through the provided error list
+    all_max_err = []
+    all_min_err = []
+    
+    for i, data in enumerate(error_list):
+        # Create label "1, 2, 3..." or "Run 1, Run 2..."
+        # You can change this to `label = run_names[i]` if you want the actual run ID strings
+        label = f"{i+1}" 
+        
+        # Cycle styles to ensure distinctness even with many lines
+        color = colors[i % len(colors)]
+        marker = markers[i % len(markers)]
+        linestyle = linestyles[i % len(linestyles)]
+        
         ax.plot(time_points, data,
                 color=color,
                 linestyle=linestyle,
@@ -95,28 +115,28 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
                 markersize=5,
                 markevery=max(1, len(time_points)//12),
                 label=label,
-                alpha=1.0)
+                alpha=0.9)
+        
+        all_max_err.append(np.max(data))
+        all_min_err.append(np.min(data))
 
        
     # Add pastel orange shading for t_idx > 50
     if torch.max(time_points) > 50:
-        # Get the y-axis limits to fill the entire vertical space
         y_min, y_max = ax.get_ylim()
-        
-        # Create shading from x=50 to the end of the plot
         ax.axvspan(50, torch.max(time_points), 
-                   color='#FFD4B3',  # Pastel orange color
-                   alpha=0.3,       # Semi-transparent
-                   zorder=0,        # Put it behind the plot lines
-                   label='t - extrapolate')   # Optional label for legend
+                   color='#FFD4B3', 
+                   alpha=0.3,       
+                   zorder=0,        
+                   label='t - extrapolate')
 
 
     # Professional styling
     ax.set_xlabel('Time Instance', fontsize=25)
     if metric=='MSE':
         ax.set_ylabel('NRMSE', fontsize=25)
-    if metric=='PRE':
-        ax.set_ylabel('Physics Residual Error', fontsize=22)
+    # if metric=='PRE':
+    #     ax.set_ylabel('Physics Residual Error', fontsize=22)
         
     # ax.set_title(pde, fontsize=15, pad=15)
     
@@ -125,152 +145,86 @@ def temporal_rollout_error(pde, t_exp, ar_err, euler_err, ops_split_err, plot_lo
     ax.set_axisbelow(True)
     
     # Professional legend
-    ax.legend(fontsize=22, 
+    ax.legend(fontsize=18, 
+             title="Run #",
+             title_fontsize=18,
              frameon=True, 
              fancybox=False, 
              shadow=False,
              framealpha=1.0,
              edgecolor='black',
-             loc='best')
+             loc='best',
+             ncol=2 if num_runs > 4 else 1) # Split legend cols if many runs
     
     # Set logarithmic scale if errors span multiple orders of magnitude
-    if np.max([np.max(ar_err), np.max(euler_err), np.max(ops_split_err)]) / \
-       np.min([np.min(ar_err), np.min(euler_err), np.min(ops_split_err)]) > 100:
+    if len(all_max_err) > 0 and (np.max(all_max_err) / (np.min(all_min_err) + 1e-9) > 100):
         ax.set_yscale('log')
     
     plt.tight_layout()
     
     if save:
-        # Multiple format saves for different publication needs
         formats = ['pdf']#, 'svg']
         for fmt in formats:
-            plot_name = f'{plot_loc}/temporal_error_{pde}_{arch}_{metric}_{t_exp}_{data_dist}.{fmt}'
+            # Generate a generic filename since we aren't passing specific architecture names anymore
+            plot_name = f'{plot_loc}/temporal_error_{pde}_{metric}_{t_exp}_opssplit_ablation.{fmt}'
             plt.savefig(plot_name, 
                     dpi=300 if fmt == 'png' else None,
                     bbox_inches='tight',
-                    facecolor='none',  # Changed from 'white' to 'none'
-                    edgecolor='none',  # Add this to make edges transparent too
-                    transparent=True,  # Add this parameter
+                    facecolor='none', 
+                    edgecolor='none', 
+                    transparent=True, 
                     format=fmt)
         
     plt.show()
 
+
 # %% 
 # Setting Run Parameters
 
-pde = 'Incompressible_Navier-Stokes'
-arch = 'fno'
-
-if arch == 'fno':
-    ar = 'wide-timer'
-    euler = 'happy-walk'
-    # ops_split = 'symmetric-chocolate'
-    ops_split = 'reduced-roundel' #NO + FD
-
-if arch == 'unet':
-    ar = 'trite-accelerator'
-    euler = 'caramelized-commit'
-    # ops_split = 'creative-assurance' 
-    ops_split = 'scared-assistant' #NO + FD
-  
-if arch == 'cno':
-    ar = 'bold-canal'
-    euler = 'similar-river'
-    # ops_split = 'complicated-ideation'
-    # ops_split = 'annoying-budget' #NO + FD Diff Seed
-    # ops_split = 'staccato-moscato' #NO + FD Diff Seed
-    ops_split = 'cheerful-mercury' #NO + FD Diff Seed
-    
-if arch == 'vit':
-    ar = 'icy-methodology'
-    euler = 'bright-novella'
-    # ops_split = 'intricate-factor'   
-    ops_split = 'sticky-chimpanzee' #NO + FD
-
-if arch == 'uno':
-    # # ar = 'objective-grid'
-    # ar = 'equidistant-marker'
-    # euler = 'current-circle'
-    # # ops_split = 'warm-station'  
-    # ops_split = 'ordered-act'  #NO + FD
-    # ar = 'random-bean'
-    # euler = 'forgiving-parameter'
-    # ops_split = 'intractable-halite'
-
-    ar = 'concave-falls'
-    euler = 'icy-attache'
-    ops_split = 'adventurous-buck'
-#%%
-# pde = 'Compressible_Navier-Stokes'
+# pde = 'Incompressible_Navier-Stokes'
 # arch = 'fno'
+# runs  = [
+#     'gravitational-underwriter', 
+#     'witty-item', 
+#     'greasy-bazaar', 
+#     'mild-shrink', 
+#     'purple-midpoint',
+#     'concurrent-rating']
 
-# #Ops Split - NO + FD
-# if arch == 'fno':
-#     ar = 'obnoxious-yard'
-#     euler = 'beige-bocaccio'
-#     # ops_split = 'intractable-mantel'
-#     # ops_split = 'undecidable-gig' #Pressure_operator
-#     # ops_split = 'citron-light' #pressureconv
-#     # ops_split = 'humid-argument' #gammaPDivV
-#     # ops_split = 'indulgent-architect' #Pressure_operator with gamma norm from v
-#     ops_split = 'terminal-rehab' #NO for divergence of cons. 
 
-# if arch == 'unet':
-#     ar = 'many-martin'
-#     euler = 'lower-heap'
-#     # ops_split = 'resultant-gain'
-#     ops_split = 'inverted-accuracy'
-
-# if arch == 'cno':
-#     # ar = 'worried-kayak'
-#     # euler = 'short-gravity'
-#     # # ops_split = 'another-diatonic'
-#     # ops_split = 'large-cylinder'
-#     ar = 'swift-modulation'
-#     euler = 'cold-metaphor'
-#     # ops_split = 'minimum-support'
-
-#     # ops_split = 'warm-region'
-#     # ops_split = 'coplanar-stockade'
-#     # ops_split = 'overcast-pumice'
-#     # ops_split = 'concrete-moleskin'
-#     ops_split = 'inclusive-iteration'
-
-# if arch == 'vit':
-#     ar = 'cerulean-recall'
-#     euler = 'gold-broadcloth'
-#     ops_split = 'thundering-HUD'
-
-# if arch == 'uno':
-#     # ar = 'reduced-fruit'
-#     # euler = 'mild-contract'
-#     # ops_split = 'crimson-chief'
-#     ar = 'grouchy-dynamic'
-#     euler = 'great-hook'
-#     ops_split = 'foggy-lagoon'
-
+pde = 'Compressible_Navier-Stokes'
+arch = 'fno'
+runs = [
+    'intricate-measure',
+    'associative-margarine',
+    'sad-skin',
+    'convex-leverage',
+    'lazy-buffer',
+    'chestnut-damask'
+]
 # %%
 t_exp = 50
 data_dist = 'ID'
 
-models = [ar, euler, ops_split]
 mses = []
 pres = []
 
-for model in models:
-    model_loc = os.getcwd() + '/Weights/' + model
+for run in runs:
+    print("*****************************************************************************************")
+    print(run)
+    model_loc = os.getcwd() + '/Weights/' + run
     configuration = yaml.safe_load(open(next(Path(model_loc).glob('*.yaml'))))
     configuration['Data']['t_out'] = t_exp
 
-    n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test_train_split'])
+    n_sims = int(configuration['Data']['ntrain'])#*configuration['Data']['test_train_split'])
 
     if pde == 'Incompressible_Navier-Stokes':
-        fields, x, y, dt = Navier_Stokes_Spectral(configuration)
-        pre = Incomp_NS_PRE(configuration)
+        fields, x, y, dt = Navier_Stokes_Spectral(n_sims, data_dist)
+        # pre = Incomp_NS_PRE(configuration)
 
     if pde == 'Compressible_Navier-Stokes':
-        fields, x, y, dt = Euler_FV(configuration)
-        pre = Comp_NS_PRE(configuration)
+        fields, x, y, dt = Euler_FV(n_sims, data_dist)
+        # pre = Comp_NS_PRE(configuration)
 
     t = torch.arange(0, fields.shape[-1], dt)
     fields = fields[...,:configuration['Data']['t_out']]
@@ -295,11 +249,10 @@ for model in models:
 
     test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(test_in, test_out), batch_size=configuration['Data']['batch_size'], shuffle=False)
 
-
     # Setting up the Model and Optimizers 
     ####################################
-    from model_setup import * 
-    model = model_initialisation(configuration, normalizer, run=None)
+    from model_setup_opsplit_ablations import * 
+    model = model_initialisation(configuration, normalizer, run, data_dist)
     model_path = model_loc + '/model.pth'
     model.load_state_dict(torch.load(model_path, map_location='cpu', weights_only=False), strict=False)
 
@@ -329,16 +282,16 @@ for model in models:
     # #Getting the Metrics
     from Utils.metrics import NRMSE
     mses.append(nRMSE(test_out, pred_set))
-    pres.append(PRE(pre, pred_set))
+    # pres.append(PRE(pre, pred_set))
 
+    print(f'Run: {run}')
     if t_exp > 50:
         print(f'NRMSE (physical) : {float(NRMSE(pred_set[:, :, 50:], test_out[:, :, 50:])["average"]):.4f}')
-        print(f'PRE : {np.mean(PRE(pre, pred_set[:, :, 50:])):.4f}')
+        # print(f'PRE : {np.mean(PRE(pre, pred_set[:, :, 50:])):.4f}')
     else:
         print(f'NRMSE (physical) : {float(NRMSE(pred_set, test_out)["average"]):.4f}')
-        print(f'PRE : {np.mean(PRE(pre, pred_set)):.4f}')
+        # print(f'PRE : {np.mean(PRE(pre, pred_set)):.4f}')
 
 # %% 
-temporal_rollout_error(pde, t_exp, mses[0], mses[1], mses[2], plot_loc, metric='MSE', save=True)
-temporal_rollout_error(pde, t_exp, pres[0], pres[1], pres[2], plot_loc, metric='PRE', save=True)
+temporal_rollout_error(pde, t_exp, mses, runs, plot_loc, metric='MSE', save=True)
 # %% 

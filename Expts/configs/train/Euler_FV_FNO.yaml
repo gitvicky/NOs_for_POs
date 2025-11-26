@@ -25,13 +25,13 @@ Model:
   width: 64
   n_layers: 6
   act: 'gelu'
-  operator_splitting: False
+  operator_splitting: True
   ops_split_normalise: False
 
 Data: 
   name: 'NS_FV_combined_pitagora.npz'
   loc: '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz_Euler'
-  ntrain: 200
+  ntrain: 100
   test_train_split: 0.2
   batch_size: 10
   t_in: 1
@@ -70,3 +70,4 @@ Simvue:
   mode: 'offline'
   name: None 
   folder: '/Neural_PDE/Euler' 
+  tags: 'LinearOps'

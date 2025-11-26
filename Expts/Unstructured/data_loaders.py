@@ -320,6 +320,15 @@ def flow_past_cylinder(configuration):
 
     return fields, X, Y, dt, mass, viscosity, edge_attr, edge_index
 
+def cylinder_flow_mgn(configuration):
+    n_sims = configuration['Data']['ntrain']
+    data_loc = '/pitagora/home/userexternal/vgopakum/NOs_for_POs/Data'
+    data = np.load(data_loc + '/cylinder_flow_mgn.npz')
+    
+    meshPosition = data['mesh_pos']
+    uv = data['velocity']
+    p = data['pressure']
+
 # %%
 def Wave_Spectral(configuration):
     #Testing with NS_Spectral (for now)
