@@ -166,7 +166,7 @@ def temporal_rollout_error(pde, t_exp, error_list, run_names, plot_loc, metric='
         formats = ['pdf']#, 'svg']
         for fmt in formats:
             # Generate a generic filename since we aren't passing specific architecture names anymore
-            plot_name = f'{plot_loc}/temporal_error_{pde}_{metric}_{t_exp}_opssplit_ablation.{fmt}'
+            plot_name = f'{plot_loc}/temporal_error_{pde}_{metric}_{t_exp}_{data_dist}_opssplit_ablation.{fmt}'
             plt.savefig(plot_name, 
                     dpi=300 if fmt == 'png' else None,
                     bbox_inches='tight',
@@ -181,30 +181,30 @@ def temporal_rollout_error(pde, t_exp, error_list, run_names, plot_loc, metric='
 # %% 
 # Setting Run Parameters
 
-# pde = 'Incompressible_Navier-Stokes'
-# arch = 'fno'
-# runs  = [
-#     'gravitational-underwriter', 
-#     'witty-item', 
-#     'greasy-bazaar', 
-#     'mild-shrink', 
-#     'purple-midpoint',
-#     'concurrent-rating']
-
-
-pde = 'Compressible_Navier-Stokes'
+pde = 'Incompressible_Navier-Stokes'
 arch = 'fno'
-runs = [
-    'intricate-measure',
-    'associative-margarine',
-    'sad-skin',
-    'convex-leverage',
-    'lazy-buffer',
-    'chestnut-damask'
-]
+runs  = [
+    'gravitational-underwriter', 
+    'sluggish-pound', 
+    'greasy-bazaar', 
+    'mild-shrink', 
+    'purple-midpoint',
+    'concurrent-rating']
+
+
+# pde = 'Compressible_Navier-Stokes'
+# arch = 'fno'
+# runs = [
+#     'intricate-measure',
+#     'associative-margarine',
+#     'sad-skin',
+#     'convex-leverage',
+#     'lazy-buffer',
+#     'chestnut-damask'
+# ]
 # %%
-t_exp = 50
-data_dist = 'ID'
+t_exp = 100
+data_dist = 'OOD'
 
 mses = []
 pres = []

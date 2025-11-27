@@ -7,7 +7,7 @@ Convergence, Data Efficiency, Model Efficiency, Rollout_length, odesolver
 # %% 
 pde = 'incompressible' #incompressible or compressible
 study = 'odesolve' 
-data_dist = 'OOD'
+data_dist = 'ID'
 t_exp = 100
 n_sims = 100 
 # %%
@@ -179,8 +179,8 @@ if pde == 'incompressible':
     
     if study == 'odesolve':
         ar = ['lower-honey', 'stale-juniper', 'deterministic-blanc']
-        euler = ['lower-honey', 'stale-juniper', 'deterministic-blanc']
-        ops_split = ['alternating-antagonist', 'savory-exercise', 'salty-static']
+        euler = ['lower-honey', 'equilateral-chick', 'deterministic-blanc']
+        ops_split = ['alternating-antagonist', 'uniform-object', 'salty-static']
         x_axis = ['euler', 'midpoint', 'rk4']
         xlabel = 'ODE Solver'
         train_times = np.array([4400, 8500, 16500])/3600    
