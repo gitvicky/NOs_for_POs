@@ -50,7 +50,7 @@ def nRMSE(test, pred):
 #     return np.mean(np.abs(pre(vars, boundary=False)), axis=(0, 2, 3))
 
 # %% 
-def temporal_rollout_error(pde, t_exp, error_list, run_names, plot_loc, metric='MSE', save=False):
+def temporal_rollout_error(pde, t_exp, error_list, run_names, plot_loc, metric='MSE', save=False, start_index=1):
     """
     Dynamic plotting function that accepts a list of error arrays.
     
@@ -60,6 +60,8 @@ def temporal_rollout_error(pde, t_exp, error_list, run_names, plot_loc, metric='
         error_list (list): List of numpy arrays containing error data
         run_names (list): List of strings for naming (optional, used for files)
         plot_loc (str): Save location
+        start_index (int): The starting number for the labels (default 1). 
+                           Colors/styles will shift to match this index.
     """
     
     time_points = torch.arange(0, t_exp-1, 1)
@@ -98,14 +100,18 @@ def temporal_rollout_error(pde, t_exp, error_list, run_names, plot_loc, metric='
     all_min_err = []
     
     for i, data in enumerate(error_list):
-        # Create label "1, 2, 3..." or "Run 1, Run 2..."
-        # You can change this to `label = run_names[i]` if you want the actual run ID strings
-        label = f"{i+1}" 
+        # Calculate the current index based on start_index
+        current_idx = i + start_index
+        label = f"{current_idx}" 
+        
+        # Adjust style index so that Label "2" gets the 2nd color (index 1), etc.
+        # This preserves color consistency across plots with different start indices.
+        style_idx = current_idx - 1
         
         # Cycle styles to ensure distinctness even with many lines
-        color = colors[i % len(colors)]
-        marker = markers[i % len(markers)]
-        linestyle = linestyles[i % len(linestyles)]
+        color = colors[style_idx % len(colors)]
+        marker = markers[style_idx % len(markers)]
+        linestyle = linestyles[style_idx % len(linestyles)]
         
         ax.plot(time_points, data,
                 color=color,
@@ -166,7 +172,7 @@ def temporal_rollout_error(pde, t_exp, error_list, run_names, plot_loc, metric='
         formats = ['pdf']#, 'svg']
         for fmt in formats:
             # Generate a generic filename since we aren't passing specific architecture names anymore
-            plot_name = f'{plot_loc}/temporal_error_{pde}_{metric}_{t_exp}_{data_dist}_opssplit_ablation.{fmt}'
+            plot_name = f'{plot_loc}/temporal_error_{pde}_{metric}_{t_exp}_{data_dist}_opssplit_ablation_explode.{fmt}'
             plt.savefig(plot_name, 
                     dpi=300 if fmt == 'png' else None,
                     bbox_inches='tight',
@@ -181,30 +187,30 @@ def temporal_rollout_error(pde, t_exp, error_list, run_names, plot_loc, metric='
 # %% 
 # Setting Run Parameters
 
-pde = 'Incompressible_Navier-Stokes'
-arch = 'fno'
-runs  = [
-    'gravitational-underwriter', 
-    'sluggish-pound', 
-    'greasy-bazaar', 
-    'mild-shrink', 
-    'purple-midpoint',
-    'concurrent-rating']
-
-
-# pde = 'Compressible_Navier-Stokes'
+# pde = 'Incompressible_Navier-Stokes'
 # arch = 'fno'
-# runs = [
-#     'intricate-measure',
-#     'associative-margarine',
-#     'sad-skin',
-#     'convex-leverage',
-#     'lazy-buffer',
-#     'chestnut-damask'
-# ]
+# runs  = [
+#     'gravitational-underwriter', 
+#     'sluggish-pound', 
+#     'greasy-bazaar', 
+#     'excited-berry',
+#     'purple-midpoint',
+#     'concurrent-rating']
+
+
+pde = 'Compressible_Navier-Stokes'
+arch = 'fno'
+runs = [
+    'intricate-measure',
+    # 'associative-margarine',
+    # 'sad-skin',
+    # 'convex-leverage',
+    # 'lazy-buffer',
+    # 'chestnut-damask'
+]
 # %%
 t_exp = 100
-data_dist = 'OOD'
+data_dist = 'ID'
 
 mses = []
 pres = []
@@ -293,5 +299,5 @@ for run in runs:
         # print(f'PRE : {np.mean(PRE(pre, pred_set)):.4f}')
 
 # %% 
-temporal_rollout_error(pde, t_exp, mses, runs, plot_loc, metric='MSE', save=True)
+temporal_rollout_error(pde, t_exp, mses, runs, plot_loc, metric='MSE', save=True, start_index=1)
 # %% 
