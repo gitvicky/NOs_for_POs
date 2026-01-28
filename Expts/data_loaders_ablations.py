@@ -87,7 +87,6 @@ class SpatioTemporalDataset(Dataset):
 
 
 # %% 
-
 def Navier_Stokes_Spectral(n_sims, data_dist):
     data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
     if data_dist == 'ID':
@@ -106,8 +105,8 @@ def Navier_Stokes_Spectral(n_sims, data_dist):
 
     fields = stacked_fields([u,v])
 
-    mask = ~torch.isnan(fields).any(dim=(1,2,3,4))
-    fields = fields[mask]
+    # mask = ~torch.isnan(fields).any(dim=(1,2,3,4))
+    # fields = fields[mask]
 
     return fields, x, y, dt
 
@@ -136,3 +135,35 @@ def Euler_FV(n_sims, data_dist):
     #Slicing the data to reduce the size.
 
     return fields, x, y, dt
+
+
+def Constrained_MHD(configuration, data_dist):
+    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data'
+    n_sims = configuration['Data']['ntrain']
+    if data_dist == 'ID':
+        data =  np.load(data_loc + '/Constrained_MHD_combined.npz')
+    if data_dist == 'OOD':
+        data =  np.load(data_loc + '/Constrained_MHD_combined_OOD_2by3.npz')
+        
+    rho = data['rho'].astype(np.float32)[:n_sims]
+    u = data['u'].astype(np.float32)[:n_sims]
+    v = data['v'].astype(np.float32)[:n_sims]
+    p = data['p'].astype(np.float32)[:n_sims]
+    Bx = data['Bx'].astype(np.float32)[:n_sims]
+    By  = data['By'].astype(np.float32)[:n_sims]
+
+    x = data['x'].astype(np.float32)
+    y = data['x'].astype(np.float32)
+    dt = data['dt'].astype(np.float32)[0]
+    dt = torch.tensor(dt, dtype=torch.float)
+
+    fields = stacked_fields([rho, u, v, p, Bx, By])
+
+    #Slicing the data to reduce the size.
+    fields = fields[:,:,::configuration['Physics']['x_slice'],::configuration['Physics']['y_slice'],::configuration['Physics']['t_slice']]
+    x = x[::configuration['Physics']['x_slice']]
+    y = y[::configuration['Physics']['y_slice']]
+    dt = dt*configuration['Physics']['t_slice']
+
+    return fields, x, y, dt
+

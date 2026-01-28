@@ -306,13 +306,14 @@ class GNO2DTimeSolver(nn.Module):
                 coord_dim=coord_dim,
                 radius=radius,
                 transform_type='linear',
+                # reduction='mean',
                 use_open3d_neighbor_search=False 
             )
             self.layers.append(gno_layer)
 
         # 3. Projection Layer
         # Maps latent space back to physical values
-        self.projection = nn.Sequential(
+        self.projection = nn.Sequential( 
             nn.Linear(latent_channels, latent_channels * 2),
             nn.GELU(),
             nn.Linear(latent_channels * 2, out_channels)
@@ -373,7 +374,7 @@ class GNO2DTimeSolver(nn.Module):
     def count_params(self):
         """Count the number of trainable parameters in the model."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
-
+    
 
 from neuralop.models.gino import GINO
 
@@ -386,8 +387,10 @@ class GINO2DTimeSolver(nn.Module):
                  in_channels, 
                  out_channels, 
                  coord_dim=2, 
+                 fno_modes=(8,8),
+                 fno_hidden_channels=16,
                  latent_resolution=(32, 32), # Grid size for FNO
-                 radius=0.2):
+                 radius=0.1):
         super().__init__()
         
         self.latent_resolution = latent_resolution
@@ -395,7 +398,7 @@ class GINO2DTimeSolver(nn.Module):
         
         # Initialize GINO model
         # We set fno_n_modes to half the resolution (Nyquist)
-        fno_modes = (latent_resolution[0]//2, latent_resolution[1]//2)
+        # fno_modes = (latent_resolution[0]//2, latent_resolution[1]//2)
         
         self.gino = GINO(
             in_channels=in_channels,
@@ -403,10 +406,13 @@ class GINO2DTimeSolver(nn.Module):
             gno_coord_dim=coord_dim,
             in_gno_radius=radius,
             out_gno_radius=radius,
+            fno_in_channels=in_channels, # Fix: Match GNO output dim to input dim
             fno_n_modes=fno_modes,
-            fno_hidden_channels=32,
+            fno_hidden_channels=fno_hidden_channels,
+            fno_n_layers=4,
             gno_use_open3d=False
         )
+
 
         # Create latent grid (buffer so it moves with device)
         self.register_buffer('latent_queries', self._create_latent_grid(latent_resolution))
@@ -418,4 +424,48 @@ class GINO2DTimeSolver(nn.Module):
         grid_x, grid_y = torch.meshgrid(x, y, indexing='ij')
         grid = torch.stack((grid_x, grid_y), dim=-1)
         return grid.unsqueeze(0) # (1, res_x, res_y, 2)
-    
+
+    def forward(self, x_in, x_out, xx):
+        """
+        x_in: (Batch, N_points, 2) -> Input coordinates
+        x_out: (Batch, N_points, 2) -> Output coordinates
+        xx: (Batch, num_vars, N_points, 1) -> Input features
+        
+        Returns:
+        out: (Batch, num_vars, N_points, 1)
+        """
+        
+        # 1. Reshape Input Features: [B, C, N, 1] -> [B, N, C]
+        if xx.ndim == 4:
+            xx = xx.squeeze(-1).permute(0, 2, 1)
+        
+        # 2. Extract Geometry
+        # GINO expects geometry to be (1, N, Dim) and shared across batch
+        # We take the first element of the batch.
+        if x_in.ndim == 3:
+            input_geom = x_in[0].unsqueeze(0)
+        else:
+            input_geom = x_in.unsqueeze(0)
+
+        # GINO's output GNO expects 2D queries (N, Dim) to use native search correctly
+        if x_out.ndim == 3:
+            output_queries = x_out[0] # (N, 2)
+        else:
+            output_queries = x_out
+
+        # 3. Forward Pass through GINO
+        out = self.gino(
+            input_geom=input_geom,
+            latent_queries=self.latent_queries,
+            output_queries=output_queries,
+            x=xx
+        )
+        # out shape: [Batch, N, out_channels]
+
+        # 4. Reshape Output: [B, N, C] -> [B, C, N, 1]
+        out = out.permute(0, 2, 1).unsqueeze(-1)
+
+        return out
+
+    def count_params(self):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)

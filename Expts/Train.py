@@ -85,8 +85,12 @@ with Run(mode='offline') as run:
     shutil.copy(os.path.abspath('operator_splitting.py'), model_loc)
 
     #Setting up the seeds and devices
-    torch.manual_seed(configuration['seed'])
-    np.random.seed(configuration['seed'])
+    seed = np.random.randint(0, 1000)
+    run.update_metadata({'seed': seed})
+    torch.manual_seed(seed)
+    # torch.manual_seed(configuration['seed'])
+    print(f'seed: {seed}')
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.set_default_dtype(torch.float32)
     # %%

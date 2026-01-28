@@ -7,9 +7,8 @@ import sys
 sys.path.append("..")
 
 
-from Neural_PDE.Models.Neural_Ops_lib import *
-from Neural_PDE.Models.GNO_neuralop import * 
-from Neural_PDE.Models.GINO_neuralop import * 
+# from Neural_PDE.Models.Neural_Ops_lib import *
+from Models.GNNs import * 
 from Neural_PDE.Models.INR_NOs4POs import *
 from Models.DeepONet import * 
 
@@ -22,34 +21,29 @@ def model_selection(configuration, x, y):
 
     if configuration['Model']['arch'] == 'GNO':
 
-            model = GNO(
-                    in_channels=configuration['Model']['in_vars'], 
-                    out_channels=configuration['Model']['out_vars'], 
-                    hidden_channels=configuration['Model']['width'], 
-                    r=configuration['Model']['r'], 
-                    n_layers=configuration['Model']['depth'],
-                    x_in=x,
-                    y_in=y,
-                    grid_type='unstructured'
-        )  
-        
-    
+
+            model = GNO2DTimeSolver(
+            in_channels=configuration['Model']['in_vars'],    # Scalar field (e.g. Pressure)
+            out_channels=configuration['Model']['in_vars'],   # Scalar field
+            coord_dim=2,      # 2D Mesh
+            latent_channels=configuration['Model']['width'],
+            num_layers=configuration['Model']['depth'],
+            radius=0.1
+        )
+
+
     elif configuration['Model']['arch'] == 'GINO':
 
-            model = GINO(
-                    in_channels=configuration['Model']['in_vars'], 
-                    out_channels=configuration['Model']['out_vars'], 
-                    hidden_channels=configuration['Model']['width'], 
-                    fno_n_modes=(12, 12),
-                    fno_n_layers=configuration['Model']['depth'],
-                    in_gno_radius=configuration['Model']['r'], 
-                    n_gno_layers=configuration['Model']['depth'],
-                    x_in=x,
-                    y_in=y,
-                    latent_grid_size=32
-        )  
-        
-        
+            model = GINO2DTimeSolver(
+                    in_channels=2, 
+                    out_channels=2,
+                    coord_dim=2, 
+                    fno_modes=(configuration['Model']['modes'], configuration['Model']['modes']),
+                    fno_hidden_channels=configuration['Model']['hidden_channels'], 
+                    latent_resolution=(32, 32), # Grid size for FNO
+                    radius=0.2
+                )  
+            
 
     elif configuration['Model']['arch'] == 'SIREN':
  

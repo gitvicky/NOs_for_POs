@@ -1,4 +1,4 @@
-seed: 'random'
+seed: 1234
 
 Physics: 
   pde: 'Incomp. Navier-Stokes'
@@ -8,17 +8,19 @@ Physics:
   Nxy: 'varies'
   Nt: 600
   dt: 0.01
-  t_slice: 5
+  t_slice: 10
   physics_normalisation: False
 
 Model:
-  arch: 'GNO'
+  arch: 'GINO'
   in_vars: 2
   out_vars: 2
-  width: 128
-  depth: 4
+  modes: 12
+  hidden_channels: 24
+  n_layers: 4
   operator_splitting: False
   ops_split_normalise: False
+
 
 Data: 
   name: 'flow_past_cylinder'
@@ -33,14 +35,14 @@ Data:
 
 Opt:
   optimizer: 'adam'
-  epochs: 1000
-  learning_rate: 0.0001
+  epochs: 500
+  learning_rate: 0.005
   beta1: 0.9
   beta2: 0.9
   weight_decay: 1e-4
   scheduler: 'step'  
-  scheduler_step: 200
-  scheduler_gamma: 0.75
+  scheduler_step: 100
+  scheduler_gamma: 0.9
   grad_clip: 2.0
 
 Train: 
@@ -62,4 +64,4 @@ Simvue:
   mode: 'offline'
   name: None 
   folder: '/Neural_PDE/Cylinder' 
-  tags: 'Plots'
+  tags: 'offline_tests'

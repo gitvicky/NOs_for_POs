@@ -31,7 +31,12 @@ def model_initialisation(configuration, normalizer, run, data_dist):
         model = operator_splitting.Euler_FV_OS_rhs(configuration, normalizer, run)
         if data_dist=='OOD':
             model.gamma = torch.tensor(2/3, dtype=torch.float32, requires_grad=False).to(device)   
+
+    elif pde == 'Ideal MHD' or pde == 'Constrained MHD':
+        model = operator_splitting.Ideal_MHD_OS_rhs(configuration, normalizer, run)
+        if data_dist=='OOD':
+            model.gamma = torch.tensor(2/3, dtype=torch.float32, requires_grad=False).to(device)   
     else:
         raise ValueError(f"Unknown PDE: {pde} in operator splitting")
-    
+
     return model

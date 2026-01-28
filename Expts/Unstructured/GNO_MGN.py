@@ -48,7 +48,7 @@ def load_config(config_path='configs/train/Wave_GNO.yaml'):
 # Determine config path based on environment
 if is_notebook():
     # Jupyter notebook mode - set your config path here
-    CONFIG_PATH = '/pitagora/home/userexternal/vgopakum/NOs_for_POs/Expts/configs/train/Wave_GNO.yaml'  # Change this as needed
+    CONFIG_PATH = '/pitagora/home/userexternal/vgopakum/NOs_for_POs/Expts/configs/train/Cylinder_GNO_MGN.yaml'  # Change this as needed
     configuration = load_config(CONFIG_PATH)
 else:
     # Command-line mode
@@ -63,8 +63,6 @@ else:
 run_config = flatten_dict(configuration)
 model_type = configuration['Model']['arch']
 
-#Normalisation Functions 
-import torch
 
 def min_max_normalize(tensor, min_val=None, max_val=None):
     """
@@ -163,9 +161,10 @@ with Run(mode='offline') as run:
     except:
         run.update_metadata({'Git Hash': 'N/A (Git not found)'})
 
-    # Setting up the seeds and devices
-    torch.manual_seed(configuration['seed']) # Use seed from config
-    np.random.seed(configuration['seed'])    # Use seed from config
+    #Setting up the seeds and devices
+    seed = np.random.randint(0, 1000)
+    run.update_metadata({'seed': seed})
+    torch.manual_seed(seed)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.set_default_dtype(torch.float32)
 
@@ -197,33 +196,30 @@ with Run(mode='offline') as run:
     # %% 
     from Models.GNNs import * 
     # 2. Initialize Model
-    model = GNO2DTimeSolver(
-        in_channels=2,    # Scalar field (e.g. Pressure)
-        out_channels=2,   # Scalar field
-        coord_dim=2,      # 2D Mesh
-        latent_channels=configuration['Model']['width'],
-        num_layers=configuration['Model']['depth'],
-        radius=0.1
-    ).to(device)
+    from model_setup import * 
+    model = model_initialisation(configuration, normalizer=None, run=run, x=None, y=None)
+    model = model.to(device)
     # Log number of parameters to Simvue metadata
     run.update_metadata({'Number of Params': int(model.count_params())})
     print("Number of model params : " + str(model.count_params()))
 
     #Setting up the optimizer and scheduler, loss and epochs 
     optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning_rate'], weight_decay=1e-4)
-    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler_step'], gamma=configuration['Opt']['scheduler_gamma'])
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler_step'], gamma=configuration['Opt']['scheduler_gamma'])
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     # optimizer, 
     # mode='min', 
     # factor=0.5, 
     # patience=10, 
     # )
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=1000)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=1000)
     loss_func = torch.nn.MSELoss()
 
 #Model Input shape" # [Batch, num_vars, N_points, 1]
 
 # %% 
+    normalizer = min_max_normalize
+    # normalizer = gaussian_normalize
     #Training
     start_time = default_timer()
     epoch_init = 0
@@ -251,11 +247,11 @@ with Run(mode='offline') as run:
             optimizer.zero_grad()
 
             traj = data['trajectory'+str(it)].item()
-            coords = torch.tensor(traj['pos'][::configuration['Physics']['t_slice']][:configuration['Data']['t_out']])
+            coords = torch.tensor(traj['pos'])[0]
             uv = torch.tensor(traj['velocity'][::configuration['Physics']['t_slice']][:configuration['Data']['t_out']])
 
-            coords = min_max_normalize(coords, xy_min, xy_max).unsqueeze(0).permute(0, 3, 2, 1)
-            uv = min_max_normalize(uv, uv_min, uv_max).unsqueeze(0).permute(0, 3, 2, 1)
+            coords = normalizer(coords).unsqueeze(0)
+            uv = normalizer(uv).unsqueeze(0).permute(0, 3, 2, 1)
 
             xx, yy = uv[...,0:1], uv[...,1:]
             xx, yy, coords= xx.to(device), yy.to(device), coords.to(device)
@@ -284,26 +280,23 @@ with Run(mode='offline') as run:
             for it in range(80, 100):
 
                 traj = data['trajectory'+str(it)].item()
-                coords = torch.tensor(traj['pos'][::configuration['Physics']['t_slice']][:configuration['Data']['t_out']])
+                coords = torch.tensor(traj['pos'])[0]
                 uv = torch.tensor(traj['velocity'][::configuration['Physics']['t_slice']][:configuration['Data']['t_out']])
 
-                coords = min_max_normalize(coords, xy_min, xy_max).unsqueeze(0).permute(0, 3, 2, 1)
-                uv = min_max_normalize(uv, uv_min, uv_max).unsqueeze(0).permute(0, 3, 2, 1)
+                coords = normalizer(coords).unsqueeze(0)
+                uv = normalizer(uv).unsqueeze(0).permute(0, 3, 2, 1)
 
                 xx, yy = uv[...,0:1], uv[...,1:]
                 xx, yy, coords= xx.to(device), yy.to(device), coords.to(device)
 
-                pred = []
                 loss = 0
 
                 for t in range(0, configuration['Data']['t_out']-1, 1):    
                     y = yy[..., t:t + step]
                     out = evolve(model, coords, xx, dt)
+                    loss+= loss_func(out, y)
                     # Update input for next timestep (sliding window)
                     xx = torch.cat((xx[..., step:], out), dim=-1)
-                    pred.append(out)
-                pred = torch.cat(pred, -1)
-
                 test_loss += loss.item()
 
         train_loss = train_loss / 80
@@ -323,60 +316,74 @@ with Run(mode='offline') as run:
     # Log training time to Simvue metadata
     run.update_metadata({'Training Time': float(train_time)})
 
-
+    # Saving the Model
+    saved_model = model_loc + '/model.pth'
+    torch.save(model.state_dict(), saved_model)
+    run.save_file(saved_model, 'output')
 # %%
     # %% 
     #Evaluation
     pred_set = []
     model.eval()
-
     with torch.no_grad():
-        test_loss = 0 
+        eval_loss = 0 
         model.eval()
         for it in range(80, 100):
 
             traj = data['trajectory'+str(it)].item()
-            coords = torch.tensor(traj['pos'][::configuration['Physics']['t_slice']][:configuration['Data']['t_out']])
+            coords = torch.tensor(traj['pos'])[0]
             uv = torch.tensor(traj['velocity'][::configuration['Physics']['t_slice']][:configuration['Data']['t_out']])
 
-            coords = min_max_normalize(coords, xy_min, xy_max).unsqueeze(0).permute(0, 3, 2, 1)
-            uv = min_max_normalize(uv, uv_min, uv_max).unsqueeze(0).permute(0, 3, 2, 1)
+            coords = normalizer(coords).unsqueeze(0)
+            uv = normalizer(uv).unsqueeze(0).permute(0, 3, 2, 1)
 
             xx, yy = uv[...,0:1], uv[...,1:]
             xx, yy, coords= xx.to(device), yy.to(device), coords.to(device)
 
             pred = []
-
+            loss = 0 
             for t in range(0, configuration['Data']['t_out']-1, 1):    
                 y = yy[..., t:t + step]
                 out = evolve(model, coords, xx, dt)
                 # Update input for next timestep (sliding window)
                 xx = torch.cat((xx[..., step:], out), dim=-1)
-                pred.append(out)
-            pred = torch.cat(pred, -1)
+                loss+= loss_func(out, y) / (torch.mean(y.pow(2)) + 1e-8)
+                pred.append(out.cpu())
+            eval_loss += loss.item()                
             pred_set.append(pred)
-        pred_set = torch.cat(pred_set, 0)
-    # %% 
-    #Plottin
-    from Utils.metrics import MSE, NRMSE 
+
+    mse_error = np.sqrt(eval_loss)/20
+    print(f"NRMSE ID: {mse_error}")
+    run.update_metadata({'NRMSE-ID': mse_error})
     
+# %% 
+
+    #Plotting
+    with torch.no_grad():
+        it = 0 
+        traj = data['trajectory'+str(it)].item()
+        coords = torch.tensor(traj['pos'])[0]
+        uv = torch.tensor(traj['velocity'][::configuration['Physics']['t_slice']][:configuration['Data']['t_out']])
+
+        coords = normalizer(coords).unsqueeze(0)
+        uv = normalizer(uv).unsqueeze(0).permute(0, 3, 2, 1)
+
+        xx, yy = uv[...,0:1], uv[...,1:]
+        xx, yy, coords= xx.to(device), yy.to(device), coords.to(device)
+        
+        pred = []
+        for t in range(0, configuration['Data']['t_out']-1, 1):    
+            y = yy[..., t:t + step]
+            out = evolve(model, coords, xx, dt)
+            # Update input for next timestep (sliding window)
+            xx = torch.cat((xx[..., step:], out), dim=-1)
+            pred.append(out.cpu())
+        pred = torch.cat(pred, -1)
+        # print(pred.shape, yy.shape)
+
     #Shaping back to [BS, vars, Nxy, Nt]
-    pred_set = pred_set.cpu()
-    test_out = data_test[...,1:]
-    
-    mse_error = torch.mean((pred_set-test_out).pow(2)).cpu()
-    mse = float(NRMSE(pred_set, test_out)['average'])
-    print(f"MSE: {mse_error}")
-
-    pred_set, test_out = normalizer.decode(pred_set), normalizer.decode(test_out)
-    mse = float(NRMSE(pred_set, test_out)['average'])
-    nrmse = float(NRMSE(pred_set, test_out)['average'])
-
-    run.update_metadata({'MSE': mse,
-                         'NRMSE (physical)':nrmse})
-    # run.update_metadata({'NRMSE': nrmse})
-
-
+    test_out, pred_set = yy.cpu(), pred.cpu()
+    X,Y = coords[0, :, 0].cpu(), coords[0, :, 1].cpu()
     #%%
     from Utils.plots import * # Using a simple class to mock the run object for the plotting function if needed
     #Plotting for rectangular grids
@@ -389,20 +396,20 @@ with Run(mode='offline') as run:
     # plots_2d_yaml(configuration, test_out, pred_set, plot_loc=plot_loc, run=run, idx=0, save=True)
 
     
-    X, Y = X_normalizer.decode(X), Y_normalizer.decode(Y)
+    # X, Y = X_normalizer.decode(X), Y_normalizer.decode(Y)
     test_out, pred_set = test_out.numpy(), pred_set.numpy()
     from Expts.Unstructured.unstructured_plot import * 
     fig, axes = create_field_comparison_plot(
     X, Y, test_out, pred_set,
     run=None,
     batch_idx=0, var_idx=0,
-    time_steps=[0, 4, 8],
+    time_steps=[0, 8, 16],
     title="Field: u",
     obstacles=None,
     test_label='Sim.',
     pred_label='Net.'
     )
-    plot_name = plot_loc + '/u_'+run.name+'.png'
+    plot_name = plot_loc + '/u_ID_'+run.name+'.png'
     plt.savefig(plot_name, dpi=300, bbox_inches='tight')
     run.save_file(plot_name, 'output')
 
@@ -411,16 +418,112 @@ with Run(mode='offline') as run:
     X, Y, test_out, pred_set,
     run=None,
     batch_idx=0, var_idx=1,
-    time_steps=[0, 4, 8],
+    time_steps=[0, 8, 16],
     title="Field: v",
     obstacles=None,
     test_label='Sim.',
     pred_label='Net.'
     )
-    plot_name = plot_loc + '/v_'+run.name+'.png'
+    plot_name = plot_loc + '/v_ID_'+run.name+'.png'
     plt.savefig(plot_name, dpi=300, bbox_inches='tight')
     run.save_file(plot_name, 'output')
     
 
-# The 'with Run(mode='offline') as run:' block automatically handles 'run.close()'
 # %%
+#Validation 
+    data = np.load(data_loc + '/valid.npz', allow_pickle=True)
+    
+    pred_set = []
+    model.eval()
+    with torch.no_grad():
+        eval_loss = 0 
+        model.eval()
+        for it in range(80, 100):
+
+            traj = data['trajectory'+str(it)].item()
+            coords = torch.tensor(traj['pos'])[0]
+            uv = torch.tensor(traj['velocity'][::configuration['Physics']['t_slice']][:configuration['Data']['t_out']+10])
+
+            coords = normalizer(coords).unsqueeze(0)
+            uv = normalizer(uv).unsqueeze(0).permute(0, 3, 2, 1)
+
+            xx, yy = uv[...,0:1], uv[...,1:]
+            xx, yy, coords= xx.to(device), yy.to(device), coords.to(device)
+
+            pred = []
+            loss = 0 
+            for t in range(0, configuration['Data']['t_out']+10-1, 1):    
+                y = yy[..., t:t + step]
+                out = evolve(model, coords, xx, dt)
+                # Update input for next timestep (sliding window)
+                xx = torch.cat((xx[..., step:], out), dim=-1)
+                loss+= loss_func(out, y) / (torch.mean(y.pow(2)) + 1e-8)
+                pred.append(out.cpu())
+            eval_loss += loss.item()                
+            pred_set.append(pred)
+
+    mse_error = np.sqrt(eval_loss)/20
+    print(f"NRMSE OOD: {mse_error}")
+    run.update_metadata({'NRMSE-OOD': mse_error})
+    
+    #Plotting
+    with torch.no_grad():
+        it = 0 
+        traj = data['trajectory'+str(it)].item()
+        coords = torch.tensor(traj['pos'])[0]
+        uv = torch.tensor(traj['velocity'][::configuration['Physics']['t_slice']][:configuration['Data']['t_out']])
+
+        coords = normalizer(coords).unsqueeze(0)
+        uv = normalizer(uv).unsqueeze(0).permute(0, 3, 2, 1)
+
+        xx, yy = uv[...,0:1], uv[...,1:]
+        xx, yy, coords= xx.to(device), yy.to(device), coords.to(device)
+        
+        pred = []
+        for t in range(0, configuration['Data']['t_out']-1, 1):    
+            y = yy[..., t:t + step]
+            out = evolve(model, coords, xx, dt)
+            # Update input for next timestep (sliding window)
+            xx = torch.cat((xx[..., step:], out), dim=-1)
+            pred.append(out.cpu())
+        pred = torch.cat(pred, -1)
+        # print(pred.shape, yy.shape)
+
+    #Shaping back to [BS, vars, Nxy, Nt]
+    test_out, pred_set = yy.cpu(), pred.cpu()
+    X,Y = coords[0, :, 0].cpu(), coords[0, :, 1].cpu()
+    #%%
+    from Utils.plots import * # Using a simple class to mock the run object for the plotting function if needed
+
+    # X, Y = X_normalizer.decode(X), Y_normalizer.decode(Y)
+    test_out, pred_set = test_out.numpy(), pred_set.numpy()
+    from Expts.Unstructured.unstructured_plot import * 
+    fig, axes = create_field_comparison_plot(
+    X, Y, test_out, pred_set,
+    run=None,
+    batch_idx=0, var_idx=0,
+    time_steps=[0, 8, 16],
+    title="Field: u",
+    obstacles=None,
+    test_label='Sim.',
+    pred_label='Net.'
+    )
+    plot_name = plot_loc + '/u_OOD_'+run.name+'.png'
+    plt.savefig(plot_name, dpi=300, bbox_inches='tight')
+    run.save_file(plot_name, 'output')
+
+    from Expts.Unstructured.unstructured_plot import * 
+    fig, axes = create_field_comparison_plot(
+    X, Y, test_out, pred_set,
+    run=None,
+    batch_idx=0, var_idx=1,
+    time_steps=[0, 8, 16],
+    title="Field: v",
+    obstacles=None,
+    test_label='Sim.',
+    pred_label='Net.'
+    )
+    plot_name = plot_loc + '/v_OOD_'+run.name+'.png'
+    plt.savefig(plot_name, dpi=300, bbox_inches='tight')
+    run.save_file(plot_name, 'output')
+    

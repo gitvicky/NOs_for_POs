@@ -15,11 +15,11 @@ class NS_incompressible_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-h
     def __init__(self, configuration, normalizer, run, x, y):
         super(NS_incompressible_rhs, self).__init__()
 
-        self.normalizer = normalizer
-        if device == 'cuda':
-            self.normalizer.cuda()
-        else:
-            self.normalizer.cpu()
+        # self.normalizer = normalizer
+        # if device == 'cuda':
+        #     self.normalizer.cuda()
+        # else:
+        #     self.normalizer.cpu()
         self.run = run
         
 
@@ -28,17 +28,20 @@ class NS_incompressible_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-h
         self.convection_operator = model_selection(config, x, y)
         self.diffusion_operator = model_selection(config, x, y)
 
-    def forward(self, vars):
+        self.nu = torch.tensor(0.001, dtype=torch.float32, requires_grad=False).to(device)
+        # self.nu = self.normalizer.encode(self.nu.unsqueeze(-1)).squeeze()
 
-        uv, nu = vars[0], vars[1]
+    def forward(self, coords_in, coords_out, vars):
 
-        convection = self.convection_operator(vars)
-        diffusion = self.diffusion_operator(vars)
+        # uv, nu = vars[0], vars[1] #Nvidia
+        uv = vars #GDM
 
-        nu = self.normalizer.encode(nu).view(uv.shape[0], 1, 1, 1)  # Shape: [50, 1, 1, 1]
+        convection = self.convection_operator(coords_in, coords_out, vars)
+        diffusion = self.diffusion_operator(coords_in, coords_out, vars)
 
+        # self.nu = self.normalizer.encode(nu).view(uv.shape[0], 1, 1, 1)  # Shape: [50, 1, 1, 1] #Nvidia
 
-        rhs = - convection + nu*diffusion #- pressure_grad
+        rhs = - convection + self.nu*diffusion #- pressure_grad
 
         try:
             self.run.log_metrics({"rhs_momx": rhs[:, 0].detach().mean(),

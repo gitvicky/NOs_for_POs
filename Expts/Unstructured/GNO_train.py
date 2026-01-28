@@ -6,7 +6,6 @@ GNO (NeuralOp) Testing Pipeline with Simvue integration.
 #Imports
 
 # %% 
-
 import shutil
 import os
 import yaml 
@@ -86,11 +85,9 @@ with Run(mode='offline') as run:
     os.mkdir(model_loc)
     plot_loc = file_loc + '/Plots'
 
-
     run.config(disable_resources_metrics=True)
     print("Run Name: " + str(run.name))
     print(yaml.dump(configuration, default_flow_style=False, indent=2))
-
     
     # Saving the current run file and the config
     run.save_file(os.path.abspath(__file__), 'code', snapshot=True)
@@ -251,6 +248,7 @@ with Run(mode='offline') as run:
             pred = []
             xx, yy = xx.to(device), yy.to(device)
             coords = XY.repeat(xx.shape[0], 1, 1).to(device)
+            print(xx.shape, yy.shape, coords.shape)
             loss = 0
             for t in range(0, train_T_out, step):    
                 y = yy[..., t:t + step]
