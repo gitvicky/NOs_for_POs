@@ -273,8 +273,8 @@ def compute_errors_for_run(run, pde, arch, configuration, fields, dt, model_loc)
 experimental_configs = [
     {
         'pde': 'Incompressible_Navier-Stokes',
-        't_exp': 50,
-        'data_dist': 'ID',
+        't_exp': 100,
+        'data_dist': 'OOD',
         'arch': 'fno',
         'methods': {
             'AR': [
