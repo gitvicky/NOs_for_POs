@@ -1,5 +1,5 @@
 
-seed: 907
+seed: 1234
 
 Physics: 
   pde: 'Navier-Stokes'
@@ -26,7 +26,7 @@ Model:
   time_channels: 1
   depth: 12
   num_heads: 10
-  operator_splitting: True
+  operator_splitting: False
   ops_split_normalise: False
 
 Data: 
@@ -54,13 +54,13 @@ Opt:
   grad_clip: 2.0
 
 Train: 
-  loss: 'MSE'
+  loss: 'LP'
   input_length: 1
   rollout_length: 5
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:
@@ -72,3 +72,4 @@ Simvue:
   mode: 'online'
   name: None 
   folder: '/Neural_PDE/Spectral' 
+  tags: 'PosEnc'

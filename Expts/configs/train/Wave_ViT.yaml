@@ -19,13 +19,13 @@ Physics:
 Model:
   arch: 'ViT'
   patch_size: 16
-  embed_dim: 128
+  embed_dim: 64
   in_vars: 1
   out_vars: 1
   time_channels: 1
   depth: 2
   num_heads: 2
-  operator_splitting: False
+  operator_splitting: True
   ops_split_normalise: False
 
 Data: 

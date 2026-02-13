@@ -1,10 +1,13 @@
 #previous files
 tests
 tmp/ 
+__pycache__/
 
 #simvue files
 simvue.ini
 simvue.toml
+simvue_sender.sh
+.simvue/
 
 #Saved Models
 Weights/

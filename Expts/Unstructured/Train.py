@@ -1,0 +1,358 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Training Pipeline. 
+"""
+# %%
+
+#Setting up simvue 
+import shutil
+import os
+import yaml 
+import argparse
+
+import sys
+sys.path.append("..")
+sys.path.append("../..")
+from Utils.simvue_utils import flatten_dict
+
+# %%
+#Config files.
+def parse_args():
+    parser = argparse.ArgumentParser(description='Training script with YAML config')
+    parser.add_argument('--config', type=str, required=True, help='Path to config YAML file')
+    return parser.parse_args()
+
+args = parse_args()
+with open(args.config, 'r') as f:
+    configuration = yaml.safe_load(f)
+
+run_config = flatten_dict(configuration)
+
+
+# %% 
+from simvue import Run, Client
+with Run(mode='offline') as run:
+
+    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Unstructured', 'Pitagora', 'Mark5'], metadata=run_config)
+    run.update_tags([configuration['Simvue']['tags']])
+    
+    run.config(disable_resources_metrics=True)
+    print("Run Name: " + str(run.name))
+    print(yaml.dump(configuration, default_flow_style=False, indent=2))
+
+    # #if run is being disabled
+    # import argparse
+    # run = argparse.Namespace()
+    # run.name = "test"
+
+    #setting up the client API 
+    # client = Client()
+
+    #Saving the current run file and the git hash of the repo
+    run.save_file(os.path.abspath(__file__), 'code', snapshot=True)
+    run.save_file(os.path.abspath(args.config), 'code', snapshot=True)
+    
+    if configuration['Model']['operator_splitting']:
+        run.save_file(os.path.abspath('operator_splitting.py'), 'code', snapshot=True)
+        run.update_tags(['OpsSplit'])
+
+
+    import git
+    repo = git.Repo(search_parent_directories=True)
+    sha = repo.head.object.hexsha
+    run.update_metadata({'Git Hash': sha})
+
+    #Importing the necessary packages
+    import sys
+    import numpy as np
+    import math
+    from tqdm import tqdm 
+    import torch
+    import torch.nn.functional as F
+    from timeit import default_timer
+    from tqdm import tqdm 
+    from sklearn.model_selection import train_test_split
+
+    #Setting up locations. 
+    file_loc = os.getcwd()
+    data_loc = os.path.dirname(os.getcwd()) + '/Data/'
+    model_loc = file_loc + '/Weights/' + run.name
+    os.mkdir(model_loc)
+    plot_loc = file_loc + '/Plots'
+
+    #Saving in model_loc Train.py, .yaml, OS.py
+    shutil.copy(os.path.abspath(__file__), model_loc)
+    shutil.copy(os.path.abspath(args.config), model_loc)
+    shutil.copy(os.path.abspath('operator_splitting.py'), model_loc)
+
+    #Setting up the seeds and devices
+    torch.manual_seed(configuration['seed'])
+    np.random.seed(configuration['seed'])
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    torch.set_default_dtype(torch.float32)
+    # %%
+    #Importing the models and utilities. 
+    from model_setup import *
+    from Neural_PDE.Utils.processing_utils import * 
+    from Neural_PDE.Utils.training_utils import * 
+
+    # %% 
+    ####################################
+    # Data Preparation.
+    ####################################
+
+    t1 = default_timer()
+
+    from data_loaders import *
+    pde = configuration['Physics']['pde']
+    if pde == 'Incomp. Navier-Stokes':
+        fields, x, y, dt, mass, params, edge_attr, edge_index = flow_past_cylinder(configuration)
+    if pde == 'Diffusion':
+        fields, x, y, dt, params = diffusion_pypde(configuration)
+    if pde == 'Wave':
+        fields, x, y, dt, params = Wave_Spectral(configuration)
+            
+    t = torch.arange(0, configuration['Data']['t_out']*dt, dt)
+    fields = fields[...,:configuration['Data']['t_out']]
+
+    print("Data shape: " + str(fields.shape))
+
+    # %%
+    # Normalising the data -- using the same normalisations for inputs and outputs
+    normalizer_func = Normalisation(configuration['Data']['normalisation'])
+    normalizer = normalizer_func(fields)
+    if configuration['Model']['ops_split_normalise']: #Normalise and Denormalise done within the Model. 
+        fields_encoded = fields
+    else:
+        fields_encoded = normalizer.encode(fields)
+    
+    #Saving Normalisation 
+    saved_normalisations = model_loc + '/norms.npz'
+    if normalizer_func == 'Min-Max':
+        np.savez(saved_normalisations, 
+                a=normalizer.a.numpy(), b=normalizer.b.numpy(), 
+                )
+        run.save_file(saved_normalisations, 'output')
+    elif normalizer_func == 'Gaussian':
+        np.savez(saved_normalisations, 
+                a=normalizer.mean.numpy(), b=normalizer.std.numpy(), 
+                )
+        run.save_file(saved_normalisations, 'output') 
+
+    #If using a single step rollout, then we need to create a windowed dataset.
+    train_in, test_in, train_out, test_out = train_test_split(fields_encoded[...,:configuration['Data']['t_in']], fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']], test_size=configuration['Data']['test_train_split'], random_state=42)
+    params_train, params_test = params[:int(configuration['Data']['ntrain']*0.8)], params[int(configuration['Data']['ntrain']*0.8):]
+
+    train_data = torch.cat((train_in, train_out), dim=-1)#Merging for creating the windowed dataset.
+    input_window = configuration['Train']['input_length']
+    prediction_steps = configuration['Train']['rollout_length'] - 1 
+    train_dataset = SpatioTemporalDataset(train_data, params_train, input_window, prediction_steps)
+    test_dataset = DatasetWithParams(test_in, params_test, test_out)
+
+    #Setting up the data loaders
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=configuration['Data']['batch_size'], shuffle=True, pin_memory=True, num_workers=4)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=configuration['Data']['batch_size'], shuffle=False, pin_memory=True, num_workers=4)
+    print("Training Input: " + str(train_in.shape))
+    print("Training Output: " + str(train_out.shape))
+    t2 = default_timer()
+    print('preprocessing finished, time used:', t2-t1)
+
+    # %% 
+    ####################################
+    # Setting up the Model and Optimizers 
+    ####################################
+
+    model = model_initialisation(configuration, normalizer, run, x, y)
+    model.to(device)
+    # model = convert_model_to_complex(model)  # Convert model parameters to complex type
+
+    run.update_metadata({'Number of Params': int(model.count_params())})
+    print("Number of model params : " + str(model.count_params()))
+
+    #Setting up the optimizer and scheduler, loss and epochs 
+    optimizer = torch.optim.Adam(model.parameters(), lr=configuration['Opt']['learning_rate'], weight_decay=1e-4)
+    if configuration['Opt']['scheduler'] == 'step':
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=configuration['Opt']['scheduler_step'], gamma=configuration['Opt']['scheduler_gamma'])
+    elif configuration['Opt']['scheduler'] == 'cosine':
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
+
+    if configuration['Train']['loss']=='LP':
+        loss_func = LpLoss()
+    else:
+        loss_func = torch.nn.MSELoss()
+
+    epoch_init = 0
+    epochs = configuration['Opt']['epochs']
+
+    #Restarting the run from a checkpoint 
+    if configuration['Train']['restart'] == True: 
+        import shutil
+        tmp_loc = os.getcwd() + '/tmp'
+        # Create tmp directory if it doesn't exist, or recreate it if it does
+        if os.path.exists(tmp_loc):
+            shutil.rmtree(tmp_loc)
+        os.makedirs(tmp_loc, exist_ok=True)
+        run_id = client.get_run_id_from_name(configuration['Train']['restart_run_name'])
+        client.get_artifact_as_file(run_id, name = 'checkpoint_100.pt', output_dir=tmp_loc)
+        ckpt_path = tmp_loc + '/checkpoint_100.pt'
+        checkpoint = torch.load(ckpt_path)
+        model.load_state_dict(checkpoint["model"], strict=False)
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        scheduler.load_state_dict(checkpoint["scheduler"])
+        epoch_init = checkpoint["epoch"]
+        epochs = epoch_init + epochs
+        run.update_metadata({'Epochs': epochs})
+
+    # Setting up the Training pipeline
+    if configuration['Train']['odesolve']['source'] == 'custom':
+        from explicit_time import * 
+        train = Train_Setup(model, train_loader, test_loader, loss_func, optimizer, scheduler, epochs,  ode_solver=configuration['Train']['odesolve']['source'], roll_out=configuration['Train']['odesolve']['method'], noise=configuration['Train']['input_noise'], batch_norm=configuration['Train']['batch_norm'])
+
+    # %% 
+    ####################################
+    #Training
+    ####################################
+    start_time = default_timer()
+    trainloss, testloss = [], []
+    for ep in tqdm(range(epoch_init, epochs+1)): #Training Loop - Epochwise
+
+        model.train()
+        t1 = default_timer()
+        train_loss, test_loss = train.one_epoch(configuration['Data']['step'], configuration['Train']['rollout_length']-1, configuration['Data']['t_out']-1, dt=dt)
+
+        t2 = default_timer()
+
+        train_loss = train_loss / len(train_loader)
+        test_loss = test_loss / len(test_loader)
+
+        trainloss.append(train_loss)
+        testloss.append(test_loss)
+
+        print(f"Epoch {ep}, Time Taken: {round(t2-t1,3)}, Train Loss: {round(train_loss, 5)}, Test Loss: {round(test_loss,5)}")
+        current_lr = optimizer.param_groups[0]['lr']
+        run.log_metrics({'Train Loss': train_loss, 'Test Loss': test_loss, 'Learning Rate': current_lr}, step=ep)
+        scheduler.step()
+
+        #Checkpointing. 
+        if ep+1 % configuration['Train']['checkpoint']['epochs'] == 0:
+            checkpoint = {}
+            checkpoint["model"] = model.state_dict()
+            checkpoint["optimizer"] = optimizer.state_dict() 
+            checkpoint["scheduler"] = scheduler.state_dict()
+            checkpoint["epoch"] = ep
+            torch.save(checkpoint, model_loc + "/checkpoint_"+str(ep)+".pt")
+            run.save_file(model_loc + "/checkpoint_"+str(ep)+".pt", 'output')
+            run.update_metadata({'Epochs': ep})
+
+    train_time = default_timer() - start_time
+
+    # %%
+    # Saving the Model
+    saved_model = model_loc + '/model.pth'
+    torch.save(model.state_dict(), saved_model)
+    run.save_file(saved_model, 'output')
+    
+    #Saving test-train
+    np.save(model_loc + '/train_loss.npy', np.asarray(trainloss))
+    np.save(model_loc + '/test_loss.npy', np.asarray(testloss))
+
+    #Evaluation 
+    if configuration['Train']['odesolve']['source'] == 'custom':
+        eval = Eval_Setup(model, test_loader, test_out, normalizer='False', ode_solver = configuration['Train']['odesolve']['source'], roll_out= configuration['Train']['odesolve']['method'])
+
+    pred_encoded, error = eval.inference(configuration['Data']['step'], configuration['Data']['t_out']-1, dt=dt)
+
+
+    print('Training Time: %.3e' % (train_time))
+    print('(MSE) Testing Error: %.3e' % (error))
+
+    run.update_metadata({'Training Time': float(train_time),
+                        'MSE Test Error': float(error)
+                        })
+    
+    from Utils.metrics import MSE, NRMSE
+    run.update_metadata({
+                        'NRMSE (norm)': float(NRMSE(pred_encoded.detach().cpu(), test_out.detach().cpu())['average'])
+                        })  
+
+
+    #Denormalising the test and predictions
+    if configuration['Model']['ops_split_normalise'] == False: #Normalise/Denormalise done within the Model for OS. 
+        test_out = normalizer.decode(test_out.to(device)).cpu()
+        pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
+    else:
+        test_out = test_out.cpu()
+        pred_set = pred_encoded.cpu()
+
+
+    run.update_metadata({'MSE (physical)': float(MSE(pred_set, test_out)['average']),
+                        'NRMSE (physical)': float(NRMSE(pred_set, test_out)['average'])
+                        })  
+    
+    print('(NRMSE) Physical Error: %.3e' % float(NRMSE(pred_set, test_out)['average']))
+    # %% 
+    #Plotting the results 
+    from Expts.Unstructured.unstructured_plot import * 
+    if configuration['Data']['name'] == 'flow_past_cylinder':
+        idx = 0 
+            
+        obstacles = [{
+            'type': 'circle',
+            'center': (0.024, 0.006),
+            'radius': 0.687
+        }]
+        
+
+        fig, axes = create_field_comparison_plot(
+        x, y, test_out, pred_set,
+        run,
+        batch_idx=0, var_idx=0,
+        time_steps=[0, 15, 30, 45],
+        title="Cylinder Flow: u",
+        obstacles=obstacles,
+        test_label='Sim.',
+        pred_label='Net.'
+    )
+        plot_name = plot_loc + '/' + run.name + '_u_cylinder_flow_plot.png'
+        plt.savefig(plot_name, dpi=300, bbox_inches='tight')
+        run.save_file(plot_name, 'output')
+            
+        fig, axes = create_field_comparison_plot(
+        x, y, test_out, pred_set,
+        run,
+        batch_idx=0, var_idx=1,
+        time_steps=[0, 15, 30, 45],
+        title="Cylinder Flow: v",
+        obstacles=obstacles,
+        test_label='Sim.',
+        pred_label='Net.'
+    )
+        plot_name = plot_loc + '/' + run.name + '_v_cylinder_flow_plot.png'
+        plt.savefig(plot_name, dpi=300, bbox_inches='tight')
+        run.save_file(plot_name, 'output')
+
+    else: 
+
+        fig, axes = create_field_comparison_plot(
+        x, y, test_out, pred_set,
+        run,
+        batch_idx=0, var_idx=0,
+        time_steps=[0, 15, 30, 45],
+        title="Field: u",
+        obstacles=None,
+        test_label='Sim.',
+        pred_label='Net.'
+    )
+        plot_name = plot_loc + '/' + run.name + '_Field.png'
+        plt.savefig(plot_name, dpi=300, bbox_inches='tight')
+        run.save_file(plot_name, 'output')
+    # %%
+    #Saving the slurm output file. 
+    import time 
+    time.sleep(1)
+    slurm_id = os.environ['SLURM_JOB_ID']
+    run.save_file(os.path.abspath('slurm-'+str(slurm_id)+'.out'), 'output',snapshot=True)
+
+    # run.close()
+    # %%

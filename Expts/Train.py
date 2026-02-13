@@ -28,27 +28,32 @@ with open(args.config, 'r') as f:
 
 run_config = flatten_dict(configuration)
 
-
 # %% 
 from simvue import Run, Client
-with Run(mode='online') as run:
+with Run(mode='offline') as run:
 
-    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'POs4NOs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Mark3', 'Ablation1', 'Transfer-Learn'], metadata=run_config)
+    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'NOs4POs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Mark6', 'Camera-Ready', 'Seeds', 'Pitagora'], metadata=run_config)
+    run.update_tags([configuration['Simvue']['tags']])
+    
+    run.config(disable_resources_metrics=True)
+    print("Run Name: " + str(run.name))
+    print(yaml.dump(configuration, default_flow_style=False, indent=2))
 
     # #if run is being disabled
     # import argparse
     # run = argparse.Namespace()
     # run.name = "test"
 
-    # setting up the client API 
-    client = Client()
+    #setting up the client API 
+    # client = Client()
 
     #Saving the current run file and the git hash of the repo
-    run.save_file(os.path.abspath(__file__), 'code')
-    run.save_file(os.path.abspath(args.config), 'code')
+    run.save_file(os.path.abspath(__file__), 'code', snapshot=True)
+    run.save_file(os.path.abspath(args.config), 'code', snapshot=True)
     
     if configuration['Model']['operator_splitting']:
-        run.save_file(os.path.abspath('operator_splitting.py'), 'code')
+        run.save_file(os.path.abspath('operator_splitting.py'), 'code', snapshot=True)
+        run.update_tags(['OpsSplit'])
 
     import git
     repo = git.Repo(search_parent_directories=True)
@@ -79,8 +84,12 @@ with Run(mode='online') as run:
     shutil.copy(os.path.abspath('operator_splitting.py'), model_loc)
 
     #Setting up the seeds and devices
-    torch.manual_seed(configuration['seed'])
-    np.random.seed(configuration['seed'])
+    seed = np.random.randint(0, 1000)
+    run.update_metadata({'seed': seed})
+    torch.manual_seed(seed)
+    # torch.manual_seed(configuration['seed'])
+    print(f'seed: {seed}')
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.set_default_dtype(torch.float32)
     # %%
@@ -98,6 +107,8 @@ with Run(mode='online') as run:
 
     from data_loaders import *
     pde = configuration['Physics']['pde']
+    if pde == 'ConvDiff':
+        fields, x, y, dt = Conv_Diff_Jax(configuration)
     if pde == 'Wave':
         fields, x, y, dt = Wave_Spectral(configuration)
     if pde == 'Navier-Stokes':
@@ -181,25 +192,6 @@ with Run(mode='online') as run:
     # Setting up the Model and Optimizers 
     ####################################
 
-    # def convert_model_to_complex(model):
-    #     """Convert all model parameters to complex type"""
-        
-    #     def convert_tensor_to_complex(tensor):
-    #         """Convert a real tensor to complex by adding zero imaginary part"""
-    #         if torch.is_complex(tensor):
-    #             return tensor  # Already complex
-    #         # Create complex tensor with zero imaginary part
-    #         return torch.complex(tensor, torch.zeros_like(tensor))
-        
-    #     # Convert all parameters
-    #     with torch.no_grad():
-    #         for name, param in model.named_parameters():
-    #             if not torch.is_complex(param):
-    #                 # Convert parameter data to complex
-    #                 param.data = convert_tensor_to_complex(param.data)
-        
-    #     return model
-
     model = model_initialisation(configuration, normalizer, run)
     # model = convert_model_to_complex(model)  # Convert model parameters to complex type
 
@@ -278,6 +270,7 @@ with Run(mode='online') as run:
     #Training
     ####################################
     start_time = default_timer()
+    trainloss, testloss = [], []
     for ep in tqdm(range(epoch_init, epochs+1)): #Training Loop - Epochwise
 
         model.train()
@@ -289,35 +282,38 @@ with Run(mode='online') as run:
         train_loss = train_loss / len(train_loader)
         test_loss = test_loss / len(test_loader)
 
+        trainloss.append(train_loss)
+        testloss.append(test_loss)
+
         print(f"Epoch {ep}, Time Taken: {round(t2-t1,3)}, Train Loss: {round(train_loss, 5)}, Test Loss: {round(test_loss,5)}")
         current_lr = optimizer.param_groups[0]['lr']
         run.log_metrics({'Train Loss': train_loss, 'Test Loss': test_loss, 'Learning Rate': current_lr}, step=ep)
         scheduler.step()
 
-        #Alerting potential instability in training.
-        run.create_metric_threshold_alert(
-            name='Unstable',
-            metric='Train Loss',
-            threshold=1e5,
-            rule='is above',  
-            frequency=1,
-            window=1,
-            trigger_abort=True
-            )
+        # #Alerting potential instability in training.
+        # run.create_metric_threshold_alert(
+        #     name='Unstable',
+        #     metric='Train Loss',
+        #     threshold=1e5,
+        #     rule='is above',  
+        #     frequency=1,
+        #     window=1,
+        #     trigger_abort=True
+        #     )
         
-        #Killing the run if the training becomes unstable. 
-        if math.isnan(train_loss) or math.isinf(train_loss):
-            print("Training loss is NaN or Inf, stopping training.")
-            run.create_user_alert(
-                name='Training terminated',
-                description='Training loss became NaN or Inf, stopping training.',
-                notification='none',
-                trigger_abort=True,
-                attach_to_run=True
-            )
+        # #Killing the run if the training becomes unstable. 
+        # if math.isnan(train_loss) or math.isinf(train_loss):
+        #     print("Training loss is NaN or Inf, stopping training.")
+        #     run.create_user_alert(
+        #         name='Training terminated',
+        #         description='Training loss became NaN or Inf, stopping training.',
+        #         notification='none',
+        #         trigger_abort=True,
+        #         attach_to_run=True
+        #     )
             
         #Checkpointing. 
-        if ep % configuration['Train']['checkpoint']['epochs'] == 0:
+        if ep+1 % configuration['Train']['checkpoint']['epochs'] == 0:
             checkpoint = {}
             checkpoint["model"] = model.state_dict()
             checkpoint["optimizer"] = optimizer.state_dict() 
@@ -334,6 +330,10 @@ with Run(mode='online') as run:
     saved_model = model_loc + '/model.pth'
     torch.save(model.state_dict(), saved_model)
     run.save_file(saved_model, 'output')
+    
+    #Saving test-train
+    np.save(model_loc + '/train_loss.npy', np.asarray(trainloss))
+    np.save(model_loc + '/test_loss.npy', np.asarray(testloss))
 
     #Evaluation 
     if configuration['Train']['odesolve']['source'] == 'custom':
@@ -373,15 +373,21 @@ with Run(mode='online') as run:
     run.update_metadata({'MSE (physical)': float(MSE(pred_set, test_out)['average']),
                         'NRMSE (physical)': float(NRMSE(pred_set, test_out)['average'])
                         })  
+    
+    print('(NRMSE) Physical Error: %.3e' % float(NRMSE(pred_set, test_out)['average']))
     # %% 
     #Plotting the results 
     from Utils.plots import plots_2d_yaml
     idx = 0 
-    plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run, idx, save=True)
+    # plots_2d_yaml(configuration, test_out, pred_set, plot_loc, run, idx, save=True)
+    plots_2d_yaml(configuration, test_out, pred_set, model_loc, run, idx, save=True)
+
     # %%
     #Saving the slurm output file. 
+    import time 
+    time.sleep(1)
     slurm_id = os.environ['SLURM_JOB_ID']
-    run.save_file(os.path.abspath('slurm-'+str(slurm_id)+'.out'), 'output')
+    run.save_file(os.path.abspath('slurm-'+str(slurm_id)+'.out'), 'output',snapshot=True)
 
     # run.close()
     # %%

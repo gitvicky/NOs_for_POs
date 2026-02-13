@@ -21,25 +21,25 @@
     arch: 'FNO'
     in_vars: 2
     out_vars: 2
-    modes: 32
-    width: 64
-    n_layers: 3
+    modes: 8
+    width: 16
+    n_layers: 4
     act: 'gelu'
     operator_splitting: True
     ops_split_normalise: False
 
   Data: 
-    loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/shear_flow/data/train'
+    loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/shear_flow/data/train/train'
     reynolds: ['1e4'] 
-    # schmidt: ['1e0', '1e-1', '1e1', '2e0', '2e-1', '5e0', '5e-1'] #test
-    schmidt: ['1e-1', '1e1', '5e-1'] #train
+    schmidt: ['1e0', '1e-1', '1e1', '2e0', '2e-1', '5e0', '5e-1']
     name: 'Shear Flow'
-    ntrain: 96
+    ntrain: 224
     test_train_split: 0.2
-    batch_size: 8
+    batch_size: 12
     t_in: 1
     t_out: 50
     step: 1
+
     normalisation: 'Min-Max'
 
   Opt:

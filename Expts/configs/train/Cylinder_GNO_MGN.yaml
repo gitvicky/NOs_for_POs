@@ -1,0 +1,65 @@
+seed: 'random'
+
+Physics: 
+  pde: 'Incomp. Navier-Stokes'
+  source: 'DeepMind' 
+  field: 'u, v'
+  variables: 2
+  Nxy: 'varies'
+  Nt: 600
+  dt: 0.01
+  t_slice: 5
+  physics_normalisation: False
+
+Model:
+  arch: 'GNO'
+  in_vars: 2
+  out_vars: 2
+  width: 128
+  depth: 4
+  operator_splitting: False
+  ops_split_normalise: False
+
+Data: 
+  name: 'flow_past_cylinder'
+  loc: '/pitagora/home/userexternal/vgopakum/NOs_for_POs/Data'
+  ntrain: 100
+  test_train_split: 0.2
+  batch_size: 1
+  t_in: 1
+  t_out: 20
+  step: 1
+  normalisation: 'Min-Max'
+
+Opt:
+  optimizer: 'adam'
+  epochs: 1000
+  learning_rate: 0.0001
+  beta1: 0.9
+  beta2: 0.9
+  weight_decay: 1e-4
+  scheduler: 'step'  
+  scheduler_step: 200
+  scheduler_gamma: 0.75
+  grad_clip: 2.0
+
+Train: 
+  loss: 'LP'
+  input_length: 1
+  rollout_length: 20
+  input_noise: 0.0
+  odesolve: 
+    source: 'custom' #'torchdiffeq', 'custom'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+    adjoint: False #Only for torchdiffeq
+  batch_norm: False
+  checkpoint:
+    epochs: 100
+  restart: False
+  restart_run_name: '' #simvue run name
+
+Simvue:
+  mode: 'offline'
+  name: None 
+  folder: '/Neural_PDE/Cylinder' 
+  tags: 'Plots'

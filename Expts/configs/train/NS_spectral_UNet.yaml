@@ -1,5 +1,5 @@
 
-seed: 907
+seed: 22
 
 Physics: 
   pde: 'Navier-Stokes'
@@ -23,7 +23,7 @@ Model:
   out_channels: 1
   in_vars: 2
   out_vars: 2 
-  width: 32
+  width: 64
   act: 'tanh'
   operator_splitting: True
   ops_split_normalise: False
@@ -31,9 +31,9 @@ Model:
 Data: 
   name: 'NS_Spectral_combined.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
-  ntrain: 500
+  ntrain: 100
   test_train_split: 0.2
-  batch_size: 30
+  batch_size: 20
   t_in: 1
   t_out: 50
   step: 1
@@ -41,8 +41,8 @@ Data:
 
 Opt:
   optimizer: 'adam'
-  epochs: 500
-  learning_rate: 0.005
+  epochs: 250
+  learning_rate: 0.001
   beta1: 0.9
   beta2: 0.9
   weight_decay: 1e-4
@@ -52,9 +52,9 @@ Opt:
   grad_clip: 2.0
 
 Train: 
-  loss: 'MSE'
+  loss: 'LP'
   input_length: 1
-  rollout_length: 20
+  rollout_length: 5
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'

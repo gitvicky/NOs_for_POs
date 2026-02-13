@@ -1,0 +1,69 @@
+seed: 1234
+
+Physics: 
+  pde: 'Diffusion'
+  source: 'py-pde' 
+  field: 'u'
+  variables: 1
+  Nxy: 1024
+  Nt: 100
+  dt: 0.01
+  t_slice: 1
+  physics_normalisation: False
+
+Model:
+  arch: 'DeepONet'
+  in_vars: 1
+  out_vars: 1
+  branch_width: 64            
+  branch_depth: 6       
+  trunk_width: 64  
+  trunk_depth: 6     
+  basis_size: 128
+  operator_splitting: False
+  ops_split_normalise: False
+
+
+Data: 
+  name: 'pypde_diffusion'
+  loc: '/pitagora/home/userexternal/vgopakum/NOs_for_POs/Data/pypde'
+  ntrain: 50
+  test_train_split: 0.2
+  batch_size: 10
+  t_in: 1
+  t_out: 50
+  step: 1
+  normalisation: 'Identity'
+
+Opt:
+  optimizer: 'adam'
+  epochs: 500
+  learning_rate: 0.005
+  beta1: 0.9
+  beta2: 0.9
+  weight_decay: 1e-4
+  scheduler: 'step'  #step or cosine
+  scheduler_step: 100
+  scheduler_gamma: 0.5
+  grad_clip: 2.0
+
+Train: 
+  loss: 'MSE'
+  input_length: 1
+  rollout_length: 5
+  input_noise: 0.0
+  odesolve: 
+    source: 'custom' #'torchdiffeq', 'custom'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+    adjoint: False #Only for torchdiffeq
+  batch_norm: False
+  checkpoint:
+    epochs: 100
+  restart: False
+  restart_run_name: '' #simvue run name
+
+Simvue:
+  mode: 'offline'
+  name: None 
+  folder: '/Neural_PDE/tests' 
+  tags: 'offline_tests'

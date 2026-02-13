@@ -7,6 +7,7 @@ import sys
 sys.path.append("..")
 from model_setup import * 
 from PRE.VectorConvOps_Spatial import *
+from Neural_PDE.Models.LinearConvolution import  * 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -72,6 +73,7 @@ class Conv_Diff_OS_rhs(nn.Module):
             nparams += param.numel()
         return nparams 
 
+
 class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand-side. 
     def __init__(self, configuration, normalizer, run):
         super(NS_spectral_OS_rhs, self).__init__()
@@ -95,8 +97,21 @@ class NS_spectral_OS_rhs(nn.Module):#Navier-Stokes Operator-Splitting right-hand
         # self.pressure_poisson = model_selection(config)
         self.convection_operator = model_selection(config)
         # self.diffusion_operator = model_selection(config)
+        
+        # #Linear Convolutional Operator
+        # self.diffusion_operator =  LinearConvolutionalModel(
+        #                                         in_features=2,
+        #                                         hidden_features=8,
+        #                                         out_features=2,
+        #                                         num_layers=3,
+        #                                         kernel_size=3,
+        #                                         boundary_type='periodic',
+        #                                         init_type='xavier',
+        #                                         use_bias=True
+        #                                     )
+    
 
-        self.laplace = Laplace(scale=1, taylor_order=4, boundary_cond='periodic', device=device, requires_grad=False, scalar=False)
+        self.laplace = Laplace(scale=1, taylor_order=8, boundary_cond='periodic', device=device, requires_grad=False, scalar=False)
         self.nu = torch.tensor(0.001, dtype=torch.float32, requires_grad=False).to(device)
         self.nu = self.normalizer.encode(self.nu.unsqueeze(-1)).squeeze()
         print(self.nu)
@@ -238,16 +253,39 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
 
         config['Model']['in_vars'], config['Model']['out_vars'] = 3, 1
         self.div_cons = model_selection(config)   #Divergence of a conservative variable
+        # self.pressure_conv = model_selection(config)
         
-        # # Setting up NOs for linear operators. 
+        # # Setting up learneable linear operators. 
         # config['Model']['in_vars'], config['Model']['out_vars'] = 2, 1
         # self.divergence_operator = model_selection(config)
+        # self.divergence_operator = LinearConvolutionalModel(
+        #                                         in_features=2,
+        #                                         hidden_features=0,
+        #                                         out_features=1,
+        #                                         num_layers=1,
+        #                                         kernel_size=3,
+        #                                         boundary_type='periodic',
+        #                                         init_type='xavier',
+        #                                         use_bias=True
+        #                                     )
+    
         # config['Model']['in_vars'], config['Model']['out_vars'] = 1, 2
-        # self.gradient_operator = model_selection(config)
-
-        #Using predetermined operators.
+        # # self.gradient_operator = model_selection(config)
+        # self.gradient_operator = LinearConvolutionalModel(
+        #                                         in_features=1,
+        #                                         hidden_features=0,
+        #                                         out_features=2,
+        #                                         num_layers=1,
+        #                                         kernel_size=3,
+        #                                         boundary_type='periodic',
+        #                                         init_type='xavier',
+        #                                         use_bias=True
+        #                                     )
+    
+        # #Using predetermined operators.
         # self.divergence_operator = Divergence(scale=1, taylor_order=4, boundary_cond='periodic', device=device, requires_grad=False)
         self.gradient_operator = Gradient(scale=1, taylor_order=4, boundary_cond='periodic', device=device, requires_grad=False)
+
 
     #Using Conservative Variables 
         # #Model Selection 
@@ -271,27 +309,31 @@ class Euler_FV_OS_rhs(nn.Module):#Compressible Navier-Stokes Finite Volume Opera
         uv  = vars[:, 1:3]
         p   = vars[:, 3:4]
 
+        u = vars[:, 1:2]
+        v = vars[:, 2:3]
+
         # # Stabilise density
         # rho = self.stabilise_density(rho)
         # rho = torch.log(torch.abs(rho+ self.eps))
 
         # div_uv = self.divergence_operator(uv)
         # grad_rho = self.gradient_operator(rho)
-        # grad_p = self.gradient_operator(p)
+        # grad_p = self.gradient_operator(p) 
 
         # div_uv = self.divergence_operator(uv[:,0:1,...,0], uv[:,1:2,...,0]).unsqueeze(-1)
         # grad_rho = self.gradient_operator(rho[...,0]).unsqueeze(-1)
         grad_p = self.gradient_operator(p[...,0]).unsqueeze(-1)
 
         convection = self.convection_operator(uv)
+        # convection =  self.div_cons(torch.cat((u, u, v), dim=1)) + self.div_cons(torch.cat((v, u, v), dim=1))
 
         # rhs_mass = - rho*div_uv - dot(uv, grad_rho)
-        rhs_mass = - self.div_cons(vars[:, 0:3])        
-        rhs_mom = - convection - torch.log(torch.abs(rho+self.eps))*grad_p #reformulated to avoid division by zero 
+        rhs_mass = - self.div_cons(vars[:, 0:3]) #original
+        rhs_mom = - convection - torch.log(torch.abs(rho+self.eps))*grad_p #reformulated to avoid division by zero - original
         # rhs_mom = -convection - (1/rho)*grad_p  #regularisation to avoid division by zero.     
         # rhs_energy = - dot(uv, grad_p) -self.gamma*p*div_uv 
         # rhs_energy = - dot(uv, grad_p) - self.gamma*self.pressure_conv(vars[:, 1:])
-        rhs_energy = -self.gamma * self.div_cons(vars[:, 1:])
+        rhs_energy = -self.gamma * self.div_cons(vars[:, 1:])#original
 
         try: 
         
@@ -531,31 +573,35 @@ class Ideal_MHD_OS_rhs(nn.Module):
 
         self.mu0 = torch.tensor(4*torch.pi*1e-7, dtype=torch.float32, requires_grad=False).to(device)
         self.gamma = torch.tensor(5/3, dtype=torch.float32, requires_grad=False).to(device)
+        self.eps = torch.tensor(1e-6, dtype=torch.float32, requires_grad=True).to(device)
 
         #Linear Operators
-        self.divergence_operator = Divergence(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
-        self.gradient_operator = Gradient(scale=1, taylor_order=2, boundary_cond='periodic', device=device, requires_grad=False)
+        self.gradient_operator = Gradient(scale=1, taylor_order=4, boundary_cond='periodic', device=device, requires_grad=False)
       
         #Nonlinear Operators
+            #Convection
         config = configuration
         config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
-        self.convection_operator = model_selection(config)  
-        config['Model']['in_vars'], config['Model']['out_vars'] = 2, 2
-        self.b_cross_b = model_selection(config)  
-        config['Model']['in_vars'], config['Model']['out_vars'] = 5, 1
-        self.energy_operator = model_selection(config)
+        self.convection_operator = model_selection(config)
+            #Vector Divergence
+        config['Model']['in_vars'], config['Model']['out_vars'] = 3, 1
+        self.div_cons = model_selection(config)   #Divergence of a conservative variable
+            #Curl
         config['Model']['in_vars'], config['Model']['out_vars'] = 4, 2
-        self.induction_operator = model_selection(config)
+        self.vector_curl = model_selection(config)   #Curl over two vectors
+
 
     def forward(self, vars):
-        rho, uv, P, B = vars[:,0:1], vars[:, 1:3], vars[:, 3:4], vars[:,4:6]
-        div_rho_uv = self.divergence_operator(rho[...,0]*uv[:,0:1,...,0], rho[...,0]*uv[:,1:2,...,0]).unsqueeze(-1)
-        rhs_rho = - div_rho_uv
-        # rhs_uv = (1/rho)*(1/self.mu0)*self.b_cross_b(vars[:,1:4]) - self.gradient_operator(P[...,0]).unsqueeze(-1) - self.convection_operator(uv)
-        rhs_uv = self.b_cross_b(B) - self.gradient_operator(P[...,0]).unsqueeze(-1) - self.convection_operator(uv)
-        rhs_P = self.energy_operator(vars[:, 1:])
-        rhs_B = self.induction_operator(torch.cat((uv, B), dim=1))
-        rhs = torch.cat((rhs_rho, rhs_uv, rhs_P, rhs_B), dim=1)
+        rho, uv, p, B = vars[:,0:1], vars[:, 1:3], vars[:, 3:4], vars[:,4:6]
+        grad_p = self.gradient_operator(p[...,0]).unsqueeze(-1)
+        convection = self.convection_operator(uv)
+
+        rhs_mass = - self.div_cons(vars[:, 0:3])        
+        rhs_mom = -convection - torch.log(torch.abs(rho+self.eps))*(grad_p + self.vector_curl(torch.cat((B, B), dim=1)))
+        rhs_energy = -self.gamma * self.div_cons(vars[:, 1:4])
+        rhs_induction = self.vector_curl(torch.cat((uv, B), dim=1))
+
+        rhs = torch.cat((rhs_mass, rhs_mom, rhs_energy, rhs_induction), dim=1)
         return rhs
     
     def count_params(self):
@@ -565,6 +611,7 @@ class Ideal_MHD_OS_rhs(nn.Module):
             nparams += param.numel()
         return nparams 
     
+
 class JOREK_ES_OS_RHS(nn.Module):
     def __init__(self, configuration):
         super(JOREK_ES_OS_RHS, self).__init__()

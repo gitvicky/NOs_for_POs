@@ -1,0 +1,72 @@
+seed: 907
+
+Physics: 
+  pde: 'ConvDiff'
+  source: 'JAX' 
+  field: 'u'
+  variables: 1
+  Nx: 64
+  Ny: 64
+  Nt: 101
+  dx: 0.1587
+  dy: 0.1587
+  dt: 0.05
+  x_slice: 1
+  y_slice: 1
+  t_slice: 1
+  physics_normalisation: False
+  conservative: False
+
+Model:
+  arch: 'FNO'
+  in_vars: 1
+  out_vars: 1
+  modes: 32
+  width: 64
+  n_layers:  4
+  act: 'gelu'
+  operator_splitting: True
+  ops_split_normalise: False
+
+Data: 
+  name: 'ConvDiff_D_0.1_cx_1.0_cy_0.5.npz'
+  loc: '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/ConvDiff'
+  ntrain: 100
+  test_train_split: 0.2
+  batch_size: 100
+  t_in: 1
+  t_out: 50
+  step: 1
+  normalisation: 'Min-Max'
+
+Opt:
+  optimizer: 'adam'
+  epochs: 5
+  learning_rate: 0.005
+  beta1: 0.9
+  beta2: 0.9
+  weight_decay: 1e-4
+  scheduler: 'step'  
+  scheduler_step : 100
+  scheduler_gamma: 0.5
+  grad_clip: 2.0
+
+Train: 
+  loss: 'LP'
+  input_length: 1
+  rollout_length: 5
+  input_noise: 0.0
+  odesolve: 
+    source: 'custom' #'torchdiffeq', 'custom'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    adjoint: False #Only for torchdiffeq
+  batch_norm: False
+  checkpoint:
+    epochs: 100
+  restart: False
+  restart_run_name: '' #simvue run name 
+
+Simvue:
+  mode: 'offline'
+  name: None 
+  folder: '/Neural_PDE/ConvDiff' 

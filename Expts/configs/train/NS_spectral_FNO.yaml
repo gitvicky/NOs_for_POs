@@ -1,4 +1,4 @@
-  seed: 5678
+  seed: 'random'
 
   Physics: 
     pde: 'Navier-Stokes'
@@ -24,15 +24,15 @@
     width: 64
     n_layers: 6
     act: 'gelu'
-    operator_splitting: False
+    operator_splitting: True
     ops_split_normalise: False
 
   Data: 
-    name: 'NS_Spectral_combined.npz'
-    loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
-    ntrain: 200
+    name: 'NS_Spectral_combined_pitagora.npz'
+    loc: '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
+    ntrain: 100
     test_train_split: 0.2
-    batch_size: 10
+    batch_size: 20
     t_in: 1
     t_out: 50
     step: 1
@@ -41,7 +41,7 @@
   Opt:
     optimizer: 'adam'
     epochs: 250
-    learning_rate: 0.001
+    learning_rate: 0.005
     beta1: 0.9
     beta2: 0.9
     weight_decay: 1e-4
@@ -61,13 +61,14 @@
       adjoint: False #Only for torchdiffeq
     batch_norm: False
     checkpoint:
-      epochs: 100
+      epochs: 50
     restart: False
     restart_run_name: '' #simvue run name 
     finetune: False
     finetune_run_name: 'extremal-carrier' #Compressible run
 
   Simvue:
-    mode: 'online'
+    mode: 'offline'
     name: None 
     folder: '/Neural_PDE/NS_Spectral' 
+    tags: 'ErrorBars'

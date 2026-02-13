@@ -170,8 +170,8 @@ class Train_Setup():
         for xx, yy in self.train_loader:
             self.optimizer.zero_grad()
             loss = 0
-            xx = xx.to(self.device)
-            yy = yy.to(self.device)
+            xx = xx.to(self.device, non_blocking=True)
+            yy = yy.to(self.device, non_blocking=True)
             batch_size = xx.shape[0]
             
             
@@ -213,7 +213,7 @@ class Train_Setup():
         self.model.eval()
         with torch.no_grad():
             for xx, yy in self.test_loader:
-                xx, yy = xx.to(self.device), yy.to(self.device)
+                xx, yy = xx.to(self.device, non_blocking=True), yy.to(self.device, non_blocking=True)
                 batch_size = xx.shape[0]
                 
                 for t in range(0, test_T_out, step):

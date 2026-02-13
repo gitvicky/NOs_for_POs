@@ -5,13 +5,18 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'dichotomic-loop'
+# run_name = 'wide-timer'
+run_name = 'happy-walk'
+# run_name = 'symmetric-chocolate'
+
 test_data_name = None
-t_extrapolation = 50
+test_data = 'ID'
+t_extrapolation = 100
 # %%
 class Run:
     def __init__(self, name=None):
         self.name = name
+        self.mode = 'disabled'
 
 run = Run(run_name)
 # %% 
@@ -33,11 +38,10 @@ model_loc = file_loc + '/Weights/' + run_name
 plot_loc = file_loc + '/Plots'
 tmp_loc = os.getcwd() + '/tmp'
 
-# # Create tmp directory if it doesn't exist, or recreate it if it does
-# if os.path.exists(tmp_loc):
-#     shutil.rmtree(tmp_loc)
-os.makedirs(tmp_loc, exist_ok=True)
-
+# Create tmp directory if it doesn't exist, or recreate it if it does
+if os.path.exists(tmp_loc) == False:
+    # shutil.rmtree(tmp_loc)
+    os.makedirs(tmp_loc, exist_ok=True)
 
 # %%
 #Loading the yaml file to get the configuration.
@@ -56,6 +60,7 @@ if test_data_name !=None:
 else:
     pde = configuration['Physics']['pde'] 
 
+print(run_name)
 print(configuration['Data']['t_out'])
 # %% 
 #Importing the necessary packages
@@ -85,12 +90,11 @@ from Neural_PDE.Utils.training_utils import *
 ####################################
 
 t1 = default_timer()
-if pde == None:
-    n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test_train_split'])
-    configuration['Data']['ntrain'] = n_sims
-
+n_sims = int(configuration['Data']['ntrain']*configuration['Data']['test_train_split'])
+configuration['Data']['ntrain'] = n_sims
 from data_loaders import *
-
+if pde == 'ConvDiff':
+    fields, x, y, dt = Conv_Diff_Jax(configuration)
 if pde == 'Wave':
     fields, x, y, dt = Wave_Spectral(configuration)
 if pde == 'Navier-Stokes':
@@ -109,48 +113,18 @@ if pde == 'Electrostatic MHD':
 if pde == 'Electromagnetic MHD':
     if configuration['Physics']['source'] == 'JOREK': 
         fields, x, y, dt = JOREK_electrostatic(configuration)
-
 if pde == 'Shear Flow':
-
-    configuration['Physics']['pde'] = 'Shear Flow'
-    configuration['Physics']['source'] = 'The Well'
-    configuration['Physics']['field'] = 'u, v'
-    configuration['Physics']['variables'] = 2
-    configuration['Physics']['Nx'] = 256
-    configuration['Physics']['Ny'] = 512
-    configuration['Physics']['Nt'] = 200
-    configuration['Physics']['dx'] = 0.039
-    configuration['Physics']['dy'] = 0.019
-    configuration['Physics']['dt'] = 0.01
-    configuration['Physics']['x_slice'] = 2
-    configuration['Physics']['y_slice'] = 2
-    configuration['Physics']['t_slice'] = 2
-    configuration['Physics']['physics_normalisation'] = False
-
-    configuration['Data']['reynolds'] = ['1e4']
-    # configuration['Data']['schmidt'] = ['1e0', '1e-1', '1e1', '2e0', '2e-1', '5e0', '5e-1'] #test
-    configuration['Data']['schmidt'] = ['1e-1', '1e1', '5e-1'] #train
-    configuration['Data']['name'] = 'Shear Flow'
-    configuration['Data']['ntrain'] = 12
-    configuration['Data']['batch_size'] = 4
     fields, x, y, dt = Shear_Flow(configuration)
-
 if pde == 'Euler Quadrant':
-    configuration['Data']['source'] = 'The Well' 
-    configuration['Data']['ntrain'] = 50
-    Nx, Ny, Nt = 512, 512, 101
-    x_slice, y_slice, t_slice = 4, 4, 1
-    configuration['Physics']['Nx'], configuration['Physics']['Ny'], configuration['Physics']['Nt'] = Nx, Ny, Nt
-    configuration['Physics']['x_slice'], configuration['Physics']['y_slice'], configuration['Physics']['t_slice'] = x_slice, y_slice, t_slice
     fields, x, y, dt = Euler_Quadrants(configuration)
 
 t = torch.arange(0, fields.shape[-1], dt)
 fields = fields[...,:configuration['Data']['t_out']]
 
-#Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
-expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['variables'], configuration['Physics']['Nx']//configuration['Physics']['x_slice'], configuration['Physics']['Ny']//configuration['Physics']['y_slice'], configuration['Data']['t_out'])
-assert fields.shape == expected_shape, \
-    f"Expected fields shape to be {expected_shape}, but got {fields.shape}"
+# #Making sure the data is in the correct format: [BS, N_vars, Nx, Ny, Nt]
+# expected_shape = (configuration['Data']['ntrain'], configuration['Physics']['variables'], configuration['Physics']['Nx']//configuration['Physics']['x_slice'], configuration['Physics']['Ny']//configuration['Physics']['y_slice'], configuration['Data']['t_out'])
+# assert fields.shape == expected_shape, \
+#     f"Expected fields shape to be {expected_shape}, but got {fields.shape}"
 
 #Printing the current dictionary
 print(yaml.dump(configuration, default_flow_style=False, indent=2))
@@ -163,14 +137,15 @@ normalizer_func = Normalisation(configuration['Data']['normalisation'])
 normalizer = normalizer_func(torch.zeros_like(fields))
 normalizer.a, normalizer.b = torch.tensor(norms['a']), torch.tensor(norms['b'])
 
-# normalizer = normalizer_func(fields)
-fields_encoded = normalizer.encode(fields)
-
+if configuration['Model']['ops_split_normalise']: #Normalise and Denormalise done within the Model. 
+    fields_encoded = fields
+else:
+    fields_encoded = normalizer.encode(fields)
+    
 # %% 
 test_in = fields_encoded[...,:configuration['Data']['t_in']] # + torch.randn_like(fields_encoded[...,:configuration['Data']['t_in']])
 test_out = fields_encoded[...,configuration['Data']['t_in']:configuration['Data']['t_out']]
 
-print(test_in.shape)
 print("Test Input: " + str(test_in.shape))
 print("Test Output: " + str(test_out.shape))
 
@@ -195,6 +170,7 @@ model = model_initialisation(configuration, normalizer, run=None)
 #Loading the trained model
 # client.get_artifact_as_file(client.get_run_id_from_name(run_name), name='model.pth', output_dir=tmp_loc)
 model_path = model_loc + '/model.pth'
+model_path = model_loc + '/checkpoint_150.pt'
 model.load_state_dict(torch.load(model_path, map_location='cpu', weights_only=False), strict=False)
 
 model.to(device)
@@ -209,13 +185,20 @@ pred_encoded, error = eval.inference(configuration['Data']['step'], configuratio
 print(f'MSE (norm) : {float(error):.4e}')
 
 #Denormalising the test and predictions
-test_out = normalizer.decode(test_out.to(device)).cpu()
-pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
+if configuration['Model']['ops_split_normalise'] == False: #Normalise/Denormalise done within the Model for OS. 
+    test_out = normalizer.decode(test_out.to(device)).cpu()
+    pred_set = normalizer.decode(pred_encoded.to(device)).cpu()
+else:
+    test_out = test_out.cpu()
+    pred_set = pred_encoded.cpu()
 
 # #Visualising the rollout error 
 # from Utils.plots import temporal_rollout_error
 # temporal_rollout_error(configuration, test_out, pred_set, tmp_loc, run, save=False)
 
+# #Saving the test and prediction values
+# np.save(tmp_loc + '/' + run.name + str(t_extrapolation)+test_data+'_test.npy', test_out.numpy())
+# np.save(tmp_loc + '/' + run.name + str(t_extrapolation)+test_data+'_pred.npy', pred_set.numpy())
 
 # %% 
 #Shaping back to [BS, vars, Nt, Nx, Ny]
@@ -228,7 +211,9 @@ from Utils.metrics import MSE, NRMSE
 print(f'NRMSE (physical) : {float(NRMSE(pred_set, test_out)["average"]):.4e}')
 # %% 
 #Visualising the results
-from Utils.plots import plots_2d_yaml
+from Utils.plots import plots_2d_yaml, temporal_rollout_error
 idx = 3
 plots_2d_yaml(configuration, test_out, pred_set, tmp_loc, run, idx, save=True)
+temporal_rollout_error(configuration, test_out, pred_set, tmp_loc, run, save=True)
+
 # %% 
