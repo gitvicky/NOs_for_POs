@@ -27,7 +27,6 @@ Model:
   operator_splitting: True
   ops_split_normalise: False
 
-
 Data: 
   name: 'Constrained_MHD_combined.npz'
   loc: '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
@@ -47,7 +46,7 @@ Opt:
   beta2: 0.9
   weight_decay: 1e-4
   scheduler: 'step'  
-  scheduler_step: 100
+  scheduler_step: 50
   scheduler_gamma: 0.5
   grad_clip: 2.0
 

@@ -97,6 +97,26 @@ def Navier_Stokes_Spectral(n_sims, data_dist):
     u = data['u'].astype(np.float32)[:n_sims]
     v = data['v'].astype(np.float32)[:n_sims]
     p = data['p'].astype(np.float32)[:n_sims]
+# %% 
+def Navier_Stokes_Spectral(n_sims, data_dist):
+    #Pitagora Data 
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+    if data_dist == 'ID':
+        # data =  np.load(data_loc + '/PMocz/NS_Spectral_ID_Pitagora.npz')
+        data =  np.load(data_loc + '/NS_Spectral_combined.npz')
+
+    elif data_dist == 'OOD':
+        data = np.load(data_loc + '/PMocz/NS_Spectral_combined_pitagora_OOD_nu_1e-2.npz')
+
+    # #CSD3 data
+    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+    # if data_dist == 'ID':
+    #     data =  np.load(data_loc + '/NS_Spectral_combined.npz')
+    # if data_dist == 'OOD':
+    #     data = np.load(data_loc + '/NS_Spectral_combined_nu_1e-2_OOD.npz')
+
+    u = data['u'].astype(np.float32)[-n_sims:]
+    v = data['v'].astype(np.float32)[-n_sims:]
     rho = np.ones_like(u) #Taking rho to be 1. 
     x = data['x']
     y = x
@@ -167,3 +187,34 @@ def Constrained_MHD(configuration, data_dist):
 
     return fields, x, y, dt
 
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+    if data_dist == 'ID':
+        data =  np.load(data_loc + '/PMocz/Euler_FV_ID_Pitagora.npz')
+    if data_dist == 'OOD':
+        data = np.load(data_loc + '/PMocz/NS_FV_combined_pitagora_gamma_2by3.npz')
+
+    #CSD3 
+    if data_dist == 'ID':
+        data =  np.load(data_loc + '/NS_FV_combined.npz')
+
+    
+    rho = data['rho'].astype(np.float32)[-n_sims:]
+    u = data['u'].astype(np.float32)[-n_sims:]
+    v = data['v'].astype(np.float32)[-n_sims:]
+    p = data['p'].astype(np.float32)[-n_sims:] 
+
+    try: 
+        dx = data['dx'].astype(np.float32)
+        x = np.linspace(0, 1, 128)
+    except: 
+        x = data['x']
+    y = x
+
+    dt = data['dt']
+    dt = torch.tensor(dt, dtype=torch.float)
+    
+    fields = stacked_fields([rho,u,v,p])
+
+
+
+    return fields, x, y, dt

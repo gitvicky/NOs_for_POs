@@ -141,6 +141,10 @@ def Navier_Stokes_Spectral(configuration):
     data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
     data =  np.load(data_loc + '/NS_Spectral_combined_pitagora.npz')
     # data =  np.load(data_loc + '/NS_Spectral_combined_pitagora_OOD_nu_1e-2.npz')
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+    data =  np.load(data_loc + '/NS_Spectral_combined.npz')
+    # data = np.load(data_loc + '/NS_Spectral_combined_nu_1e-2_OOD.npz')
+    # data =  np.load(data_loc + '/NS_Spectral_combined_t_extrapolate.npz')
 
     u = data['u'].astype(np.float32)[:n_sims]
     v = data['v'].astype(np.float32)[:n_sims]
@@ -469,6 +473,8 @@ def Shear_Flow(configuration, reynolds = '1e4', schmidt='1e0'):
     schmidt = configuration['Data']['schmidt']
     data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/shear_flow/data/train/train/'
     # data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/shear_flow/data/test'
+    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/shear_flow/data/test'
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/shear_flow/data/train'
     # data_loc = configuration['Data']['loc']
     u_list = []
     v_list = []
@@ -529,6 +535,9 @@ def Euler_Quadrants(configuration, gamma= ['1.365'], gas = ['Dry_air_1000']):
     #https://polymathic-ai.org/the_well/datasets/euler_multi_quadrants_periodicBC/
     # data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/euler_multi_quadrants_periodicBC/data/train'
     data_loc = configuration['Data']['loc']
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/test'
+    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Data/The_Well/datasets/euler_multi_quadrants_periodicBC/data/train'
+    # data_loc = configuration['Data']['loc']
     rho_list = []
     E_list = []
     px_list = []
@@ -583,7 +592,7 @@ def Euler_Quadrants(configuration, gamma= ['1.365'], gas = ['Dry_air_1000']):
     del rho_list, E_list, px_list, py_list, P_list
 
 
-    fields = stacked_fields([rho, E, px, py, P])
+    fields = stacked_fields([rho, px, py, E])
     print(fields.shape)
 
     del rho, E, px, py, P
@@ -594,7 +603,6 @@ def Euler_Quadrants(configuration, gamma= ['1.365'], gas = ['Dry_air_1000']):
     x = x[::configuration['Physics']['x_slice']]
     y = x[::configuration['Physics']['y_slice']]
     dt = dt*configuration['Physics']['t_slice']
-
 
     return fields, x, y, dt
 

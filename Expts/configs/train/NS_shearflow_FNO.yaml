@@ -25,7 +25,7 @@
     width: 16
     n_layers: 4
     act: 'gelu'
-    operator_splitting: False
+    operator_splitting: True
     ops_split_normalise: False
 
   Data: 
@@ -44,24 +44,24 @@
 
   Opt:
     optimizer: 'adam'
-    epochs: 500
+    epochs: 250
     learning_rate: 0.005
     beta1: 0.9
     beta2: 0.9
     weight_decay: 1e-4
     scheduler: 'step'  
-    scheduler_step: 100
+    scheduler_step: 50
     scheduler_gamma: 0.5
     grad_clip: 2.0
 
   Train: 
     loss: 'LP'
     input_length: 1
-    rollout_length: 20
+    rollout_length: 5
     input_noise: 0.0
     odesolve: 
       source: 'custom' #'torchdiffeq', 'custom'
-      method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+      method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
       adjoint: False #Only for torchdiffeq
     batch_norm: False
     checkpoint:

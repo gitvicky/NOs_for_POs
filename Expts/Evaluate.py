@@ -5,9 +5,9 @@ Evaluating Trained Models using simvue's client API.
 """
 # %%
 #Specifying the run instance
-run_name = 'diagonal-originator'
+run_name = 'isometric-chenille'
 test_data_name = None
-t_extrapolation = 100
+t_extrapolation = 50
 # %%
 class Run:
     def __init__(self, name=None):
@@ -103,9 +103,25 @@ if pde == 'Electrostatic MHD':
 if pde == 'Electromagnetic MHD':
     if configuration['Physics']['source'] == 'JOREK': 
         fields, x, y, dt = JOREK_electrostatic(configuration)
+
 if pde == 'Shear Flow':
+    configuration['Data']['reynolds'] =  ['1e4'] 
+    configuration['Data']['schmidt'] =  ['1e-1', '1e1', '5e-1'] #train
+    configuration['Data']['source'] = 'The Well' 
+    configuration['Data']['ntrain'] = 96
+    Nx, Ny, Nt = 256, 512, 200
+    x_slice, y_slice, t_slice = 2,2,2
+    configuration['Physics']['Nx'], configuration['Physics']['Ny'], configuration['Physics']['Nt'] = Nx, Ny, Nt
+    configuration['Physics']['x_slice'], configuration['Physics']['y_slice'], configuration['Physics']['t_slice'] = x_slice, y_slice, t_slice
     fields, x, y, dt = Shear_Flow(configuration)
+
 if pde == 'Euler Quadrant':
+    configuration['Data']['source'] = 'The Well' 
+    configuration['Data']['ntrain'] = 50
+    Nx, Ny, Nt = 512, 512, 101
+    x_slice, y_slice, t_slice = 4, 4, 1
+    configuration['Physics']['Nx'], configuration['Physics']['Ny'], configuration['Physics']['Nt'] = Nx, Ny, Nt
+    configuration['Physics']['x_slice'], configuration['Physics']['y_slice'], configuration['Physics']['t_slice'] = x_slice, y_slice, t_slice
     fields, x, y, dt = Euler_Quadrants(configuration)
 
 t = torch.arange(0, fields.shape[-1], dt)
@@ -159,7 +175,7 @@ model = model_initialisation(configuration, normalizer, run=None)
 #Loading the trained model
 client.get_artifact_as_file(client.get_run_id_from_name(run_name), name='model.pth', output_dir=tmp_loc)
 model_path = tmp_loc + '/model.pth'
-model.load_state_dict(torch.load(model_path, map_location='cpu'))
+model.load_state_dict(torch.load(model_path, map_location='cpu', weights_only=False), strict=False)
 
 model.to(device)
 print("Number of model params : " + str(model.count_params()))

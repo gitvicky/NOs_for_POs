@@ -11,6 +11,7 @@ simvue_sender.sh
 
 #Saved Models
 Weights/
+Models/
 *.pth
 *.pt 
 
