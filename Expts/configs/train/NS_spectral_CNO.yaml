@@ -1,5 +1,5 @@
 
-seed: 0471
+seed: 'random'
 
 Physics: 
   pde: 'Navier-Stokes'
@@ -26,7 +26,7 @@ Model:
   in_vars: 2
   out_vars: 2
   channel_multiplier: 16
-  operator_splitting: True
+  operator_splitting: False
   ops_split_normalise: False
 
 
@@ -60,7 +60,7 @@ Train:
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:
