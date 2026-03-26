@@ -581,7 +581,7 @@ class Train_Setup():
         return train_loss, test_loss
 
     def train(self, run, step, train_T_out, test_T_out, dt=0.01):
-        for ep in self.epochs():
+        for ep in range(self.epochs):
             self.model.train()
             t1 = default_timer()
             train_loss, test_loss = self.one_epoch(step, train_T_out, test_T_out, dt)

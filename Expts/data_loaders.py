@@ -138,11 +138,12 @@ def Conv_Diff_Jax(configuration):
 def Navier_Stokes_Spectral(configuration):
     #Testing with NS_Spectral (for now)
     n_sims = configuration['Data']['ntrain']
-    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
+    # data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-shared-bLH38hg3nf0/ir-gopa2/Data/PMocz'
     data =  np.load(data_loc + '/NS_Spectral_combined_pitagora.npz')
     # data =  np.load(data_loc + '/NS_Spectral_combined_pitagora_OOD_nu_1e-2.npz')
-    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
-    data =  np.load(data_loc + '/NS_Spectral_combined.npz')
+    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+    # data =  np.load(data_loc + '/NS_Spectral_combined.npz')
     # data = np.load(data_loc + '/NS_Spectral_combined_nu_1e-2_OOD.npz')
     # data =  np.load(data_loc + '/NS_Spectral_combined_t_extrapolate.npz')
 
@@ -170,7 +171,8 @@ def Navier_Stokes_Spectral(configuration):
 def Euler_FV(configuration):
     #Finite Volume Simulation Data from Philip Mocz for Compressible Navier-Stokes 
     n_sims = configuration['Data']['ntrain']
-    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
+    # data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-shared-bLH38hg3nf0/ir-gopa2/Data/PMocz'
     data =  np.load(data_loc + '/NS_FV_combined_pitagora.npz')
     # data =  np.load(data_loc + '/NS_FV_combined_pitagora_gamma_2by3.npz')
 

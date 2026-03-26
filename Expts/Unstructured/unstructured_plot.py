@@ -13,6 +13,7 @@ def create_field_comparison_plot(x, y, test_values, pred_values, run=None,
                                    triangulation=None, obstacles=None,
                                    xlabel='x', ylabel='y', test_label='Solution',
                                    pred_label='Prediction', time_label='t',
+                                   plot_loc='./tmp',
                                    save_prefix='field_plot'):
     """
     Updated visualization to match plots.py dimensions and scaling logic.

@@ -26,7 +26,7 @@ Model:
   time_channels: 1
   depth: 12
   num_heads: 10
-  operator_splitting: False
+  operator_splitting: True
   ops_split_normalise: False
 
 Data: 
@@ -67,6 +67,8 @@ Train:
     epochs: 100
   restart: False
   restart_run_name: '' #simvue run name
+  finetune: False
+  finetune_run_name: 'happy-ray' 
 
 Simvue:
   mode: 'online'

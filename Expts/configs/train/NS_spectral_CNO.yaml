@@ -1,4 +1,3 @@
-
 seed: 'random'
 
 Physics: 
@@ -26,9 +25,8 @@ Model:
   in_vars: 2
   out_vars: 2
   channel_multiplier: 16
-  operator_splitting: False
+  operator_splitting: True
   ops_split_normalise: False
-
 
 Data: 
   name: 'NS_Spectral_combined.npz'
@@ -44,7 +42,7 @@ Data:
 Opt:
   optimizer: 'adam'
   epochs: 250
-  learning_rate: 0.001
+  learning_rate: 0.005
   beta1: 0.9
   beta2: 0.9
   weight_decay: 1e-4
@@ -60,15 +58,18 @@ Train:
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:
     epochs: 100
   restart: False
   restart_run_name: '' #simvue run name
+  finetune: False
+  finetune_run_name: 'extremal-carrier' #Compressible run
 
 Simvue:
   mode: 'online'
   name: None 
-  folder: '/Neural_PDE/tests' 
+  folder: '/Neural_PDE/NS_Spectral' 
+  tags: 'ErrorBars'

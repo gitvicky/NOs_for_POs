@@ -87,26 +87,30 @@ class SpatioTemporalDataset(Dataset):
 
 
 # %% 
-def Navier_Stokes_Spectral(n_sims, data_dist):
-    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
-    if data_dist == 'ID':
-        data =  np.load(data_loc + '/NS_Spectral_combined_pitagora.npz')
-    elif data_dist == 'OOD':
-        data =  np.load(data_loc + '/NS_Spectral_combined_pitagora_OOD_nu_1e-2.npz')
+# def Navier_Stokes_Spectral(n_sims, data_dist):
+#     # data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
+#     data_loc = '/home/ir-gopa2/rds/rds-ukaea-shared-bLH38hg3nf0/ir-gopa2/Data/PMocz'
+#     if data_dist == 'ID':
+#         data =  np.load(data_loc + '/NS_Spectral_combined_pitagora.npz')
+#     elif data_dist == 'OOD':
+#         data =  np.load(data_loc + '/NS_Spectral_combined_pitagora_OOD_nu_1e-2.npz')
 
-    u = data['u'].astype(np.float32)[:n_sims]
-    v = data['v'].astype(np.float32)[:n_sims]
-    p = data['p'].astype(np.float32)[:n_sims]
+#     u = data['u'].astype(np.float32)[:n_sims]
+#     v = data['v'].astype(np.float32)[:n_sims]
+#     p = data['p'].astype(np.float32)[:n_sims]
+
+
 # %% 
 def Navier_Stokes_Spectral(n_sims, data_dist):
     #Pitagora Data 
-    data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+    # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-shared-bLH38hg3nf0/ir-gopa2/Data/PMocz'
     if data_dist == 'ID':
         # data =  np.load(data_loc + '/PMocz/NS_Spectral_ID_Pitagora.npz')
-        data =  np.load(data_loc + '/NS_Spectral_combined.npz')
+        data =  np.load(data_loc + '/NS_Spectral_combined_pitagora.npz')
 
     elif data_dist == 'OOD':
-        data = np.load(data_loc + '/PMocz/NS_Spectral_combined_pitagora_OOD_nu_1e-2.npz')
+        data = np.load(data_loc + '/NS_Spectral_combined_pitagora_OOD_nu_1e-2.npz')
 
     # #CSD3 data
     # data_loc = '/home/ir-gopa2/rds/rds-ukaea-ap001/ir-gopa2/Code/Neural_PDE/Data'
@@ -132,7 +136,9 @@ def Navier_Stokes_Spectral(n_sims, data_dist):
 
 def Euler_FV(n_sims, data_dist):
     #Finite Volume Simulation Data from Philip Mocz for Compressible Navier-Stokes 
-    data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
+    # data_loc = '/pitagora_work/FUPB1_UKAEA_ML/vgopakum/Data/PMocz'
+    data_loc = '/home/ir-gopa2/rds/rds-ukaea-shared-bLH38hg3nf0/ir-gopa2/Data/PMocz'
+    
     if data_dist == 'ID':
         data =  np.load(data_loc + '/NS_FV_combined_pitagora.npz')
     if data_dist == 'OOD':

@@ -30,9 +30,9 @@ run_config = flatten_dict(configuration)
 
 # %% 
 from simvue import Run, Client
-with Run(mode='offline') as run:
+with Run(mode='online') as run:
 
-    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'NOs4POs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Mark6', 'Camera-Ready', 'Seeds', 'Pitagora'], metadata=run_config)
+    run.init(folder=configuration['Simvue']['folder'], tags=['NPDE', configuration['Model']['arch'], 'NOs4POs', configuration['Physics']['pde'], configuration['Train']['odesolve']['method'], 'Mark6', 'Camera-Ready', 'Seeds', 'CSD3'], metadata=run_config)
     run.update_tags([configuration['Simvue']['tags']])
     
     run.config(disable_resources_metrics=True)
