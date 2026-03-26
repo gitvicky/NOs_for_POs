@@ -1,4 +1,4 @@
-seed: 1234
+seed: 'random'
 
 Physics: 
   pde: 'Euler-Fluid'
@@ -20,13 +20,13 @@ Physics:
 Model:
   arch: 'ViT'
   patch_size: 4
-  embed_dim: 256
+  embed_dim: 512
   in_vars: 4
   out_vars: 4
   time_channels: 1
-  depth: 6
+  depth: 12
   num_heads: 10
-  operator_splitting: True
+  operator_splitting: False
   ops_split_normalise: False
 
 
@@ -44,7 +44,7 @@ Data:
 Opt:
   optimizer: 'adam'
   epochs: 250
-  learning_rate: 0.001
+  learning_rate: 0.005
   beta1: 0.9
   beta2: 0.9
   weight_decay: 1e-4
@@ -60,15 +60,18 @@ Train:
   input_noise: 0.0
   odesolve: 
     source: 'custom' #'torchdiffeq', 'custom'
-    method: 'euler' # 'AR', 'euler', 'midpoint', rk4'
+    method: 'AR' # 'AR', 'euler', 'midpoint', rk4'
     adjoint: False #Only for torchdiffeq
   batch_norm: False
   checkpoint:
-    epochs: 50
+    epochs: 300
   restart: False
   restart_run_name: '' #simvue run name 
+  finetune: False
+  finetune_run_name: 'happy-ray' 
 
 Simvue:
   mode: 'offline'
   name: None 
   folder: '/Neural_PDE/Euler' 
+  tags: 'ErrorBars'

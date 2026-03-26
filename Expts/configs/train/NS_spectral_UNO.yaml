@@ -63,9 +63,11 @@ Train:
     epochs: 100
   restart: False
   restart_run_name: '' #simvue run name
+  finetune: False
+  finetune_run_name: 'extremal-carrier' #Compressible run
 
 Simvue:
   mode: 'online'
   name: None 
   folder: '/Neural_PDE/NS_Spectral' 
-
+  tags: 'ErrorBars'
